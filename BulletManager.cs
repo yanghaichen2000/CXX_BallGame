@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEditor.Experimental.GraphView.GraphView;
 using static UnityEditor.PlayerSettings;
 
 public class BulletManager
@@ -11,30 +12,37 @@ public class BulletManager
 
     public void Initialize()
     {
-
     }
 
     public void TickAllBullets()
     {
-        MoveBullets();
-        RecycleDyingBullets();
+        using (new BallGameUtils.Profiler("CheckBulletDeath")) { CheckBulletDeath(); }
+        using (new BallGameUtils.Profiler("MoveBulletsGPU")) { GameManager.gameManagerGPU.MovePlayerBullets(); }
+        //using (new BallGameUtils.Profiler("MoveBullets")) { MoveBullets(); }
+        using (new BallGameUtils.Profiler("RecycleDeadBullets")) { RecycleDeadBullets(); }
     }
 
-    public void MoveBullets()
+    public void CheckBulletDeath()
     {
         foreach (Bullet bullet in bullets)
         {
             if ((GameManager.currentTime - bullet.createdTime).TotalSeconds > GameManager.bulletLifeSpan)
             {
                 bulletRecycleBin.Push(bullet);
-                continue;
             }
+        }
+    }
+
+    public void MoveBullets()
+    {
+        foreach (Bullet bullet in bullets)
+        {
             bullet.pos += bullet.speed * bullet.dir * GameManager.deltaTime;
             bullet.obj.transform.localPosition = bullet.pos;
         }
     }
 
-    public void RecycleDyingBullets()
+    public void RecycleDeadBullets()
     {
         while (bulletRecycleBin.TryPop(out var bullet))
         {

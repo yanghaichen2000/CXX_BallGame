@@ -26,13 +26,15 @@ public class GameManager : MonoBehaviour
 
     public static EnemyLegion enemyLegion;
 
+    public static GameManagerGPU gameManagerGPU;
+
     public static float enemyAndBulletIntersectionBias = 0.05f;
     public static float enemyAndEnemyIntersectionBias = 0.5f;
     public static Vector3 bulletPoolRecyclePosition = new Vector3(-100.0f, 0.0f, 5.0f);
 
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
 
-    public ComputeShader testComputeShader;
+    public ComputeShader moveBulletsCS;
 
     void Awake()
     {
@@ -41,6 +43,7 @@ public class GameManager : MonoBehaviour
         player1 = new Player(GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(GameObject.Find("Player2"), new KeyboardInputManager());
         enemyLegion = new EnemyLegion();
+        gameManagerGPU = new GameManagerGPU(this);
         gameStartedTime = DateTime.Now;
         basicTransform = GameObject.Find("ball game").transform;
     }
@@ -84,7 +87,6 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         Tick();
-        //TestComputeShader();
     }
 
     void FixedUpdate()
@@ -107,32 +109,5 @@ public class GameManager : MonoBehaviour
         currentTime = DateTime.Now;
         deltaTime = (float)(currentTime - lastTickTime).TotalSeconds;
         lastTickTime = currentTime;
-    }
-
-    public void TestComputeShader()
-    {
-        DateTime t1 = DateTime.Now;
-
-        const int length = 128;
-        float[] data = new float[length];
-        for (int i = 0; i < length; i++)
-        {
-            data[i] = i + 1;
-        }
-
-        ComputeBuffer buffer = new ComputeBuffer(data.Length, sizeof(float));
-        buffer.SetData(data);
-
-        int kernel = testComputeShader.FindKernel("AddOne");
-        testComputeShader.SetBuffer(kernel, "data", buffer);
-        testComputeShader.Dispatch(kernel, data.Length / 64, 1, 1);
-
-        buffer.GetData(data);
-        buffer.Release();
-
-        DateTime t2 = DateTime.Now;
-
-        Debug.Log(data[0]);
-        Debug.Log((t1 - t2).TotalSeconds);
     }
 }

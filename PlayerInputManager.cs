@@ -13,7 +13,7 @@ public interface PlayerInputManager
 
 public class KeyboardInputManager : PlayerInputManager
 {
-    public Vector2 playerInput;
+    public Vector2 playerMovementInput;
     public Vector3 shootTarget;
 
     public KeyboardInputManager()
@@ -23,14 +23,14 @@ public class KeyboardInputManager : PlayerInputManager
 
     public void Update()
     {
-        playerInput.x = Input.GetAxis("Horizontal");
-        playerInput.y = Input.GetAxis("Vertical");
-        playerInput = Vector2.ClampMagnitude(playerInput, 1f);
+        playerMovementInput.x = Input.GetAxis("Horizontal");
+        playerMovementInput.y = Input.GetAxis("Vertical");
+        playerMovementInput = Vector2.ClampMagnitude(playerMovementInput, 1f);
     }
 
     public Vector2 GetPlayerMovementInput()
     {
-        return playerInput;
+        return playerMovementInput;
     }
 
     public Vector3 GetShootDir(Vector3 playerPos)
@@ -44,5 +44,37 @@ public class KeyboardInputManager : PlayerInputManager
         shootTarget = GameManager.basicTransform.InverseTransformPoint(shootTarget);
 
         return (shootTarget - playerPos).normalized;
+    }
+}
+
+public class ControllerInputManager : PlayerInputManager
+{
+    public Vector2 playerMovementInput;
+    public Vector3 shootTarget;
+
+    public ControllerInputManager()
+    {
+        shootTarget = new Vector3(0, 0, 0);
+    }
+
+    public void Update()
+    {
+        playerMovementInput = new Vector2(0.0f, 0.0f);
+    }
+
+    public Vector2 GetPlayerMovementInput()
+    {
+        playerMovementInput.x = Input.GetAxis("J_Horizontal");
+        playerMovementInput.y = Input.GetAxis("J_Vertical");
+        playerMovementInput = Vector2.ClampMagnitude(playerMovementInput, 1f);
+        return playerMovementInput;
+    }
+
+    public Vector3 GetShootDir(Vector3 playerPos)
+    {
+        float rightStickHorizontal = Input.GetAxis("R_Horizontal");
+        float rightStickVertical = Input.GetAxis("R_Vertical");
+        Vector3 shootDir = new Vector3(rightStickHorizontal, 0.0f, rightStickVertical).normalized;
+        return shootDir;
     }
 }

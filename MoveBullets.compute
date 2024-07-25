@@ -1,0 +1,17 @@
+#pragma kernel MoveBullets
+
+struct MoveBulletsDatum
+{
+    float4 posDir;
+    float speed;
+};
+
+RWStructuredBuffer<MoveBulletsDatum> moveBulletsData;
+float _DeltaTime;
+
+[numthreads(64, 1, 1)]
+void MoveBullets(uint3 id : SV_DispatchThreadID)
+{
+    MoveBulletsDatum datum = moveBulletsData[id.x];
+    moveBulletsData[id.x].posDir.xy = datum.posDir.xy + datum.posDir.zw * datum.speed * _DeltaTime;
+}

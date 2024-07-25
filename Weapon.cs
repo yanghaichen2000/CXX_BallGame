@@ -36,11 +36,11 @@ public class BasicWeapon : Weapon
 
 public class Shotgun : Weapon
 {
-    public float shootInterval = 0.07f;
+    public float shootInterval = 0.05f;
     public DateTime lastShootTime;
     public BulletManager bulletManager;
 
-    public int extraBulletsPerSide = 8;
+    public int extraBulletsPerSide = 12;
     public float angle = 2.0f;
 
     public Shotgun(BulletManager _bulletManager)
@@ -61,7 +61,7 @@ public class Shotgun : Weapon
                 float angleOfThisBullet = i * angle + randomDithering;
                 Quaternion rotation = Quaternion.Euler(0, angleOfThisBullet, 0);
                 Vector3 dirOfThisBullet = rotation * dir;
-                bulletManager.ShootOneBullet(pos, dirOfThisBullet, 7.0f, 0.1f, 1.0f);
+                bulletManager.ShootOneBullet(pos, dirOfThisBullet, 7.0f, 0.07f, 1.0f);
             }
         }
     }

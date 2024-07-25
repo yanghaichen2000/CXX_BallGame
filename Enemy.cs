@@ -29,8 +29,8 @@ public class SphereEnemy : Enemy
     public SphereEnemy()
     {
         obj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        Collider[] colliders = obj.GetComponents<Collider>();
-        foreach (Collider collider in colliders) collider.enabled = false;
+        //Collider[] colliders = obj.GetComponents<Collider>();
+        //foreach (Collider collider in colliders) collider.enabled = false;
         obj.transform.SetParent(GameManager.basicTransform);
         obj.GetComponent<Renderer>().material = Resources.Load<Material>("enemy");
     }
@@ -125,8 +125,8 @@ public class CubeEnemy : Enemy
     public CubeEnemy()
     {
         obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        Collider[] colliders = obj.GetComponents<Collider>();
-        foreach (Collider collider in colliders) collider.enabled = false;
+        //Collider[] colliders = obj.GetComponents<Collider>();
+        //foreach (Collider collider in colliders) collider.enabled = false;
         obj.transform.SetParent(GameManager.basicTransform);
         obj.GetComponent<Renderer>().material = Resources.Load<Material>("enemy");
     }
@@ -259,7 +259,7 @@ public class StaticCube : Enemy
         Collider[] colliders = obj.GetComponents<Collider>();
         foreach (Collider collider in colliders) collider.enabled = false;
         obj.transform.SetParent(GameManager.basicTransform);
-        obj.GetComponent<Renderer>().material = Resources.Load<Material>("enemy");
+        obj.GetComponent<Renderer>().material = Resources.Load<Material>("ground");
     }
 
     public void Initialize(Vector3 _pos)

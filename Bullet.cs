@@ -35,6 +35,12 @@ public class Bullet
         obj.transform.localScale = new Vector3(radius * 2.0f, radius * 2.0f, radius * 2.0f);
     }
 
+    public void SetPos(Vector3 _pos)
+    {
+        pos = _pos;
+        obj.transform.localPosition = pos;
+    }
+
     public void MoveToSomeplace()
     {
         pos = GameManager.bulletPoolRecyclePosition;

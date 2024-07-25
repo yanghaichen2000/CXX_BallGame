@@ -38,8 +38,6 @@ public class Player
         UpdateVelocity();
     }
 
-    
-
     public void UpdateDesiredVelocity()
     {
         Vector2 playerInput = playerInputManager.GetPlayerMovementInput();
