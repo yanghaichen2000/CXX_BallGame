@@ -12,7 +12,7 @@ public class PlayerMovementManager
 
     public void Initialize()
     {
-        body = GameManager.playerManager.GetComponent<Rigidbody>();
+        body = GameManager.playerObj.GetComponent<Rigidbody>();
     }
 
     public void Update()

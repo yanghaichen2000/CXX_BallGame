@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
@@ -39,7 +40,7 @@ public class SphereEnemy : Enemy
         SetPos(_pos);
         radius = 0.5f;
         speed = 0.8f;
-        hp = 100.0f;
+        hp = 1000000.0f;
         obj.transform.localScale = new Vector3(radius * 2.0f, radius * 2.0f, radius * 2.0f);
     }
 
@@ -61,7 +62,7 @@ public class SphereEnemy : Enemy
 
     public void Move()
     {
-        Vector3 playerPos = GameManager.player.transform.localPosition;
+        Vector3 playerPos = GameManager.playerObj.transform.localPosition;
         Vector3 playerRelativePos = playerPos - pos;
         float playerDistance = playerRelativePos.magnitude;
         float moveDistance = Mathf.Min(playerDistance, speed * GameManager.deltaTime);
@@ -131,13 +132,13 @@ public class CubeEnemy : Enemy
     public void Initialize(Vector3 _pos)
     {
         SetPos(_pos);
-        dir = (GameManager.player.transform.localPosition - pos).normalized;
+        dir = (GameManager.playerObj.transform.localPosition - pos).normalized;
         rotationY = Quaternion.LookRotation(dir, Vector3.up).eulerAngles.y;
         maxRotationalSpeed = 40;
         size = 0.8f;
         radius = size * 0.5f * 1.414f;
         speed = 0.8f;
-        hp = 100.0f;
+        hp = 1000000.0f;
         obj.transform.localScale = new Vector3(size, size, size);
     }
 
@@ -170,12 +171,13 @@ public class CubeEnemy : Enemy
                 }
             }
 
-            if (maxProjectedDistance < size * 0.5 + bullet.radius - GameManager.enemyAndBulletIntersectionBias)
+            Vector3 normal = normals[maxProjectedDistanceIndex];
+            if (maxProjectedDistance < size * 0.5 + bullet.radius - GameManager.enemyAndBulletIntersectionBias
+                && Vector3.Dot(bullet.dir, normal) < 0.0f)
             {
                 hp -= bullet.damage;
 
-                Vector3 normal = normals[maxProjectedDistanceIndex];
-                bullet.pos = pos + (radius + bullet.radius) * normal;
+                bullet.pos += Mathf.Min(0.0f, size * 0.5f - maxProjectedDistance + bullet.radius) * normal;
                 bullet.dir = (bullet.dir - 2.0f * Vector3.Dot(normal, bullet.dir) * normal).normalized;
             }
         }
@@ -183,7 +185,7 @@ public class CubeEnemy : Enemy
 
     public void Move()
     {
-        Vector3 playerPos = GameManager.player.transform.localPosition;
+        Vector3 playerPos = GameManager.playerObj.transform.localPosition;
         Vector3 playerRelativePos = playerPos - pos;
         float playerDistance = playerRelativePos.magnitude;
         float moveDistance = Mathf.Min(playerDistance, speed * GameManager.deltaTime);
@@ -238,5 +240,95 @@ public class CubeEnemy : Enemy
     public float GetRadius() { return radius; }
 }
 
+public class StaticCube : Enemy
+{
+    public Vector3 pos;
+    public Vector3 dir;
+    public float size; // length
+    public float radius;
+    public float speed;
+    public GameObject obj;
 
+    public StaticCube()
+    {
+        obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Collider[] colliders = obj.GetComponents<Collider>();
+        foreach (Collider collider in colliders) collider.enabled = false;
+        obj.transform.SetParent(GameManager.basicTransform);
+        obj.GetComponent<Renderer>().material = Resources.Load<Material>("enemy");
+    }
+
+    public void Initialize(Vector3 _pos)
+    {
+        SetPos(_pos);
+        dir = new Vector3(1.0f, 0.0f, 0.0f);
+        size = 10.0f;
+        radius = 0.0f;
+        obj.transform.localScale = new Vector3(size, 1.0f, size);
+    }
+
+    public void ProcessBullets()
+    {
+        Vector3[] normals = new Vector3[4];
+        normals[0] = dir.normalized;
+        normals[1] = -normals[0];
+        normals[2] = new Vector3(-normals[0].z, 0.0f, normals[0].x);
+        normals[3] = -normals[2];
+
+        float[] projectedDistances = new float[4];
+
+        foreach (Bullet bullet in GameManager.bullets)
+        {
+            Vector3 bulletRelativePos = bullet.pos - pos;
+
+            for (int i = 0; i < 4; i++)
+            {
+                projectedDistances[i] = Vector3.Dot(bulletRelativePos, normals[i]);
+            }
+            float maxProjectedDistance = -9999999.9f;
+            int maxProjectedDistanceIndex = 0;
+            for (int i = 0; i < 4; i++)
+            {
+                if (projectedDistances[i] > maxProjectedDistance)
+                {
+                    maxProjectedDistance = projectedDistances[i];
+                    maxProjectedDistanceIndex = i;
+                }
+            }
+
+            Vector3 normal = normals[maxProjectedDistanceIndex];
+            if (maxProjectedDistance < size * 0.5 + bullet.radius - GameManager.enemyAndBulletIntersectionBias
+                && Vector3.Dot(bullet.dir, normal) < 0.0f)
+            {
+                bullet.pos += Mathf.Min(0.0f, size * 0.5f - maxProjectedDistance + bullet.radius) * normal;
+                bullet.dir = (bullet.dir - 2.0f * Vector3.Dot(normal, bullet.dir) * normal).normalized;
+            }
+        }
+    }
+
+    public void Move()
+    {
+        
+    }
+
+    public void Shoot()
+    {
+
+    }
+
+    public bool IsDead()
+    {
+        return false;
+    }
+
+    public void SetPos(Vector3 _pos)
+    {
+        pos = _pos;
+        obj.transform.localPosition = pos;
+    }
+
+    public Vector3 GetPos() { return pos; }
+
+    public float GetRadius() { return radius; }
+}
 

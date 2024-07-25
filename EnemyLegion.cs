@@ -24,6 +24,13 @@ public class EnemyLegion
         enemies.Add(enemy);
     }
 
+    public void SpawnStaticCube(float x, float z)
+    {
+        StaticCube enemy = new StaticCube();
+        enemy.Initialize(new Vector3(x, 0.5f, z));
+        enemies.Add(enemy);
+    }
+
     public void TickAllEnemies()
     {
         foreach (Enemy enemy in enemies)
