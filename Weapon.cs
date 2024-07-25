@@ -8,7 +8,6 @@ using UnityEngine.Rendering;
 
 public interface Weapon
 {
-    public void Initialize();
     public void Shoot(Vector3 pos, Vector3 dir);
 }
 
@@ -17,10 +16,12 @@ public class BasicWeapon : Weapon
 {
     public float shootInterval = 0.06f;
     public DateTime lastShootTime;
+    public BulletManager bulletManager;
 
-    public void Initialize()
+    public BasicWeapon(BulletManager _bulletManager)
     {
         lastShootTime = GameManager.currentTime;
+        bulletManager = _bulletManager;
     }
 
     public void Shoot(Vector3 pos, Vector3 dir)
@@ -28,18 +29,7 @@ public class BasicWeapon : Weapon
         if ((GameManager.currentTime - lastShootTime).TotalSeconds > shootInterval)
         {
             lastShootTime = GameManager.currentTime;
-
-            var bullet = GameManager.bulletPool.Get();
-            bullet.Initialize(
-                GameManager.currentTime,
-                pos,
-                dir,
-                7.0f,
-                0.1f,
-                1.0f
-                );
-
-            GameManager.bullets.Add(bullet);
+            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.1f, 1.0f);
         }
     }
 }
@@ -48,13 +38,15 @@ public class Shotgun : Weapon
 {
     public float shootInterval = 0.07f;
     public DateTime lastShootTime;
+    public BulletManager bulletManager;
 
     public int extraBulletsPerSide = 8;
     public float angle = 2.0f;
 
-    public void Initialize()
+    public Shotgun(BulletManager _bulletManager)
     {
         lastShootTime = GameManager.currentTime;
+        bulletManager = _bulletManager;
     }
 
     public void Shoot(Vector3 pos, Vector3 dir)
@@ -69,18 +61,7 @@ public class Shotgun : Weapon
                 float angleOfThisBullet = i * angle + randomDithering;
                 Quaternion rotation = Quaternion.Euler(0, angleOfThisBullet, 0);
                 Vector3 dirOfThisBullet = rotation * dir;
-
-                var bullet = GameManager.bulletPool.Get();
-                bullet.Initialize(
-                    GameManager.currentTime,
-                    pos,
-                    dirOfThisBullet,
-                    7.0f,
-                    0.1f,
-                    1.0f
-                    );
-
-                GameManager.bullets.Add(bullet);
+                bulletManager.ShootOneBullet(pos, dirOfThisBullet, 7.0f, 0.1f, 1.0f);
             }
         }
     }

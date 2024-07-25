@@ -5,39 +5,53 @@ using UnityEngine;
 
 public class Player
 {
-    public Weapon weapon = new Shotgun();
-    public PlayerMovementManager movementManager = new PlayerMovementManager();
-    public Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
-    public Vector3 shootTarget = new Vector3();
+    public GameObject obj;
+    Rigidbody body;
+    public Weapon weapon;
+    public PlayerInputManager playerInputManager;
+    Vector3 velocity, desiredVelocity;
+    float maxSpeed = 4.0f;
+    float maxAcceleration = 10.0f;
 
-    public void Initialize()
+    public Player(GameObject _obj, PlayerInputManager _playerInputManager)
     {
-        movementManager.Initialize();
-        weapon.Initialize();
+        obj = _obj;
+        body = _obj.GetComponent<Rigidbody>();
+        playerInputManager = _playerInputManager;
+        weapon = new Shotgun(GameManager.playerBulletManager);
     }
 
     public void Update()
     {
-        movementManager.Update();
-        Vector3 shootDir = GetShootDir();
-        weapon.Shoot(GameManager.playerObj.transform.localPosition, shootDir);
+        playerInputManager.Update();
+        UpdateDesiredVelocity();
+        Vector3 shootDir = playerInputManager.GetShootDir(obj.transform.localPosition);
+        using (new BallGameUtils.Profiler("Player.Weapon.Shoot"))
+        {
+            weapon.Shoot(obj.transform.localPosition, shootDir);
+        }
+            
     }
 
     public void FixedUpdate()
     {
-        movementManager.FixedUpdate();
+        UpdateVelocity();
     }
 
-    public Vector3 GetShootDir()
-    {
-        Vector3 mousePosition = Input.mousePosition;
-        Ray ray = Camera.main.ScreenPointToRay(mousePosition);
-        if (gamePlane.Raycast(ray, out var enter))
-        {
-            shootTarget = ray.GetPoint(enter);
-        }
-        shootTarget = GameManager.basicTransform.InverseTransformPoint(shootTarget);
+    
 
-        return (shootTarget - GameManager.playerObj.transform.localPosition).normalized;
+    public void UpdateDesiredVelocity()
+    {
+        Vector2 playerInput = playerInputManager.GetPlayerMovementInput();
+        desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
+    }
+
+    public void UpdateVelocity()
+    {
+        velocity = body.velocity;
+        float maxSpeedChange = maxAcceleration * Time.deltaTime;
+        velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
+        velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);
+        body.velocity = velocity;
     }
 }

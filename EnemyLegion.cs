@@ -33,13 +33,27 @@ public class EnemyLegion
 
     public void TickAllEnemies()
     {
-        foreach (Enemy enemy in enemies)
+        using (new BallGameUtils.Profiler("enemy.ProcessBullets"))
         {
-            enemy.ProcessBullets();
-            if (!enemy.IsDead()) enemy.Move();
-            if (enemy.IsDead()) enemyRecycleBin.Push(enemy);
+            foreach (Enemy enemy in enemies)
+            {
+                enemy.ProcessBullets();
+            }
         }
 
+        using (new BallGameUtils.Profiler("enemy.Move"))
+        {
+            foreach (Enemy enemy in enemies)
+            {
+                if (!enemy.IsDead()) enemy.Move();
+            }
+        }
+
+        foreach (Enemy enemy in enemies)
+        {
+            if (enemy.IsDead()) enemyRecycleBin.Push(enemy);
+        }
+        
         RecycleAllDeadEnemies();
     }
 

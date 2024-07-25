@@ -16,6 +16,12 @@ public class BallGameUtils
         }
     }
 
+    public static ref Vector3 EliminateY(ref Vector3 input)
+    {
+        input.y = 0.0f;
+        return ref input;
+    }
+
     public class Profiler : IDisposable
     {
         public Profiler(string name)

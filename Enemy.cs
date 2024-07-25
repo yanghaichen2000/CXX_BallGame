@@ -46,7 +46,7 @@ public class SphereEnemy : Enemy
 
     public void ProcessBullets()
     {
-        foreach (Bullet bullet in GameManager.bullets)
+        foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
         {
             Vector3 bulletRelativePos = bullet.pos - pos;
             if (bulletRelativePos.magnitude <= radius + bullet.radius - GameManager.enemyAndBulletIntersectionBias)
@@ -55,14 +55,16 @@ public class SphereEnemy : Enemy
 
                 Vector3 normal = bulletRelativePos.normalized;
                 bullet.pos = pos + (radius + bullet.radius) * normal;
-                bullet.dir = (bullet.dir - 2.0f * Vector3.Dot(normal, bullet.dir) * normal).normalized;
+                bullet.dir -= 2.0f * Vector3.Dot(normal, bullet.dir) * normal;
+                bullet.dir.y = 0.0f;
+                bullet.dir = bullet.dir.normalized;
             }
         }
     }
 
     public void Move()
     {
-        Vector3 playerPos = GameManager.playerObj.transform.localPosition;
+        Vector3 playerPos = GameManager.player1.obj.transform.localPosition;
         Vector3 playerRelativePos = playerPos - pos;
         float playerDistance = playerRelativePos.magnitude;
         float moveDistance = Mathf.Min(playerDistance, speed * GameManager.deltaTime);
@@ -132,7 +134,7 @@ public class CubeEnemy : Enemy
     public void Initialize(Vector3 _pos)
     {
         SetPos(_pos);
-        dir = (GameManager.playerObj.transform.localPosition - pos).normalized;
+        dir = (GameManager.player1.obj.transform.localPosition - pos).normalized;
         rotationY = Quaternion.LookRotation(dir, Vector3.up).eulerAngles.y;
         maxRotationalSpeed = 40;
         size = 0.8f;
@@ -152,7 +154,7 @@ public class CubeEnemy : Enemy
 
         float[] projectedDistances = new float[4];
 
-        foreach (Bullet bullet in GameManager.bullets)
+        foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
         {
             Vector3 bulletRelativePos = bullet.pos - pos;
 
@@ -178,14 +180,16 @@ public class CubeEnemy : Enemy
                 hp -= bullet.damage;
 
                 bullet.pos += Mathf.Min(0.0f, size * 0.5f - maxProjectedDistance + bullet.radius) * normal;
-                bullet.dir = (bullet.dir - 2.0f * Vector3.Dot(normal, bullet.dir) * normal).normalized;
+                bullet.dir -= 2.0f * Vector3.Dot(normal, bullet.dir) * normal;
+                bullet.dir.y = 0.0f;
+                bullet.dir = bullet.dir.normalized;
             }
         }
     }
 
     public void Move()
     {
-        Vector3 playerPos = GameManager.playerObj.transform.localPosition;
+        Vector3 playerPos = GameManager.player1.obj.transform.localPosition;
         Vector3 playerRelativePos = playerPos - pos;
         float playerDistance = playerRelativePos.magnitude;
         float moveDistance = Mathf.Min(playerDistance, speed * GameManager.deltaTime);
@@ -277,7 +281,7 @@ public class StaticCube : Enemy
 
         float[] projectedDistances = new float[4];
 
-        foreach (Bullet bullet in GameManager.bullets)
+        foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
         {
             Vector3 bulletRelativePos = bullet.pos - pos;
 
@@ -301,7 +305,9 @@ public class StaticCube : Enemy
                 && Vector3.Dot(bullet.dir, normal) < 0.0f)
             {
                 bullet.pos += Mathf.Min(0.0f, size * 0.5f - maxProjectedDistance + bullet.radius) * normal;
-                bullet.dir = (bullet.dir - 2.0f * Vector3.Dot(normal, bullet.dir) * normal).normalized;
+                bullet.dir -= 2.0f * Vector3.Dot(normal, bullet.dir) * normal;
+                bullet.dir.y = 0.0f;
+                bullet.dir = bullet.dir.normalized;
             }
         }
     }
