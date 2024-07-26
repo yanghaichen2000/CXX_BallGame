@@ -129,10 +129,30 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 //                  Vertex and Fragment functions                            //
 ///////////////////////////////////////////////////////////////////////////////
 
+UNITY_INSTANCING_BUFFER_START(Props)
+    UNITY_DEFINE_INSTANCED_PROP(int, _ObjectID)
+UNITY_INSTANCING_BUFFER_END(Props)
+
+struct BulletDatum
+{
+    float3 pos;
+    float3 dir;
+    float speed;
+    float radius;
+    float damage;
+    int bounces;
+    float expirationTime;
+    int valid;
+};
+
+StructuredBuffer<BulletDatum> playerBulletData;
+
 VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS)
 {
     VertexPositionInputs input;
-    input.positionWS = TransformObjectToWorld(positionOS);
+    int id = UNITY_ACCESS_INSTANCED_PROP(Props, _ObjectID);
+    BulletDatum datum = playerBulletData[id];
+    input.positionWS = positionOS * datum.radius * 2 + datum.pos + float3(-0.6f, 0.3f, 0.4f); // fix this
     input.positionVS = TransformWorldToView(input.positionWS);
     input.positionCS = TransformWorldToHClip(input.positionWS);
  

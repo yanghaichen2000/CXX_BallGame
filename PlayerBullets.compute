@@ -1,4 +1,6 @@
 #pragma kernel PlayerShoot
+#pragma kernel UpdatePlayerBulletPosition
+
 
 struct BulletDatum
 {
@@ -18,6 +20,8 @@ RWStructuredBuffer<BulletDatum> playerShootRequestData;
 
 int maxPlayerBulletNum;
 int playerShootRequestNum;
+float deltaTime;
+
 
 [numthreads(128, 1, 1)]
 void PlayerShoot(uint3 id : SV_DispatchThreadID)
@@ -34,4 +38,15 @@ void PlayerShoot(uint3 id : SV_DispatchThreadID)
     
     if (id.x == 0)
         playerBulletStack[maxPlayerBulletNum] -= playerShootRequestNum;
+}
+
+
+[numthreads(64, 1, 1)]
+void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
+{
+    BulletDatum datum = playerBulletData[id.x];
+    if (datum.valid == 0)
+        return;
+
+    playerBulletData[id.x].pos = datum.pos + datum.speed * datum.dir * deltaTime;
 }

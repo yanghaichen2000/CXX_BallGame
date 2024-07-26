@@ -45,6 +45,8 @@ public class BulletManager
     const int maxNewPlayerBulletNum = 128;
     const int maxEnemyNum = 128;
 
+    public GameObject[] playerBulletArray = new GameObject[maxPlayerBulletNum];
+
     BulletDatum[] playerBulletData;
     ComputeBuffer playerBulletDataCB;
     Int32[] playerBulletStack;
@@ -60,6 +62,7 @@ public class BulletManager
 
     ComputeShader playerBulletCS;
     int playerShootKernel;
+    int updatePlayerBulletPositionKernel;
 
     public BulletManager(GameManager _gameManager) 
     {
@@ -79,8 +82,10 @@ public class BulletManager
 
         playerBulletCS = gameManager.playerBulletCS;
         playerShootKernel = playerBulletCS.FindKernel("PlayerShoot");
+        updatePlayerBulletPositionKernel = playerBulletCS.FindKernel("UpdatePlayerBulletPosition");
 
         InitializeComputeBuffers();
+        CreatePlayerBullets();
     }
 
     public void InitializeComputeBuffers()
@@ -101,14 +106,51 @@ public class BulletManager
         playerBulletStackCB.SetData(playerBulletStack);
     }
 
+    public void CreatePlayerBullets()
+    {
+        for (int id = 0; id < maxPlayerBulletNum; id++)
+        {
+            GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            obj.name = String.Format("bullet{0}", id);
+            Collider[] colliders = obj.GetComponents<Collider>();
+            foreach (Collider collider in colliders) collider.enabled = false;
+            obj.transform.SetParent(GameManager.basicTransform);
+            Renderer renderer = obj.GetComponent<Renderer>();
+            renderer.material = Resources.Load<Material>("bullet");
+
+            MaterialPropertyBlock mpb = new MaterialPropertyBlock();
+            mpb.SetInt("_ObjectID", id);
+            renderer.SetPropertyBlock(mpb);
+        }
+    }
+
     public void TickAllBulletsGPU()
     {
+        SetComputeGlobalConstants();
+
         UpdateEnemyDataGPU();
 
         ExecutePlayerShootRequest();
-        
+
+        UpdatePlayerBulletPosition();
+
+        SetGlobalBufferForRendering();
 
         ClearPlayerShootRequest();
+    }
+
+    public void UpdatePlayerBulletPosition()
+    {
+        playerBulletCS.SetBuffer(updatePlayerBulletPositionKernel, "playerBulletData", playerBulletDataCB);
+        playerBulletCS.Dispatch(updatePlayerBulletPositionKernel,
+            BallGameUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
+    }
+
+    public void SetComputeGlobalConstants()
+    {
+        playerBulletCS.SetInt("maxPlayerBulletNum", maxPlayerBulletNum);
+        playerBulletCS.SetInt("playerShootRequestNum", playerShootRequestNum);
+        playerBulletCS.SetFloat("deltaTime", GameManager.deltaTime);
     }
 
     public void UpdateEnemyDataGPU()
@@ -173,12 +215,18 @@ public class BulletManager
         playerBulletCS.SetBuffer(playerShootKernel, "playerBulletData", playerBulletDataCB);
         playerBulletCS.SetBuffer(playerShootKernel, "playerBulletStack", playerBulletStackCB);
         playerBulletCS.SetBuffer(playerShootKernel, "playerShootRequestData", playerShootRequestDataCB);
-        playerBulletCS.SetInt("maxPlayerBulletNum", maxPlayerBulletNum);
-        playerBulletCS.SetInt("playerShootRequestNum", playerShootRequestNum);
 
         playerBulletCS.Dispatch(playerShootKernel, 
             BallGameUtils.GetComputeGroupNum(playerShootRequestNum, 128), 1, 1);
     }
+
+    public void SetGlobalBufferForRendering()
+    {
+        Shader.SetGlobalBuffer("playerBulletData", playerBulletDataCB);
+    }
+
+
+
 
     /////////////////////////// cs test end ///////////////////////////
 
@@ -187,7 +235,7 @@ public class BulletManager
     {
         using (new BallGameUtils.Profiler("CheckBulletDeath")) { CheckBulletDeath(); }
         using (new BallGameUtils.Profiler("MoveBulletsGPU")) { GameManager.gameManagerGPU.MovePlayerBullets(); }
-        using (new BallGameUtils.Profiler("MoveBullets")) { MoveBullets(); }
+        using (new BallGameUtils.Profiler("MoveBullets")) { MoveBulletsOld(); }
         using (new BallGameUtils.Profiler("RecycleDeadBullets")) { RecycleDeadBullets(); }
     }
 
@@ -202,7 +250,7 @@ public class BulletManager
         }
     }
 
-    public void MoveBullets()
+    public void MoveBulletsOld()
     {
         foreach (Bullet bullet in bullets)
         {
