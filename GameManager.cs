@@ -15,10 +15,10 @@ public class GameManager : MonoBehaviour
     public static DateTime gameStartedTime;
     public static DateTime lastTickTime;
     public static DateTime currentTime;
+    public static float gameTime;
     public static float deltaTime;
 
-    public static BulletManager playerBulletManager;
-    public static BulletManager enemyBulletManager;
+    public static BulletManager bulletManager;
     public static float bulletLifeSpan = 12.0f;
 
     public static Player player1;
@@ -30,16 +30,17 @@ public class GameManager : MonoBehaviour
 
     public static float enemyAndBulletIntersectionBias = 0.05f;
     public static float enemyAndEnemyIntersectionBias = 0.5f;
-    public static Vector3 bulletPoolRecyclePosition = new Vector3(-100.0f, 0.0f, 5.0f);
+    public static Vector3 bulletPoolRecyclePosition = new Vector3(-15.0f, 10.0f, 5.0f);
+    public static Vector3 enemyPoolRecyclePosition = new Vector3(15.0f, 10.0f, 5.0f);
 
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
 
     public ComputeShader moveBulletsCS;
+    public ComputeShader playerBulletCS;
 
     void Awake()
     {
-        playerBulletManager = new BulletManager();
-        enemyBulletManager = new BulletManager();
+        bulletManager = new BulletManager(this);
         player1 = new Player(GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(GameObject.Find("Player2"), new KeyboardInputManager());
         enemyLegion = new EnemyLegion();
@@ -56,18 +57,18 @@ public class GameManager : MonoBehaviour
         {
             for (int b = -1; b <= 1; b += 2)
             {
-                enemyLegion.SpawnCubeEnemy(a * 5.0f, b * 5.0f);
+                enemyLegion.SpawnSphereEnemy(a * 5.0f, b * 5.0f);
                 enemyLegion.SpawnSphereEnemy(a * 3.0f, b * 5.0f);
-                enemyLegion.SpawnCubeEnemy(a * 1.0f, b * 5.0f);
-                enemyLegion.SpawnCubeEnemy(a * 2.0f, b * 3.0f);
+                enemyLegion.SpawnSphereEnemy(a * 1.0f, b * 5.0f);
+                enemyLegion.SpawnSphereEnemy(a * 2.0f, b * 3.0f);
                 enemyLegion.SpawnSphereEnemy(a * 4.0f, b * 3.0f);
-                enemyLegion.SpawnCubeEnemy(a * 6.0f, b * 3.0f);
-                enemyLegion.SpawnCubeEnemy(a * 5.0f, b * 1.0f);
+                enemyLegion.SpawnSphereEnemy(a * 6.0f, b * 3.0f);
+                enemyLegion.SpawnSphereEnemy(a * 5.0f, b * 1.0f);
                 enemyLegion.SpawnSphereEnemy(a * 3.0f, b * 1.0f);
-                enemyLegion.SpawnCubeEnemy(a * 1.0f, b * 1.0f);
+                enemyLegion.SpawnSphereEnemy(a * 1.0f, b * 1.0f);
                 enemyLegion.SpawnSphereEnemy(a * 2.0f, b * 7.0f);
-                enemyLegion.SpawnCubeEnemy(a * 4.0f, b * 7.0f);
-                enemyLegion.SpawnCubeEnemy(a * 6.0f, b * 7.0f);
+                enemyLegion.SpawnSphereEnemy(a * 4.0f, b * 7.0f);
+                enemyLegion.SpawnSphereEnemy(a * 6.0f, b * 7.0f);
             }
         }
 
@@ -100,13 +101,14 @@ public class GameManager : MonoBehaviour
         using (new BallGameUtils.Profiler("player1.Update")) { player1.Update(); }
         using (new BallGameUtils.Profiler("player2.Update")) { player2.Update(); }
         using (new BallGameUtils.Profiler("TickAllEnemies")) { enemyLegion.TickAllEnemies(); }
-        using (new BallGameUtils.Profiler("TickAllPlayerBullets")) { playerBulletManager.TickAllBullets(); }
-        BallGameUtils.LogWithCD(playerBulletManager.bullets.Count);
+        using (new BallGameUtils.Profiler("TickAllPlayerBullets")) { bulletManager.TickAllBullets(); }
+        BallGameUtils.LogWithCD(bulletManager.bullets.Count);
     }
 
     public void UpdateTime()
     {
         currentTime = DateTime.Now;
+        gameTime = (float)(currentTime - gameStartedTime).TotalSeconds;
         deltaTime = (float)(currentTime - lastTickTime).TotalSeconds;
         lastTickTime = currentTime;
     }

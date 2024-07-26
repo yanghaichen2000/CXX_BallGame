@@ -1,0 +1,35 @@
+#pragma kernel PlayerShoot
+
+struct BulletDatum
+{
+    float3 pos;
+    float3 dir;
+    float speed;
+    float radius;
+    float damage;
+    int bounces;
+    float expirationTime;
+    int valid;
+};
+
+RWStructuredBuffer<BulletDatum> playerBulletData;
+RWStructuredBuffer<int> playerBulletStack;
+RWStructuredBuffer<BulletDatum> playerShootRequestData;
+
+int maxPlayerBulletNum;
+int playerShootRequestNum;
+
+[numthreads(64, 1, 1)]
+void PlayerShoot(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= playerShootRequestNum)
+        return;
+
+    int stackEnd = playerBulletStack[maxPlayerBulletNum];
+    int stackIndexForThisThread = stackEnd - id.x;
+    int newBulletIndex = playerBulletStack[stackIndexForThisThread];
+    playerBulletData[newBulletIndex] = playerShootRequestData[id.x];
+    
+    if (id.x == 0)
+        playerBulletStack[maxPlayerBulletNum] -= playerShootRequestNum;
+}

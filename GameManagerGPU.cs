@@ -8,7 +8,7 @@ using static UnityEditor.PlayerSettings;
 
 public class GameManagerGPU
 {
-    const int maxDataLength = 16384;
+    const int maxBulletNum = 16384;
     GameManager gameManager;
 
     public struct MoveBulletsDatum
@@ -27,19 +27,21 @@ public class GameManagerGPU
     {
         gameManager = _gameManager;
 
-        moveBulletsData = new MoveBulletsDatum[maxDataLength];
+        moveBulletsData = new MoveBulletsDatum[maxBulletNum];
         moveBulletsCS = gameManager.moveBulletsCS;
         moveBulletsKernel = moveBulletsCS.FindKernel("MoveBullets");
-        moveBulletsCB = new ComputeBuffer(maxDataLength, moveBulletsDatumSize);
-        moveBulletsWriteBackReferences = new Bullet[maxDataLength];
+        moveBulletsCB = new ComputeBuffer(maxBulletNum, moveBulletsDatumSize);
+        moveBulletsWriteBackReferences = new Bullet[maxBulletNum];
     }
 
     public void MovePlayerBullets()
     {
+        if (maxBulletNum < GameManager.bulletManager.bullets.Count) Debug.Assert(false);
+
         int bulletNum = 0;
         using (new BallGameUtils.Profiler("PrepareData"))
         {
-            foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
+            foreach (Bullet bullet in GameManager.bulletManager.bullets)
             {
                 moveBulletsData[bulletNum] = new MoveBulletsDatum()
                 {
@@ -55,15 +57,17 @@ public class GameManagerGPU
             moveBulletsCS.SetBuffer(moveBulletsKernel, "moveBulletsData", moveBulletsCB);
         }
             
-        moveBulletsCS.Dispatch(moveBulletsKernel, maxDataLength / 64, 1, 1);
+        moveBulletsCS.Dispatch(moveBulletsKernel, maxBulletNum / 64, 1, 1);
         moveBulletsCB.GetData(moveBulletsData);
 
         using (new BallGameUtils.Profiler("WriteBackData"))
         {
-            for (int i = 0; i < bulletNum; i++)
+            int i = 0;
+            foreach (Bullet bullet in GameManager.bulletManager.bullets)
             {
-                Bullet bullet = moveBulletsWriteBackReferences[i];
                 bullet.SetPos(new Vector3(moveBulletsData[i].posDir.x, 0.5f, moveBulletsData[i].posDir.y));
+                i++;
+                if (i == bulletNum) break;
             }
         }
     }

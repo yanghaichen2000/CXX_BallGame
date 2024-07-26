@@ -22,6 +22,11 @@ public class BallGameUtils
         return ref input;
     }
 
+    public static int GetComputeGroupNum(int threadNum, int groupSize)
+    {
+        return (threadNum + groupSize) / groupSize;
+    }
+
     public class Profiler : IDisposable
     {
         public Profiler(string name)

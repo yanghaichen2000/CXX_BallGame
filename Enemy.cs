@@ -15,6 +15,7 @@ public interface Enemy
     public void Shoot();
     public bool IsDead();
     public void SetPos(Vector3 _pos);
+    public String GetEnemyType();
 }
 
 
@@ -46,7 +47,7 @@ public class SphereEnemy : Enemy
 
     public void ProcessBullets()
     {
-        foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
+        foreach (Bullet bullet in GameManager.bulletManager.bullets)
         {
             Vector3 bulletRelativePos = bullet.pos - pos;
             if (bulletRelativePos.magnitude <= radius + bullet.radius - GameManager.enemyAndBulletIntersectionBias)
@@ -107,6 +108,8 @@ public class SphereEnemy : Enemy
     public Vector3 GetPos() { return pos; }
 
     public float GetRadius() { return radius; }
+
+    public String GetEnemyType() { return "Sphere"; }
 }
 
 
@@ -154,7 +157,7 @@ public class CubeEnemy : Enemy
 
         float[] projectedDistances = new float[4];
 
-        foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
+        foreach (Bullet bullet in GameManager.bulletManager.bullets)
         {
             Vector3 bulletRelativePos = bullet.pos - pos;
 
@@ -242,6 +245,8 @@ public class CubeEnemy : Enemy
     public Vector3 GetPos() { return pos; }
 
     public float GetRadius() { return radius; }
+
+    public String GetEnemyType() { return "Cube"; }
 }
 
 public class StaticCube : Enemy
@@ -281,7 +286,7 @@ public class StaticCube : Enemy
 
         float[] projectedDistances = new float[4];
 
-        foreach (Bullet bullet in GameManager.playerBulletManager.bullets)
+        foreach (Bullet bullet in GameManager.bulletManager.bullets)
         {
             Vector3 bulletRelativePos = bullet.pos - pos;
 
@@ -336,5 +341,7 @@ public class StaticCube : Enemy
     public Vector3 GetPos() { return pos; }
 
     public float GetRadius() { return radius; }
+
+    public String GetEnemyType() { return "StaticCube"; }
 }
 

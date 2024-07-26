@@ -37,7 +37,7 @@ public class EnemyLegion
         {
             foreach (Enemy enemy in enemies)
             {
-                enemy.ProcessBullets();
+                //enemy.ProcessBullets();
             }
         }
 
