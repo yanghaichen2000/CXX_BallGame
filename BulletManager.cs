@@ -13,7 +13,7 @@ public class BulletManager
 
     /////////////////////////// cs test ///////////////////////////
 
-    GameManager gameManager;
+    public GameManager gameManager;
 
     public struct BulletDatum
     {
@@ -77,6 +77,7 @@ public class BulletManager
         sphereEnemyData = new EnemyDatum[maxEnemyNum];
         sphereEnemyDataCB = new ComputeBuffer(maxEnemyNum, enemyDatumSize);
 
+        playerBulletCS = gameManager.playerBulletCS;
         playerShootKernel = playerBulletCS.FindKernel("PlayerShoot");
 
         InitializeComputeBuffers();
@@ -105,6 +106,7 @@ public class BulletManager
         UpdateEnemyDataGPU();
 
         ExecutePlayerShootRequest();
+        
 
         ClearPlayerShootRequest();
     }
@@ -175,7 +177,7 @@ public class BulletManager
         playerBulletCS.SetInt("playerShootRequestNum", playerShootRequestNum);
 
         playerBulletCS.Dispatch(playerShootKernel, 
-            BallGameUtils.GetComputeGroupNum(playerShootRequestNum, 64), 1, 1);
+            BallGameUtils.GetComputeGroupNum(playerShootRequestNum, 128), 1, 1);
     }
 
     /////////////////////////// cs test end ///////////////////////////
@@ -184,7 +186,7 @@ public class BulletManager
     public void TickAllBullets()
     {
         using (new BallGameUtils.Profiler("CheckBulletDeath")) { CheckBulletDeath(); }
-        //using (new BallGameUtils.Profiler("MoveBulletsGPU")) { GameManager.gameManagerGPU.MovePlayerBullets(); }
+        using (new BallGameUtils.Profiler("MoveBulletsGPU")) { GameManager.gameManagerGPU.MovePlayerBullets(); }
         using (new BallGameUtils.Profiler("MoveBullets")) { MoveBullets(); }
         using (new BallGameUtils.Profiler("RecycleDeadBullets")) { RecycleDeadBullets(); }
     }

@@ -19,16 +19,18 @@ RWStructuredBuffer<BulletDatum> playerShootRequestData;
 int maxPlayerBulletNum;
 int playerShootRequestNum;
 
-[numthreads(64, 1, 1)]
+[numthreads(128, 1, 1)]
 void PlayerShoot(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= playerShootRequestNum)
-        return;
+    if (id.x < playerShootRequestNum)
+    {
+        int stackEnd = playerBulletStack[maxPlayerBulletNum];
+        int stackIndexForThisThread = stackEnd - id.x;
+        int newBulletIndex = playerBulletStack[stackIndexForThisThread];
+        playerBulletData[newBulletIndex] = playerShootRequestData[id.x];
+    }
 
-    int stackEnd = playerBulletStack[maxPlayerBulletNum];
-    int stackIndexForThisThread = stackEnd - id.x;
-    int newBulletIndex = playerBulletStack[stackIndexForThisThread];
-    playerBulletData[newBulletIndex] = playerShootRequestData[id.x];
+    GroupMemoryBarrierWithGroupSync();
     
     if (id.x == 0)
         playerBulletStack[maxPlayerBulletNum] -= playerShootRequestNum;

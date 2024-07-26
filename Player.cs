@@ -18,7 +18,7 @@ public class Player
         obj = _obj;
         body = _obj.GetComponent<Rigidbody>();
         playerInputManager = _playerInputManager;
-        weapon = new Shotgun(GameManager.bulletManager);
+        weapon = new BasicWeapon(GameManager.bulletManager);
     }
 
     public void Update()
