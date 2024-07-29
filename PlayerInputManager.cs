@@ -43,7 +43,10 @@ public class KeyboardInputManager : PlayerInputManager
         }
         shootTarget = GameManager.basicTransform.InverseTransformPoint(shootTarget);
 
-        return (shootTarget - playerPos).normalized;
+        Vector3 dir = shootTarget - playerPos;
+        dir.y = 0.0f;
+
+        return dir.normalized;
     }
 }
 

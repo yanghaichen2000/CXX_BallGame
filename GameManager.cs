@@ -18,8 +18,10 @@ public class GameManager : MonoBehaviour
     public static float gameTime;
     public static float deltaTime;
 
-    public static BulletManager bulletManager;
+    public static ComputeCenter computeCenter;
     public static float bulletLifeSpan = 12.0f;
+
+    public static BulletManager bulletManager;
 
     public static Player player1;
     public static Player player2;
@@ -33,12 +35,12 @@ public class GameManager : MonoBehaviour
 
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
 
-    public ComputeShader moveBulletsCS;
-    public ComputeShader playerBulletCS;
+    public ComputeShader computeCenterCS;
 
     void Awake()
     {
-        bulletManager = new BulletManager(this);
+        computeCenter = new ComputeCenter(this);
+        bulletManager = new BulletManager();
         player1 = new Player(GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(GameObject.Find("Player2"), new KeyboardInputManager());
         enemyLegion = new EnemyLegion();
@@ -97,7 +99,7 @@ public class GameManager : MonoBehaviour
         UpdateTime();
         using (new GameUtils.Profiler("player1.Update")) { player1.Update(); }
         using (new GameUtils.Profiler("player2.Update")) { player2.Update(); }
-        using (new GameUtils.Profiler("TickAllBulletsGPU")) { bulletManager.TickAllBulletsGPU(); }
+        using (new GameUtils.Profiler("TickAllBulletsGPU")) { computeCenter.TickAllBulletsGPU(); }
         using (new GameUtils.Profiler("TickAllEnemies")) { enemyLegion.TickAllEnemies(); }
     }
 

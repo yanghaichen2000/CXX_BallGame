@@ -19,9 +19,17 @@ public class EnemyLegion
 
     public void SpawnSphereEnemy(float x, float z)
     {
-        SphereEnemy enemy = sphereEnemyInstancePool.Get();
-        enemy.Initialize(new Vector3(x, 0.5f, z));
-        enemies.Add(enemy);
+        //SphereEnemy enemy = sphereEnemyInstancePool.Get();
+        //enemy.Initialize(new Vector3(x, 0.5f, z));
+        //enemies.Add(enemy);
+
+        GameManager.computeCenter.AppendCreateSphereEnemyRequest(
+            new Vector3(x, 0.5f, z),
+            1.0f,
+            0.5f * 1.414f,
+            0.8f,
+            10000.0f
+            );
     }
 
     public void SpawnStaticCube(float x, float z)

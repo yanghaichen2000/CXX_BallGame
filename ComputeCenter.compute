@@ -3,6 +3,9 @@
 #pragma kernel CullPlayerBullet
 #pragma kernel ProcessPlayerBulletCollision
 #pragma kernel UpdateDrawPlayerBulletArgs
+#pragma kernel CreateSphereEnemy
+#pragma kernel CullSphereEnemy
+
 
 struct BulletDatum
 {
@@ -23,8 +26,8 @@ struct EnemyDatum
     float hp;
     float size;
     float rotationY;
-    int tmp1;
-    int tmp2;
+    float radius;
+    float speed;
     int tmp3;
 };
 
@@ -33,15 +36,18 @@ RWStructuredBuffer<BulletDatum> culledPlayerBulletData;
 RWStructuredBuffer<int> playerBulletNum;
 RWStructuredBuffer<int> culledPlayerBulletNum;
 RWStructuredBuffer<BulletDatum> playerShootRequestData;
-RWStructuredBuffer<EnemyDatum> sphereEnemyData;
-RWStructuredBuffer<int> drawPlayerBulletArgs;
 
-int maxPlayerBulletNum;
+RWStructuredBuffer<EnemyDatum> sphereEnemyData;
+RWStructuredBuffer<int> sphereEnemyNum;
+RWStructuredBuffer<EnemyDatum> createSphereEnemyRequestData;
+
+RWStructuredBuffer<int> drawPlayerBulletArgs;
+RWStructuredBuffer<int> drawSphereEnemyArgs;
+
 int playerShootRequestNum;
+int createSphereEnemyRequestNum;
 float deltaTime;
 float gameTime;
-
-int sphereEnemyNum;
 
 
 [numthreads(128, 1, 1)]
@@ -57,6 +63,22 @@ void PlayerShoot(uint3 id : SV_DispatchThreadID)
     
     if (id.x == 0)
         playerBulletNum[0] += playerShootRequestNum;
+}
+
+
+[numthreads(128, 1, 1)]
+void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < createSphereEnemyRequestNum)
+    {
+        int index = sphereEnemyNum[0] + id.x;
+        sphereEnemyData[index] = createSphereEnemyRequestData[id.x];
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (id.x == 0)
+        sphereEnemyNum[0] += createSphereEnemyRequestNum;
 }
 
 
@@ -84,6 +106,35 @@ void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
 }
 
 
+[numthreads(128, 1, 1)]
+void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
+{
+    EnemyDatum enemy;
+    if (id.x < sphereEnemyNum[0])
+    {
+        enemy = sphereEnemyData[id.x];
+    }
+    int historySphereEnemyNum = sphereEnemyNum[0];
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (id.x == 0)
+        sphereEnemyNum[0] = 0;
+
+    if (id.x < historySphereEnemyNum) 
+    {
+        int index;
+        InterlockedAdd(sphereEnemyNum[0], 1, index);
+        sphereEnemyData[index] = enemy;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (id.x == 0)
+        drawSphereEnemyArgs[1] = sphereEnemyNum[0];
+}
+
+
 [numthreads(1, 1, 1)]
 void UpdateDrawPlayerBulletArgs(uint3 id : SV_DispatchThreadID)
 {
@@ -96,7 +147,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = playerBulletData[id.x];
     
-    for (int i = 0; i < sphereEnemyNum; i++)
+    for (int i = 0; i < sphereEnemyNum[0]; i++)
     {
         EnemyDatum enemy = sphereEnemyData[i];
         float enemyRadius = enemy.size * 0.5f;
@@ -115,4 +166,3 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
         }
     }
 }
-

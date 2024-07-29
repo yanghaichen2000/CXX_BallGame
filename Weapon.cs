@@ -36,12 +36,12 @@ public class BasicWeapon : Weapon
 
 public class Shotgun : Weapon
 {
-    public float shootInterval = 0.05f;
+    public float shootInterval = 0.06f;
     public DateTime lastShootTime;
     public BulletManager bulletManager;
 
-    public int extraBulletsPerSide = 12;
-    public float angle = 2.0f;
+    public int extraBulletsPerSide = 30;
+    public float angle = 1.5f;
 
     public Shotgun(BulletManager _bulletManager)
     {
