@@ -10,7 +10,6 @@ public interface Enemy
 {
     public Vector3 GetPos();
     public float GetRadius();
-    public void ProcessBullets();
     public void Move();
     public void Shoot();
     public bool IsDead();
@@ -45,23 +44,6 @@ public class SphereEnemy : Enemy
         obj.transform.localScale = new Vector3(radius * 2.0f, radius * 2.0f, radius * 2.0f);
     }
 
-    public void ProcessBullets()
-    {
-        foreach (Bullet bullet in GameManager.bulletManager.bullets)
-        {
-            Vector3 bulletRelativePos = bullet.pos - pos;
-            if (bulletRelativePos.magnitude <= radius + bullet.radius - GameManager.enemyAndBulletIntersectionBias)
-            {
-                hp -= bullet.damage;
-
-                Vector3 normal = bulletRelativePos.normalized;
-                bullet.pos = pos + (radius + bullet.radius) * normal;
-                bullet.dir -= 2.0f * Vector3.Dot(normal, bullet.dir) * normal;
-                bullet.dir.y = 0.0f;
-                bullet.dir = bullet.dir.normalized;
-            }
-        }
-    }
 
     public void Move()
     {
@@ -147,6 +129,7 @@ public class CubeEnemy : Enemy
         obj.transform.localScale = new Vector3(size, size, size);
     }
 
+    /*
     public void ProcessBullets()
     {
         Vector3[] normals = new Vector3[4];
@@ -189,6 +172,7 @@ public class CubeEnemy : Enemy
             }
         }
     }
+    */
 
     public void Move()
     {
@@ -276,6 +260,7 @@ public class StaticCube : Enemy
         obj.transform.localScale = new Vector3(size, 1.0f, size);
     }
 
+    /*
     public void ProcessBullets()
     {
         Vector3[] normals = new Vector3[4];
@@ -316,6 +301,7 @@ public class StaticCube : Enemy
             }
         }
     }
+    */
 
     public void Move()
     {

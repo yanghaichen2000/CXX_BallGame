@@ -7,12 +7,6 @@ using static UnityEditor.PlayerSettings;
 
 public class BulletManager
 {
-    public InstancePool<Bullet> bulletPool = new InstancePool<Bullet>();
-    public HashSet<Bullet> bullets = new HashSet<Bullet>();
-    public Stack<Bullet> bulletRecycleBin = new Stack<Bullet>();
-
-    /////////////////////////// cs test ///////////////////////////
-
     public GameManager gameManager;
 
     public struct BulletDatum
@@ -24,7 +18,7 @@ public class BulletManager
         public float damage;
         public Int32 bounces;
         public float expirationTime;
-        public Int32 valid;
+        public Int32 tmp1;
     }
     const int bulletDatumSize = 48;
 
@@ -118,7 +112,6 @@ public class BulletManager
         playerBulletMaterial = Resources.Load<Material>("bullet");
 
         InitializeComputeBuffers();
-        //CreatePlayerBullets();
     }
 
     public void InitializeComputeBuffers()
@@ -129,7 +122,7 @@ public class BulletManager
             {
                 pos = GameManager.bulletPoolRecyclePosition,
                 dir = new Vector3(1.0f, 0.0f, 0.0f),
-                valid = 0
+                tmp1 = 0
             };
         }
         playerBulletDataCB[0].SetData(playerBulletData);
@@ -146,24 +139,6 @@ public class BulletManager
         drawPlayerBulletArgsCB.SetData(drawPlayerBulletArgs);
     }
 
-    public void CreatePlayerBullets()
-    {
-        for (int id = 0; id < maxPlayerBulletNum; id++)
-        {
-            GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            obj.name = String.Format("bullet{0}", id);
-            Collider[] colliders = obj.GetComponents<Collider>();
-            foreach (Collider collider in colliders) collider.enabled = false;
-            obj.transform.SetParent(GameManager.basicTransform);
-            Renderer renderer = obj.GetComponent<Renderer>();
-            renderer.material = Resources.Load<Material>("bullet");
-
-            MaterialPropertyBlock mpb = new MaterialPropertyBlock();
-            mpb.SetInt("_ObjectID", id);
-            renderer.SetPropertyBlock(mpb);
-        }
-    }
-
     public void TickAllBulletsGPU()
     {
         UpdateEnemyData();
@@ -176,6 +151,8 @@ public class BulletManager
 
         UpdatePlayerBulletPosition();
 
+        ResetCulledBulletNum();
+
         CullPlayerBullet();
 
         ClearPlayerShootRequest();
@@ -187,15 +164,18 @@ public class BulletManager
         DrawBullets();
     }
 
+    public void ResetCulledBulletNum()
+    {
+        playerBulletNum[0] = 0;
+        targetPlayerBulletNumCB.SetData(playerBulletNum);
+    }
+
     public void DrawBullets()
     {
         int kernel = updateDrawPlayerBulletArgsKernel;
         playerBulletCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         playerBulletCS.SetBuffer(kernel, "drawPlayerBulletArgs", drawPlayerBulletArgsCB);
         playerBulletCS.Dispatch(kernel, 1, 1, 1);
-
-        drawPlayerBulletArgsCB.GetData(drawPlayerBulletArgs);
-        Debug.Log(drawPlayerBulletArgs[1]);
 
         Graphics.DrawMeshInstancedIndirect(
             playerBulletMesh,
@@ -215,7 +195,12 @@ public class BulletManager
         playerBulletCS.Dispatch(kernel, GameUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
     }
 
-    public void CullPlayerBullet() // 目前只生成indirect draw buffer，不cull
+    // 这里的cull包含三个方面
+    // 1. 剩余弹射次数
+    // 2. 存在时间
+    // 3. 位置是否在视锥体内
+    // 把所有没有被剔除的bullet存放在culledPlayerBulletData里面用于draw indirect
+    public void CullPlayerBullet()
     {
         int kernel = cullPlayerBulletKernel;
         playerBulletCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
@@ -248,6 +233,7 @@ public class BulletManager
         playerBulletCS.SetInt("maxPlayerBulletNum", maxPlayerBulletNum);
         playerBulletCS.SetInt("playerShootRequestNum", playerShootRequestNum);
         playerBulletCS.SetFloat("deltaTime", GameManager.deltaTime);
+        playerBulletCS.SetFloat("gameTime", GameManager.gameTime);
 
         playerBulletCS.SetInt("sphereEnemyNum", sphereEnemyNum);
     }
@@ -296,7 +282,7 @@ public class BulletManager
             damage = _damage,
             bounces = 5,
             expirationTime = GameManager.gameTime + lifeSpan,
-            valid = 1
+            tmp1 = 1
         };
         playerShootRequestNum++;
     }
@@ -326,54 +312,8 @@ public class BulletManager
         Shader.SetGlobalBuffer("playerBulletData", sourcePlayerBulletDataCB);
     }
 
-    /////////////////////////// cs test end ///////////////////////////
-
-
-    public void TickAllBullets()
+    public void ShootOneBullet(Vector3 _pos, Vector3 _dir, float _speed, float _radius, float _damage, int bounces = 5, float lifeSpan = 3.0f)
     {
-        using (new GameUtils.Profiler("CheckBulletDeath")) { CheckBulletDeath(); }
-        using (new GameUtils.Profiler("MoveBulletsGPU")) { GameManager.gameManagerGPU.MovePlayerBullets(); }
-        using (new GameUtils.Profiler("MoveBullets")) { MoveBulletsOld(); }
-        using (new GameUtils.Profiler("RecycleDeadBullets")) { RecycleDeadBullets(); }
-    }
-
-    public void CheckBulletDeath()
-    {
-        foreach (Bullet bullet in bullets)
-        {
-            if ((GameManager.currentTime - bullet.createdTime).TotalSeconds > GameManager.bulletLifeSpan)
-            {
-                bulletRecycleBin.Push(bullet);
-            }
-        }
-    }
-
-    public void MoveBulletsOld()
-    {
-        foreach (Bullet bullet in bullets)
-        {
-            bullet.pos += bullet.speed * bullet.dir * GameManager.deltaTime;
-            bullet.obj.transform.localPosition = bullet.pos;
-        }
-    }
-
-    public void RecycleDeadBullets()
-    {
-        while (bulletRecycleBin.TryPop(out var bullet))
-        {
-            bullet.MoveToSomeplace();
-            bullets.Remove(bullet);
-            bulletPool.Return(bullet);
-        }
-    }
-
-    public void ShootOneBullet(Vector3 _pos, Vector3 _dir, float _speed, float _radius, float _damage, int bounces = 5, float lifeSpan = 12.0f)
-    {
-        //var bullet = bulletPool.Get();
-        //bullet.Initialize(GameManager.currentTime, _pos, _dir, _speed, _radius, _damage);
-        //bullets.Add(bullet);
-
         AppendPlayerShootRequest(_pos, _dir, _speed, _radius, _damage, bounces, lifeSpan);
     }
-
 }

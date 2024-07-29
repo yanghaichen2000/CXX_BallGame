@@ -26,8 +26,6 @@ public class GameManager : MonoBehaviour
 
     public static EnemyLegion enemyLegion;
 
-    public static GameManagerGPU gameManagerGPU;
-
     public static float enemyAndBulletIntersectionBias = 0.05f;
     public static float enemyAndEnemyIntersectionBias = 0.5f;
     public static Vector3 bulletPoolRecyclePosition = new Vector3(-15.0f, 10.0f, 5.0f);
@@ -44,7 +42,6 @@ public class GameManager : MonoBehaviour
         player1 = new Player(GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(GameObject.Find("Player2"), new KeyboardInputManager());
         enemyLegion = new EnemyLegion();
-        gameManagerGPU = new GameManagerGPU(this);
         gameStartedTime = DateTime.Now;
         basicTransform = GameObject.Find("ball game").transform;
     }
@@ -102,8 +99,6 @@ public class GameManager : MonoBehaviour
         using (new GameUtils.Profiler("player2.Update")) { player2.Update(); }
         using (new GameUtils.Profiler("TickAllBulletsGPU")) { bulletManager.TickAllBulletsGPU(); }
         using (new GameUtils.Profiler("TickAllEnemies")) { enemyLegion.TickAllEnemies(); }
-        //using (new BallGameUtils.Profiler("TickAllPlayerBullets")) { bulletManager.TickAllBullets(); }
-        //BallGameUtils.LogWithCD(bulletManager.bullets.Count);
     }
 
     public void UpdateTime()

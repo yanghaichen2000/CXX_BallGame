@@ -13,7 +13,7 @@ struct BulletDatum
     float damage;
     int bounces;
     float expirationTime;
-    int valid;
+    int tmp1;
 };
 
 struct EnemyDatum
@@ -22,7 +22,7 @@ struct EnemyDatum
     float3 dir;
     float hp;
     float size;
-    int valid;
+    int tmp4;
     int tmp1;
     int tmp2;
     int tmp3;
@@ -39,6 +39,7 @@ RWStructuredBuffer<int> drawPlayerBulletArgs;
 int maxPlayerBulletNum;
 int playerShootRequestNum;
 float deltaTime;
+float gameTime;
 
 int sphereEnemyNum;
 
@@ -63,7 +64,7 @@ void PlayerShoot(uint3 id : SV_DispatchThreadID)
 void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = playerBulletData[id.x];
-    if (id.x >= playerBulletNum[0] || bullet.valid == 0)
+    if (id.x >= playerBulletNum[0])
         return;
 
     playerBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
@@ -74,16 +75,11 @@ void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = playerBulletData[id.x];
-    if (bullet.valid == 1)
+    if (id.x < playerBulletNum[0] && bullet.expirationTime > gameTime && bullet.bounces > 0)
     {
         int index;
         InterlockedAdd(culledPlayerBulletNum[0], 1, index);
         culledPlayerBulletData[index] = bullet;
-    }
-    
-    if (id.x == 0)
-    {
-        playerBulletNum[0] = 0;
     }
 }
 
@@ -100,25 +96,22 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = playerBulletData[id.x];
     
-    if (bullet.valid == 1)
+    for (int i = 0; i < sphereEnemyNum; i++)
     {
-        for (int i = 0; i < sphereEnemyNum; i++)
-        {
-            EnemyDatum enemy = sphereEnemyData[i];
-            float enemyRadius = enemy.size * 0.5f;
-            float3 bulletRelativePos = bullet.pos - enemy.pos;
+        EnemyDatum enemy = sphereEnemyData[i];
+        float enemyRadius = enemy.size * 0.5f;
+        float3 bulletRelativePos = bullet.pos - enemy.pos;
             
-            if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
-            {
-                enemy.hp -= bullet.damage;
-                float3 normal = normalize(bulletRelativePos);
-                bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
-                bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
-                bullet.dir.y = 0.0f;
-                bullet.dir = normalize(bullet.dir);
-                playerBulletData[id.x] = bullet;
-                return;
-            }
+        if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
+        {
+            enemy.hp -= bullet.damage;
+            float3 normal = normalize(bulletRelativePos);
+            bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
+            bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
+            bullet.dir.y = 0.0f;
+            bullet.dir = normalize(bullet.dir);
+            playerBulletData[id.x] = bullet;
+            return;
         }
     }
 }
