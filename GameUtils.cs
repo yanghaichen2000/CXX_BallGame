@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BallGameUtils
+public class GameUtils
 {
     public static DateTime lastLogTime = DateTime.MinValue;
 

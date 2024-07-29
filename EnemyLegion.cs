@@ -33,7 +33,7 @@ public class EnemyLegion
 
     public void TickAllEnemies()
     {
-        using (new BallGameUtils.Profiler("enemy.ProcessBullets"))
+        using (new GameUtils.Profiler("enemy.ProcessBullets"))
         {
             foreach (Enemy enemy in enemies)
             {
@@ -41,7 +41,7 @@ public class EnemyLegion
             }
         }
 
-        using (new BallGameUtils.Profiler("enemy.Move"))
+        using (new GameUtils.Profiler("enemy.Move"))
         {
             foreach (Enemy enemy in enemies)
             {

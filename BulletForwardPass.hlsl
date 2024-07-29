@@ -147,10 +147,10 @@ struct BulletDatum
 
 StructuredBuffer<BulletDatum> playerBulletData;
 
-VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS)
+VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;
-    int id = UNITY_ACCESS_INSTANCED_PROP(Props, _ObjectID);
+    int id = instanceID;
     BulletDatum datum = playerBulletData[id];
     input.positionWS = positionOS * datum.radius * 2 + datum.pos + float3(-0.6f, 0.3f, 0.4f); // fix this
     input.positionVS = TransformWorldToView(input.positionWS);
@@ -164,7 +164,7 @@ VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS)
 }
 
 // Used in Standard (Physically Based) shader
-Varyings LitPassVertex(Attributes input)
+Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
 {
     Varyings output = (Varyings)0;
 
@@ -172,7 +172,7 @@ Varyings LitPassVertex(Attributes input)
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-    VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz);
+    VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz, instanceID);
 
     // normalWS and tangentWS already normalize.
     // this is required to avoid skewing the direction during interpolation

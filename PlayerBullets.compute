@@ -1,6 +1,8 @@
 #pragma kernel PlayerShoot
 #pragma kernel UpdatePlayerBulletPosition
-
+#pragma kernel CullPlayerBullet
+#pragma kernel ProcessPlayerBulletCollision
+#pragma kernel UpdateDrawPlayerBulletArgs
 
 struct BulletDatum
 {
@@ -14,13 +16,31 @@ struct BulletDatum
     int valid;
 };
 
+struct EnemyDatum
+{
+    float3 pos;
+    float3 dir;
+    float hp;
+    float size;
+    int valid;
+    int tmp1;
+    int tmp2;
+    int tmp3;
+};
+
 RWStructuredBuffer<BulletDatum> playerBulletData;
-RWStructuredBuffer<int> playerBulletStack;
+RWStructuredBuffer<BulletDatum> culledPlayerBulletData;
+RWStructuredBuffer<int> playerBulletNum;
+RWStructuredBuffer<int> culledPlayerBulletNum;
 RWStructuredBuffer<BulletDatum> playerShootRequestData;
+RWStructuredBuffer<EnemyDatum> sphereEnemyData;
+RWStructuredBuffer<int> drawPlayerBulletArgs;
 
 int maxPlayerBulletNum;
 int playerShootRequestNum;
 float deltaTime;
+
+int sphereEnemyNum;
 
 
 [numthreads(128, 1, 1)]
@@ -28,25 +48,78 @@ void PlayerShoot(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < playerShootRequestNum)
     {
-        int stackEnd = playerBulletStack[maxPlayerBulletNum];
-        int stackIndexForThisThread = stackEnd - id.x;
-        int newBulletIndex = playerBulletStack[stackIndexForThisThread];
-        playerBulletData[newBulletIndex] = playerShootRequestData[id.x];
+        int index = playerBulletNum[0] + id.x;
+        playerBulletData[index] = playerShootRequestData[id.x];
     }
 
     GroupMemoryBarrierWithGroupSync();
     
     if (id.x == 0)
-        playerBulletStack[maxPlayerBulletNum] -= playerShootRequestNum;
+        playerBulletNum[0] += playerShootRequestNum;
 }
 
 
 [numthreads(64, 1, 1)]
 void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 {
-    BulletDatum datum = playerBulletData[id.x];
-    if (datum.valid == 0)
+    BulletDatum bullet = playerBulletData[id.x];
+    if (id.x >= playerBulletNum[0] || bullet.valid == 0)
         return;
 
-    playerBulletData[id.x].pos = datum.pos + datum.speed * datum.dir * deltaTime;
+    playerBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
 }
+
+
+[numthreads(64, 1, 1)]
+void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
+{
+    BulletDatum bullet = playerBulletData[id.x];
+    if (bullet.valid == 1)
+    {
+        int index;
+        InterlockedAdd(culledPlayerBulletNum[0], 1, index);
+        culledPlayerBulletData[index] = bullet;
+    }
+    
+    if (id.x == 0)
+    {
+        playerBulletNum[0] = 0;
+    }
+}
+
+
+[numthreads(1, 1, 1)]
+void UpdateDrawPlayerBulletArgs(uint3 id : SV_DispatchThreadID)
+{
+    drawPlayerBulletArgs[1] = playerBulletNum[0];
+}
+
+
+[numthreads(64, 1, 1)]
+void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
+{
+    BulletDatum bullet = playerBulletData[id.x];
+    
+    if (bullet.valid == 1)
+    {
+        for (int i = 0; i < sphereEnemyNum; i++)
+        {
+            EnemyDatum enemy = sphereEnemyData[i];
+            float enemyRadius = enemy.size * 0.5f;
+            float3 bulletRelativePos = bullet.pos - enemy.pos;
+            
+            if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
+            {
+                enemy.hp -= bullet.damage;
+                float3 normal = normalize(bulletRelativePos);
+                bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
+                bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
+                bullet.dir.y = 0.0f;
+                bullet.dir = normalize(bullet.dir);
+                playerBulletData[id.x] = bullet;
+                return;
+            }
+        }
+    }
+}
+

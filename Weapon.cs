@@ -29,7 +29,7 @@ public class BasicWeapon : Weapon
         if ((GameManager.currentTime - lastShootTime).TotalSeconds > shootInterval)
         {
             lastShootTime = GameManager.currentTime;
-            bulletManager.ShootOneBullet(pos, dir, 0.0f, 0.1f, 1.0f);
+            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.1f, 1.0f);
         }
     }
 }

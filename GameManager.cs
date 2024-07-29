@@ -98,10 +98,10 @@ public class GameManager : MonoBehaviour
     public void Tick()
     {
         UpdateTime();
-        using (new BallGameUtils.Profiler("player1.Update")) { player1.Update(); }
-        using (new BallGameUtils.Profiler("player2.Update")) { player2.Update(); }
-        using (new BallGameUtils.Profiler("TickAllBulletsGPU")) { bulletManager.TickAllBulletsGPU(); }
-        using (new BallGameUtils.Profiler("TickAllEnemies")) { enemyLegion.TickAllEnemies(); }
+        using (new GameUtils.Profiler("player1.Update")) { player1.Update(); }
+        using (new GameUtils.Profiler("player2.Update")) { player2.Update(); }
+        using (new GameUtils.Profiler("TickAllBulletsGPU")) { bulletManager.TickAllBulletsGPU(); }
+        using (new GameUtils.Profiler("TickAllEnemies")) { enemyLegion.TickAllEnemies(); }
         //using (new BallGameUtils.Profiler("TickAllPlayerBullets")) { bulletManager.TickAllBullets(); }
         //BallGameUtils.LogWithCD(bulletManager.bullets.Count);
     }

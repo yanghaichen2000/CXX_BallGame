@@ -18,7 +18,7 @@ public class Player
         obj = _obj;
         body = _obj.GetComponent<Rigidbody>();
         playerInputManager = _playerInputManager;
-        weapon = new BasicWeapon(GameManager.bulletManager);
+        weapon = new Shotgun(GameManager.bulletManager);
     }
 
     public void Update()
@@ -26,7 +26,7 @@ public class Player
         playerInputManager.Update();
         UpdateDesiredVelocity();
         Vector3 shootDir = playerInputManager.GetShootDir(obj.transform.localPosition);
-        using (new BallGameUtils.Profiler("Player.Weapon.Shoot"))
+        using (new GameUtils.Profiler("Player.Weapon.Shoot"))
         {
             weapon.Shoot(obj.transform.localPosition, shootDir);
         }

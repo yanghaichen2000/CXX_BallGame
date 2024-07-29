@@ -39,7 +39,7 @@ public class GameManagerGPU
         if (maxBulletNum < GameManager.bulletManager.bullets.Count) Debug.Assert(false);
 
         int bulletNum = 0;
-        using (new BallGameUtils.Profiler("PrepareData"))
+        using (new GameUtils.Profiler("PrepareData"))
         {
             foreach (Bullet bullet in GameManager.bulletManager.bullets)
             {
@@ -60,7 +60,7 @@ public class GameManagerGPU
         moveBulletsCS.Dispatch(moveBulletsKernel, maxBulletNum / 64, 1, 1);
         moveBulletsCB.GetData(moveBulletsData);
 
-        using (new BallGameUtils.Profiler("WriteBackData"))
+        using (new GameUtils.Profiler("WriteBackData"))
         {
             int i = 0;
             foreach (Bullet bullet in GameManager.bulletManager.bullets)
