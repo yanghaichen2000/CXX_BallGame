@@ -218,7 +218,8 @@ Shader "Ball Game/Bullet"
             // -------------------------------------
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            //#include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
+            #include "Assets/Scripts/BulletShadowCasterPass.hlsl"
             ENDHLSL
         }
 

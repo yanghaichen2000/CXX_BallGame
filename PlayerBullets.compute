@@ -22,7 +22,7 @@ struct EnemyDatum
     float3 dir;
     float hp;
     float size;
-    int tmp4;
+    float rotationY;
     int tmp1;
     int tmp2;
     int tmp3;

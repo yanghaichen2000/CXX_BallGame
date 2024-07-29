@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Diagnostics;
 using static UnityEditor.Experimental.GraphView.GraphView;
 using static UnityEditor.PlayerSettings;
 
@@ -28,7 +29,7 @@ public class BulletManager
         public Vector3 dir;
         public float hp;
         public float size;
-        public Int32 valid;
+        public float rotationY;
         public Int32 tmp1;
         public Int32 tmp2;
         public Int32 tmp3;
@@ -57,6 +58,10 @@ public class BulletManager
     EnemyDatum[] sphereEnemyData;
     ComputeBuffer sphereEnemyDataCB;
     int sphereEnemyNum;
+
+    EnemyDatum[] cubeEnemyData;
+    ComputeBuffer cubeEnemyDataCB;
+    int cubeEnemyNum;
 
     UInt32[] drawPlayerBulletArgs;
     ComputeBuffer drawPlayerBulletArgsCB;
@@ -97,6 +102,8 @@ public class BulletManager
 
         sphereEnemyData = new EnemyDatum[maxEnemyNum];
         sphereEnemyDataCB = new ComputeBuffer(maxEnemyNum, enemyDatumSize);
+        cubeEnemyData = new EnemyDatum[maxEnemyNum];
+        cubeEnemyDataCB = new ComputeBuffer(maxEnemyNum, enemyDatumSize);
 
         drawPlayerBulletArgs = new UInt32[5];
         drawPlayerBulletArgsCB = new ComputeBuffer(1, 5 * sizeof(UInt32), ComputeBufferType.IndirectArguments);
@@ -133,7 +140,7 @@ public class BulletManager
         playerBulletNumCB[1].SetData(playerBulletNum);
 
         drawPlayerBulletArgs[0] = playerBulletMesh.GetIndexCount(0);
-        drawPlayerBulletArgs[1] = 16384;
+        drawPlayerBulletArgs[1] = 0;
         drawPlayerBulletArgs[2] = playerBulletMesh.GetIndexStart(0);
         drawPlayerBulletArgs[3] = playerBulletMesh.GetBaseVertex(0);
         drawPlayerBulletArgsCB.SetData(drawPlayerBulletArgs);
@@ -141,7 +148,7 @@ public class BulletManager
 
     public void TickAllBulletsGPU()
     {
-        UpdateEnemyData();
+        //UpdateEnemyData();
 
         SetComputeGlobalConstant();
 
@@ -182,7 +189,8 @@ public class BulletManager
             0,
             playerBulletMaterial,
             new Bounds(Vector3.zero, new Vector3(100.0f, 100.0f, 100.0f)),
-            drawPlayerBulletArgsCB
+            drawPlayerBulletArgsCB,
+            castShadows: UnityEngine.Rendering.ShadowCastingMode.On
         );
     }
 
@@ -241,6 +249,7 @@ public class BulletManager
     public void UpdateEnemyData()
     {
         int sphereIndex = 0;
+        int cubeIndex = 0;
         foreach (Enemy enemy in GameManager.enemyLegion.enemies)
         {
             if (enemy.GetEnemyType() == "Sphere")
@@ -251,24 +260,29 @@ public class BulletManager
                     pos = e.pos,
                     hp = e.hp,
                     size = e.radius * 2.0f,
-                    valid = 1
                 };
                 sphereIndex++;
+            }
+            else if (enemy.GetEnemyType() == "Cube")
+            {
+                CubeEnemy e = (CubeEnemy)enemy;
+                cubeEnemyData[cubeIndex] = new EnemyDatum()
+                {
+                    pos = e.pos,
+                    dir = e.dir,
+                    hp = e.hp,
+                    size = e.size,
+                    rotationY = e.rotationY
+                };
+                cubeIndex++;
             }
         }
 
         sphereEnemyNum = sphereIndex;
-
-        while (sphereIndex < maxEnemyNum)
-        {
-            sphereEnemyData[sphereIndex] = new EnemyDatum()
-            {
-                valid = 0
-            };
-            sphereIndex++;
-        }
+        cubeEnemyNum = cubeIndex;
 
         sphereEnemyDataCB.SetData(sphereEnemyData);
+        cubeEnemyDataCB.SetData(cubeEnemyData);
     }
 
     public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, float _damage, int bounces, float lifeSpan)
@@ -312,7 +326,7 @@ public class BulletManager
         Shader.SetGlobalBuffer("playerBulletData", sourcePlayerBulletDataCB);
     }
 
-    public void ShootOneBullet(Vector3 _pos, Vector3 _dir, float _speed, float _radius, float _damage, int bounces = 5, float lifeSpan = 3.0f)
+    public void ShootOneBullet(Vector3 _pos, Vector3 _dir, float _speed, float _radius, float _damage, int bounces = 5, float lifeSpan = 6.0f)
     {
         AppendPlayerShootRequest(_pos, _dir, _speed, _radius, _damage, bounces, lifeSpan);
     }
