@@ -12,6 +12,7 @@ public class Player
     Vector3 velocity, desiredVelocity;
     float maxSpeed = 4.0f;
     float maxAcceleration = 10.0f;
+    public float hp = 10000.0f;
 
     public Player(GameObject _obj, PlayerInputManager _playerInputManager)
     {
@@ -51,5 +52,10 @@ public class Player
         velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
         velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);
         body.velocity = velocity;
+    }
+
+    public Vector3 GetPos()
+    {
+        return obj.transform.localPosition;
     }
 }

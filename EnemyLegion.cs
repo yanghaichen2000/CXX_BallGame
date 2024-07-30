@@ -26,7 +26,7 @@ public class EnemyLegion
         GameManager.computeCenter.AppendCreateSphereEnemyRequest(
             new Vector3(x, 0.5f, z),
             1.0f,
-            0.5f * 1.414f,
+            0.9f,
             0.8f,
             10000.0f
             );

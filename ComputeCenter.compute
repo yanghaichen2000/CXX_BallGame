@@ -5,7 +5,15 @@
 #pragma kernel UpdateDrawPlayerBulletArgs
 #pragma kernel CreateSphereEnemy
 #pragma kernel CullSphereEnemy
+#pragma kernel UpdateEnemyPosition
 
+struct PlayerDatum
+{
+    float3 pos;
+    float hp;
+    float3 hitMomentum;
+    float tmp1;
+};
 
 struct BulletDatum
 {
@@ -28,8 +36,10 @@ struct EnemyDatum
     float rotationY;
     float radius;
     float speed;
-    int tmp3;
+    float maxSpeed;
 };
+
+RWStructuredBuffer<PlayerDatum> playerData;
 
 RWStructuredBuffer<BulletDatum> playerBulletData;
 RWStructuredBuffer<BulletDatum> culledPlayerBulletData;
@@ -48,6 +58,11 @@ int playerShootRequestNum;
 int createSphereEnemyRequestNum;
 float deltaTime;
 float gameTime;
+float3 player1Pos;
+float3 player2Pos;
+
+groupshared EnemyDatum enemyData[256];
+groupshared int enemyNum = 0;
 
 
 [numthreads(128, 1, 1)]
@@ -164,5 +179,67 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
             playerBulletData[id.x] = bullet;
             return;
         }
+    }
+}
+
+
+[numthreads(128, 1, 1)]
+void UpdateEnemyPosition(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x == 0)
+        enemyNum = 0;
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    EnemyDatum datum;
+    int index;
+    if (id.x < sphereEnemyNum[0])
+    {
+        datum = sphereEnemyData[id.x];
+        InterlockedAdd(enemyNum, 1, index);
+        enemyData[index] = datum;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (id.x < sphereEnemyNum[0])
+    {
+        datum.speed = lerp(datum.speed, datum.maxSpeed, 0.5f);
+        
+        float3 playerRelativePos = player1Pos - datum.pos;
+        float playerDistance = length(playerRelativePos);
+        float moveDistance = min(playerDistance, datum.speed * deltaTime);
+        float3 newPos = datum.pos + normalize(playerRelativePos) * moveDistance;
+
+        int i;
+        for (i = 0; i < enemyNum; i++)
+        {            
+            if (i == index) continue;
+            EnemyDatum enemy = enemyData[i];
+            float3 desiredRelativePos = newPos - datum.pos;
+            float3 enemyRelativePos = enemy.pos - datum.pos;
+            float distance = length(enemyRelativePos);
+            float newDistance = length(enemy.pos - newPos);
+            if (newDistance < enemy.radius + datum.radius && newDistance < distance)
+            {
+                newPos -= 1.001f * dot(desiredRelativePos, normalize(enemyRelativePos)) * enemyRelativePos;
+            }
+        }
+        
+        newPos.y = 0.5f;
+        datum.pos = newPos;
+        
+        for (i = 0; i < enemyNum; i++)
+        {
+            if (i == index) continue;
+            EnemyDatum enemy = enemyData[i];
+            if (length(enemy.pos - newPos) < enemy.radius + datum.radius)
+            {
+                datum.speed *= 0.5f;
+                break;
+            }
+        }
+        
+        sphereEnemyData[id.x] = datum;
     }
 }

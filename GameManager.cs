@@ -17,6 +17,7 @@ public class GameManager : MonoBehaviour
     public static DateTime currentTime;
     public static float gameTime;
     public static float deltaTime;
+    public static int frameCount;
 
     public static ComputeCenter computeCenter;
     public static float bulletLifeSpan = 12.0f;
@@ -39,6 +40,7 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
+        frameCount = 0;
         computeCenter = new ComputeCenter(this);
         bulletManager = new BulletManager();
         player1 = new Player(GameObject.Find("Player1"), new KeyboardInputManager());
@@ -99,12 +101,12 @@ public class GameManager : MonoBehaviour
         UpdateTime();
         using (new GameUtils.Profiler("player1.Update")) { player1.Update(); }
         using (new GameUtils.Profiler("player2.Update")) { player2.Update(); }
-        using (new GameUtils.Profiler("TickAllBulletsGPU")) { computeCenter.TickAllBulletsGPU(); }
-        using (new GameUtils.Profiler("TickAllEnemies")) { enemyLegion.TickAllEnemies(); }
+        using (new GameUtils.Profiler("TickGPU")) { computeCenter.TickGPU(); }
     }
 
     public void UpdateTime()
     {
+        frameCount++;
         currentTime = DateTime.Now;
         gameTime = (float)(currentTime - gameStartedTime).TotalSeconds;
         deltaTime = (float)(currentTime - lastTickTime).TotalSeconds;
