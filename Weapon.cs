@@ -29,7 +29,7 @@ public class BasicWeapon : Weapon
         if ((GameManager.currentTime - lastShootTime).TotalSeconds > shootInterval)
         {
             lastShootTime = GameManager.currentTime;
-            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.1f, 1.0f);
+            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.1f, 1);
         }
     }
 }
@@ -61,7 +61,7 @@ public class Shotgun : Weapon
                 float angleOfThisBullet = i * angle + randomDithering;
                 Quaternion rotation = Quaternion.Euler(0, angleOfThisBullet, 0);
                 Vector3 dirOfThisBullet = rotation * dir;
-                bulletManager.ShootOneBullet(pos, dirOfThisBullet, 7.0f, 0.07f, 1.0f);
+                bulletManager.ShootOneBullet(pos, dirOfThisBullet, 7.0f, 0.07f, 1);
             }
         }
     }

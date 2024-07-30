@@ -6,13 +6,23 @@
 #pragma kernel CreateSphereEnemy
 #pragma kernel CullSphereEnemy
 #pragma kernel UpdateEnemyPosition
+#pragma kernel ProcessPlayerEnemyCollision
+
+uint getNegative(uint num)
+{
+    return 0xFFFFFFFF - num + 1;
+}
 
 struct PlayerDatum
 {
     float3 pos;
-    float hp;
+    int hp;
     float3 hitMomentum;
+    float size;
+    uint hittable;
     float tmp1;
+    float tmp2;
+    float tmp3;
 };
 
 struct BulletDatum
@@ -21,17 +31,17 @@ struct BulletDatum
     float3 dir;
     float speed;
     float radius;
-    float damage;
-    int bounces;
+    int damage;
+    uint bounces;
     float expirationTime;
-    int tmp1;
+    uint tmp1;
 };
 
 struct EnemyDatum
 {
     float3 pos;
     float3 dir;
-    float hp;
+    int hp;
     float size;
     float rotationY;
     float radius;
@@ -136,7 +146,7 @@ void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
     if (id.x == 0)
         sphereEnemyNum[0] = 0;
 
-    if (id.x < historySphereEnemyNum) 
+    if (id.x < historySphereEnemyNum && enemy.hp > 0) 
     {
         int index;
         InterlockedAdd(sphereEnemyNum[0], 1, index);
@@ -170,7 +180,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
             
         if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
         {
-            enemy.hp -= bullet.damage;
+            InterlockedAdd(sphereEnemyData[i].hp, -bullet.damage);
             float3 normal = normalize(bulletRelativePos);
             bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
             bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
@@ -241,5 +251,31 @@ void UpdateEnemyPosition(uint3 id : SV_DispatchThreadID)
         }
         
         sphereEnemyData[id.x] = datum;
+    }
+}
+
+[numthreads(128, 1, 1)]
+void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < sphereEnemyNum[0])
+    {
+        EnemyDatum enemy = sphereEnemyData[id.x];
+        
+        for (int i = 0; i < 2; i++)
+        {
+            PlayerDatum player = playerData[i];
+            if (player.hittable)
+            {
+                float3 relativePos = player.pos - enemy.pos;
+                float distance = length(relativePos);
+                if (player.hittable == 1 && distance < (player.size + enemy.size) * 0.5)
+                {
+                    float3 dir = normalize(relativePos);
+                    float3 newMomentum = dir * 10.0f;
+                    playerData[i].hitMomentum = newMomentum;
+                    InterlockedAdd(playerData[i].hp, -30);
+                }
+            }
+        }
     }
 }

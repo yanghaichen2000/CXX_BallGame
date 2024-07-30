@@ -23,7 +23,7 @@ public class SphereEnemy : Enemy
     public Vector3 pos;
     public float radius;
     public float speed;
-    public float hp;
+    public Int32 hp;
     public GameObject obj;
 
     public SphereEnemy()
@@ -40,7 +40,7 @@ public class SphereEnemy : Enemy
         SetPos(_pos);
         radius = 0.5f;
         speed = 0.8f;
-        hp = 1000000.0f;
+        hp = 1000000;
         obj.transform.localScale = new Vector3(radius * 2.0f, radius * 2.0f, radius * 2.0f);
     }
 
@@ -104,14 +104,12 @@ public class CubeEnemy : Enemy
     public float size; // length
     public float radius;
     public float speed;
-    public float hp;
+    public Int32 hp;
     public GameObject obj;
 
     public CubeEnemy()
     {
         obj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        //Collider[] colliders = obj.GetComponents<Collider>();
-        //foreach (Collider collider in colliders) collider.enabled = false;
         obj.transform.SetParent(GameManager.basicTransform);
         obj.GetComponent<Renderer>().material = Resources.Load<Material>("enemy");
     }
@@ -125,7 +123,7 @@ public class CubeEnemy : Enemy
         size = 0.8f;
         radius = size * 0.5f * 1.414f;
         speed = 0.8f;
-        hp = 1000000.0f;
+        hp = 1000000;
         obj.transform.localScale = new Vector3(size, size, size);
     }
 

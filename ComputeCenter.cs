@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Diagnostics;
 using UnityEngine.Rendering;
@@ -11,7 +12,7 @@ using static UnityEditor.PlayerSettings;
 public class ComputeCenter
 {
     //
-    public const bool debugPrintReadbackTime = true;
+    public const bool debugPrintReadbackTime = false;
     public int debugReadbackFrame1 = 0;
     public int debugReadbackFrame2 = 0;
     //
@@ -21,11 +22,15 @@ public class ComputeCenter
     public struct PlayerDatum
     {
         public Vector3 pos;
-        public float hp;
-        public Vector3 hitMomentum;
+        public Int32 hp;
+        public float3 hitMomentum; // 实际值乘以1000
+        public float size;
+        public UInt32 hittable;
         public float tmp1;
+        public float tmp2;
+        public float tmp3;
     }
-    const int playerDatumSize = 32;
+    const int playerDatumSize = 48;
 
     public struct BulletDatum
     {
@@ -33,10 +38,10 @@ public class ComputeCenter
         public Vector3 dir;
         public float speed;
         public float radius;
-        public float damage;
-        public Int32 bounces;
+        public Int32 damage;
+        public UInt32 bounces;
         public float expirationTime;
-        public Int32 tmp1;
+        public UInt32 tmp1;
     }
     const int bulletDatumSize = 48;
 
@@ -44,7 +49,7 @@ public class ComputeCenter
     {
         public Vector3 pos;
         public Vector3 dir;
-        public float hp;
+        public Int32 hp;
         public float size;
         public float rotationY;
         public float radius;
@@ -67,7 +72,7 @@ public class ComputeCenter
     ComputeBuffer targetPlayerBulletDataCB;
     int currentResourceCBIndex;
 
-    Int32[] playerBulletNum;
+    UInt32[] playerBulletNum;
     ComputeBuffer[] playerBulletNumCB;
     ComputeBuffer sourcePlayerBulletNumCB;
     ComputeBuffer targetPlayerBulletNumCB;
@@ -78,12 +83,12 @@ public class ComputeCenter
 
     EnemyDatum[] sphereEnemyData;
     ComputeBuffer sphereEnemyDataCB;
-    Int32[] sphereEnemyNum;
+    UInt32[] sphereEnemyNum;
     ComputeBuffer sphereEnemyNumCB;
 
     EnemyDatum[] cubeEnemyData;
     ComputeBuffer cubeEnemyDataCB;
-    Int32[] cubeEnemyNum;
+    UInt32[] cubeEnemyNum;
     ComputeBuffer cubeEnemyNumCB;
 
     EnemyDatum[] createSphereEnemyRequestData;
@@ -109,6 +114,7 @@ public class ComputeCenter
     int createSphereEnemyKernel = -1;
     int cullSphereEnemyKernel = -1;
     int updateEnemyPositionKernel = -1;
+    int processPlayerEnemyCollisionKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -132,10 +138,10 @@ public class ComputeCenter
         sourcePlayerBulletDataCB = playerBulletDataCB[currentResourceCBIndex];
         targetPlayerBulletDataCB = playerBulletDataCB[1 - currentResourceCBIndex];
 
-        playerBulletNum = new Int32[1];
+        playerBulletNum = new UInt32[1];
         playerBulletNumCB = new ComputeBuffer[2];
-        playerBulletNumCB[0] = new ComputeBuffer(1, sizeof(Int32));
-        playerBulletNumCB[1] = new ComputeBuffer(1, sizeof(Int32));
+        playerBulletNumCB[0] = new ComputeBuffer(1, sizeof(UInt32));
+        playerBulletNumCB[1] = new ComputeBuffer(1, sizeof(UInt32));
         sourcePlayerBulletNumCB = playerBulletNumCB[0];
         targetPlayerBulletNumCB = playerBulletNumCB[1];
 
@@ -145,8 +151,8 @@ public class ComputeCenter
 
         sphereEnemyData = new EnemyDatum[maxEnemyNum];
         sphereEnemyDataCB = new ComputeBuffer(maxEnemyNum, enemyDatumSize);
-        sphereEnemyNum = new int[1];
-        sphereEnemyNumCB = new ComputeBuffer(1, sizeof(Int32));
+        sphereEnemyNum = new UInt32[1];
+        sphereEnemyNumCB = new ComputeBuffer(1, sizeof(UInt32));
 
         createSphereEnemyRequestData = new EnemyDatum[maxNewEnemyNum];
         createSphereEnemyRequestDataCB = new ComputeBuffer(maxNewEnemyNum, enemyDatumSize);
@@ -154,8 +160,8 @@ public class ComputeCenter
 
         cubeEnemyData = new EnemyDatum[maxEnemyNum];
         cubeEnemyDataCB = new ComputeBuffer(maxEnemyNum, enemyDatumSize);
-        cubeEnemyNum = new int[1];
-        cubeEnemyNumCB = new ComputeBuffer(1, sizeof(Int32));
+        cubeEnemyNum = new UInt32[1];
+        cubeEnemyNumCB = new ComputeBuffer(1, sizeof(UInt32));
 
         createCubeEnemyRequestData = new EnemyDatum[maxNewEnemyNum];
         createCubeEnemyRequestDataCB = new ComputeBuffer(maxNewEnemyNum, enemyDatumSize);
@@ -176,6 +182,7 @@ public class ComputeCenter
         createSphereEnemyKernel = computeCenterCS.FindKernel("CreateSphereEnemy");
         cullSphereEnemyKernel = computeCenterCS.FindKernel("CullSphereEnemy");
         updateEnemyPositionKernel = computeCenterCS.FindKernel("UpdateEnemyPosition");
+        processPlayerEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerEnemyCollision");
 
         playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMaterial = Resources.Load<Material>("bullet");
@@ -237,16 +244,15 @@ public class ComputeCenter
         SwapBulletDataBuffer();
 
         SetGlobalBufferForRendering();
-
         DrawBullet();
         DrawEnemy();
 
         SendGPUReadbackRequest();
-    }
 
-    public void ProcessPlayerEnemyCollision()
-    {
-
+        sphereEnemyDataCB.GetData(sphereEnemyData);
+        Debug.Log(sphereEnemyData[0].hp);
+        playerDataCB.GetData(playerData);
+        Debug.Log(playerData[0].hp);
     }
 
     public void UpdatePlayerComputeBuffer()
@@ -255,13 +261,17 @@ public class ComputeCenter
         {
             pos = GameManager.player1.GetPos(),
             hp = GameManager.player1.hp,
-            hitMomentum = new Vector3(0.0f, 0.0f, 0.0f)
+            hitMomentum = new float3(0.0f, 0.0f, 0.0f),
+            size = 1.0f,
+            hittable = GameManager.player1.hittable ? (uint)1 : 0
         };
         playerData[1] = new PlayerDatum
         {
             pos = GameManager.player2.GetPos(),
             hp = GameManager.player2.hp,
-            hitMomentum = new Vector3(0.0f, 0.0f, 0.0f)
+            hitMomentum = new float3(0.0f, 0.0f, 0.0f),
+            size = 1.0f,
+            hittable = GameManager.player2.hittable ? (uint)1 : 0
         };
         playerDataCB.SetData(playerData);
     }
@@ -269,17 +279,18 @@ public class ComputeCenter
     public void SendGPUReadbackRequest()
     {
         if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback started: {1}", debugReadbackFrame1++, GameManager.gameTime)); }
-        AsyncGPUReadback.Request(sphereEnemyDataCB, dataRequest =>
+        AsyncGPUReadback.Request(playerDataCB, dataRequest =>
         {
-            var readbackSphereEnemyData = dataRequest.GetData<EnemyDatum>();
+            var readbackPlayerData = dataRequest.GetData<PlayerDatum>();
             if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback completed: {1}", debugReadbackFrame2++, GameManager.gameTime)); }
-            OnGPUReadBackCompleted(readbackSphereEnemyData);
+            OnGPUReadBackCompleted(readbackPlayerData);
         });
     }
 
-    public void OnGPUReadBackCompleted(NativeArray<EnemyDatum> readbackSphereEnemyData)
+    public void OnGPUReadBackCompleted(NativeArray<PlayerDatum> readbackPlayerData)
     {
-        
+        GameManager.player1.OnProcessReadbackData(readbackPlayerData[0]);
+        GameManager.player2.OnProcessReadbackData(readbackPlayerData[1]);
     }
 
     public void ResetCulledBulletNum()
@@ -326,6 +337,15 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sphereEnemyNumCB);
         computeCenterCS.Dispatch(kernel, GameUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
+    }
+
+    public void ProcessPlayerEnemyCollision()
+    {
+        int kernel = processPlayerEnemyCollisionKernel;
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeCenterCS.Dispatch(kernel, GameUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     // 这里的cull包含三个方面
@@ -423,14 +443,14 @@ public class ComputeCenter
             }
         }
 
-        sphereEnemyNum[0] = sphereIndex;
-        cubeEnemyNum[0] = cubeIndex;
+        sphereEnemyNum[0] = (uint)sphereIndex;
+        cubeEnemyNum[0] = (uint)cubeIndex;
 
         sphereEnemyDataCB.SetData(sphereEnemyData);
         cubeEnemyDataCB.SetData(cubeEnemyData);
     }
 
-    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, float _damage, int _bounces, float _lifeSpan)
+    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan)
     {
         playerShootRequestData[playerShootRequestNum] = new BulletDatum()
         {
@@ -439,13 +459,13 @@ public class ComputeCenter
             speed = _speed,
             radius = _radius,
             damage = _damage,
-            bounces = _bounces,
+            bounces = (uint)_bounces,
             expirationTime = GameManager.gameTime + _lifeSpan,
         };
         playerShootRequestNum++;
     }
 
-    public void AppendCreateSphereEnemyRequest(Vector3 _pos, float _size, float _radius, float _speed, float _hp)
+    public void AppendCreateSphereEnemyRequest(Vector3 _pos, float _size, float _radius, float _speed, int _hp)
     {
         createSphereEnemyRequestData[createSphereEnemyRequestNum] = new EnemyDatum()
         {

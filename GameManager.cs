@@ -73,6 +73,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        /*
         enemyLegion.SpawnStaticCube(-10.0f, -15.0f);
         enemyLegion.SpawnStaticCube(0.0f, -15.0f);
         enemyLegion.SpawnStaticCube(10.0f, -15.0f);
@@ -84,6 +85,7 @@ public class GameManager : MonoBehaviour
         enemyLegion.SpawnStaticCube(-20.0f, -5.0f);
         enemyLegion.SpawnStaticCube(20.0f, 5.0f);
         enemyLegion.SpawnStaticCube(20.0f, -5.0f);
+        */
     }
 
     void Update()

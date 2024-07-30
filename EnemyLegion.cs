@@ -28,7 +28,7 @@ public class EnemyLegion
             1.0f,
             0.9f,
             0.8f,
-            10000.0f
+            1000
             );
     }
 
