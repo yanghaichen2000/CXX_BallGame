@@ -152,7 +152,7 @@ VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instance
 {
     VertexPositionInputs input;
     EnemyDatum datum = sphereEnemyData[instanceID];
-    input.positionWS = positionOS * datum.size + datum.pos + float3(-0.6f, 0.3f, 0.4f); // fix this
+    input.positionWS = positionOS * datum.size + datum.pos;
     input.positionVS = TransformWorldToView(input.positionWS);
     input.positionCS = TransformWorldToHClip(input.positionWS);
  

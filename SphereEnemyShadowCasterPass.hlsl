@@ -53,7 +53,7 @@ float4 GetShadowPositionHClipNew(Attributes input, uint instanceID)
 {
     //float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
     EnemyDatum datum = sphereEnemyData[instanceID];
-    float3 positionWS = input.positionOS.xyz * datum.size + datum.pos + float3(-0.6f, 0.3f, 0.4f);
+    float3 positionWS = input.positionOS.xyz * datum.size + datum.pos;
     float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
 
 #if _CASTING_PUNCTUAL_LIGHT_SHADOW

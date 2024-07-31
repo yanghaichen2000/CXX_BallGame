@@ -268,6 +268,7 @@ public class ComputeCenter
         sphereEnemyMaterial = Resources.Load<Material>("enemy");
 
         InitializeComputeBuffers();
+        SetFrustumCullingGlobalConstant();
     }
 
     public void InitializeComputeBuffers()
@@ -346,8 +347,41 @@ public class ComputeCenter
 
         if (true)
         {
-            Debug.Log(GameManager.player1.hp);
+            
         }
+    }
+
+    public void SetFrustumCullingGlobalConstant()
+    {
+        Camera camera = Camera.main;
+        Plane plane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
+
+        Vector3[] screenCorners = new Vector3[4];
+        screenCorners[0] = new Vector3(0, 0, 0);
+        screenCorners[1] = new Vector3(Screen.width, 0, 0);
+        screenCorners[2] = new Vector3(0, Screen.height, 0);
+        screenCorners[3] = new Vector3(Screen.width, Screen.height, 0);
+
+        Vector3[] intersectionList = new Vector3[4];
+        for (int i = 0; i < 4; i++)
+        {
+            Ray ray = camera.ScreenPointToRay(screenCorners[i]);
+            plane.Raycast(ray, out float enter);
+            intersectionList[i] = ray.GetPoint(enter);
+            Debug.Log(intersectionList[i]);
+        }
+
+        float zMin = intersectionList[0].z;
+        float zMax = intersectionList[2].z;
+        float xAtZMin = intersectionList[1].x;
+        float xAtZMax = intersectionList[3].x;
+        float lerpCoefficient = 1.0f / (zMax - zMin);
+
+        computeCenterCS.SetFloat("viewFrustrumZMin", zMin);
+        computeCenterCS.SetFloat("viewFrustrumZMax", zMax);
+        computeCenterCS.SetFloat("viewFrustrumXAtZMin", xAtZMin);
+        computeCenterCS.SetFloat("viewFrustrumXAtZMax", xAtZMax);
+        computeCenterCS.SetFloat("frustrumCullingLerpCoefficient", lerpCoefficient);
     }
 
     public void ProcessEnemyBulletCollision()

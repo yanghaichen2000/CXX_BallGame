@@ -141,8 +141,32 @@ float gameTime;
 float3 player1Pos;
 float3 player2Pos;
 
+float viewFrustrumZMin;
+float viewFrustrumZMax;
+float viewFrustrumXAtZMin;
+float viewFrustrumXAtZMax;
+float frustrumCullingLerpCoefficient;
+
 groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
+
+
+bool IsInViewFrustum(float3 pos, float radius)
+{   
+    if (pos.z + radius < viewFrustrumZMin) return false;
+    if (pos.z - radius > viewFrustrumZMax) return false;
+    
+    float xBound = lerp(
+        viewFrustrumXAtZMin,
+        viewFrustrumXAtZMax,
+        (pos.z - viewFrustrumZMin) * frustrumCullingLerpCoefficient
+    );
+    
+    if (pos.x + radius < -xBound) return false;
+    if (pos.x - radius > xBound) return false;
+    
+    return true;
+}
 
 
 [numthreads(128, 1, 1)]
@@ -199,7 +223,10 @@ void UpdateEnemyBulletPosition(uint3 id : SV_DispatchThreadID)
 void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = playerBulletData[id.x];
-    if (id.x < playerBulletNum[0] && bullet.expirationTime > gameTime && bullet.bounces > 0)
+    if (id.x < playerBulletNum[0]
+        && IsInViewFrustum(bullet.pos, bullet.radius)
+        && bullet.expirationTime > gameTime 
+        && bullet.bounces > 0)
     {
         int index;
         InterlockedAdd(culledPlayerBulletNum[0], 1, index);
@@ -212,7 +239,10 @@ void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
 void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = enemyBulletData[id.x];
-    if (id.x < enemyBulletNum[0] && bullet.expirationTime > gameTime && bullet.bounces > 0)
+    if (id.x < enemyBulletNum[0]
+        && IsInViewFrustum(bullet.pos, bullet.radius)
+        && bullet.expirationTime > gameTime
+        && bullet.bounces > 0)
     {
         int index;
         InterlockedAdd(culledEnemyBulletNum[0], 1, index);
@@ -292,7 +322,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
         }
     }
 }
-
+ 
 
 [numthreads(64, 1, 1)]
 void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
