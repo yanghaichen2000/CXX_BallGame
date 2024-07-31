@@ -1,4 +1,4 @@
-Shader "Ball Game/Bullet"
+Shader "Ball Game/Enemy Bullet"
 {
     Properties
     {
@@ -168,7 +168,7 @@ Shader "Ball Game/Bullet"
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             //#include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
-            #include "Assets/Scripts/BulletForwardPass.hlsl"
+            #include "Assets/Scripts/EnemyBulletForwardPass.hlsl"
             ENDHLSL
         }
 
@@ -219,7 +219,7 @@ Shader "Ball Game/Bullet"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             //#include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
-            #include "Assets/Scripts/BulletShadowCasterPass.hlsl"
+            #include "Assets/Scripts/EnemyBulletShadowCasterPass.hlsl"
             ENDHLSL
         }
 

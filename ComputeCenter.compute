@@ -7,11 +7,50 @@
 #pragma kernel CullSphereEnemy
 #pragma kernel UpdateEnemyPosition
 #pragma kernel ProcessPlayerEnemyCollision
+#pragma kernel EnemyShoot
+#pragma kernel UpdateEnemyBulletPosition
+#pragma kernel CullEnemyBullet
+#pragma kernel UpdateDrawEnemyBulletArgs
 
-uint getNegative(uint num)
+#define DEG2RAD_V 0.01745329252f
+
+uint GetNegative(uint num)
 {
     return 0xFFFFFFFF - num + 1;
 }
+
+float Random3DTo1D(float3 value, float a, float3 b)
+{
+    float3 smallValue = sin(value);
+    float random = dot(smallValue, b);
+    random = frac(sin(random) * a);
+    return random;
+}
+
+float3 Random3DTo3D(float3 value)
+{
+    return float3(
+		Random3DTo1D(value, 14375.5964, float3(15.637, 76.243, 37.168)),
+		Random3DTo1D(value, 14684.6034, float3(45.366, 23.168, 65.918)),
+		Random3DTo1D(value, 17635.1739, float3(62.654, 88.467, 25.111))
+	);
+}
+
+float3 RotateAroundY(float3 vec, float angle)
+{
+    angle *= DEG2RAD_V;
+    
+    float cosTheta = cos(angle);
+    float sinTheta = sin(angle);
+    
+    float3 result;
+    result.x = cosTheta * vec.x + sinTheta * vec.z;
+    result.y = vec.y;
+    result.z = -sinTheta * vec.x + cosTheta * vec.z;
+    
+    return result;
+}
+
 
 struct PlayerDatum
 {
@@ -47,6 +86,26 @@ struct EnemyDatum
     float radius;
     float speed;
     float maxSpeed;
+    int weapon;
+    float lastShootTime;
+    float tmp3;
+    float tmp4;
+};
+
+struct EnemyWeaponDatum
+{
+    float uniformRandomAngleBias;
+    float individualRandomAngleBias;
+    float shootInterval;
+    int extraBulletsPerSide;
+    float angle;
+    float randomShootDelay;
+    float bulletSpeed;
+    float bulletRadius;
+    int bulletDamage;
+    int bulletBounces;
+    float bulletLifeSpan;
+    float tmp3;
 };
 
 RWStructuredBuffer<PlayerDatum> playerData;
@@ -55,14 +114,24 @@ RWStructuredBuffer<BulletDatum> playerBulletData;
 RWStructuredBuffer<BulletDatum> culledPlayerBulletData;
 RWStructuredBuffer<int> playerBulletNum;
 RWStructuredBuffer<int> culledPlayerBulletNum;
+
 RWStructuredBuffer<BulletDatum> playerShootRequestData;
 
 RWStructuredBuffer<EnemyDatum> sphereEnemyData;
 RWStructuredBuffer<int> sphereEnemyNum;
+
 RWStructuredBuffer<EnemyDatum> createSphereEnemyRequestData;
+
+RWStructuredBuffer<BulletDatum> enemyBulletData;
+RWStructuredBuffer<BulletDatum> culledEnemyBulletData;
+RWStructuredBuffer<int> enemyBulletNum;
+RWStructuredBuffer<int> culledEnemyBulletNum;
+
+RWStructuredBuffer<EnemyWeaponDatum> enemyWeaponData;
 
 RWStructuredBuffer<int> drawPlayerBulletArgs;
 RWStructuredBuffer<int> drawSphereEnemyArgs;
+RWStructuredBuffer<int> drawEnemyBulletArgs;
 
 int playerShootRequestNum;
 int createSphereEnemyRequestNum;
@@ -71,7 +140,7 @@ float gameTime;
 float3 player1Pos;
 float3 player2Pos;
 
-groupshared EnemyDatum enemyData[256];
+groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
 
 
@@ -110,11 +179,18 @@ void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x >= playerBulletNum[0]) return;
     BulletDatum bullet = playerBulletData[id.x];
-    if (id.x >= playerBulletNum[0])
-        return;
-
     playerBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
+}
+
+
+[numthreads(64, 1, 1)]
+void UpdateEnemyBulletPosition(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= enemyBulletNum[0]) return;
+    BulletDatum bullet = enemyBulletData[id.x];
+    enemyBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
 }
 
 
@@ -127,6 +203,19 @@ void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
         int index;
         InterlockedAdd(culledPlayerBulletNum[0], 1, index);
         culledPlayerBulletData[index] = bullet;
+    }
+}
+
+
+[numthreads(64, 1, 1)]
+void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
+{
+    BulletDatum bullet = enemyBulletData[id.x];
+    if (id.x < enemyBulletNum[0] && bullet.expirationTime > gameTime && bullet.bounces > 0)
+    {
+        int index;
+        InterlockedAdd(culledEnemyBulletNum[0], 1, index);
+        culledEnemyBulletData[index] = bullet;
     }
 }
 
@@ -167,6 +256,13 @@ void UpdateDrawPlayerBulletArgs(uint3 id : SV_DispatchThreadID)
 }
 
 
+[numthreads(1, 1, 1)]
+void UpdateDrawEnemyBulletArgs(uint3 id : SV_DispatchThreadID)
+{
+    drawEnemyBulletArgs[1] = enemyBulletNum[0];
+}
+
+
 [numthreads(64, 1, 1)]
 void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
@@ -186,6 +282,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
             bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
             bullet.dir.y = 0.0f;
             bullet.dir = normalize(bullet.dir);
+            bullet.bounces -= 1;
             playerBulletData[id.x] = bullet;
             return;
         }
@@ -232,7 +329,7 @@ void UpdateEnemyPosition(uint3 id : SV_DispatchThreadID)
             float newDistance = length(enemy.pos - newPos);
             if (newDistance < enemy.radius + datum.radius && newDistance < distance)
             {
-                newPos -= 1.001f * dot(desiredRelativePos, normalize(enemyRelativePos)) * enemyRelativePos;
+                newPos -= 1.0f * dot(desiredRelativePos, normalize(enemyRelativePos)) * enemyRelativePos;
             }
         }
         
@@ -253,6 +350,7 @@ void UpdateEnemyPosition(uint3 id : SV_DispatchThreadID)
         sphereEnemyData[id.x] = datum;
     }
 }
+
 
 [numthreads(128, 1, 1)]
 void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
@@ -275,6 +373,40 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                     playerData[i].hitMomentum = newMomentum;
                     InterlockedAdd(playerData[i].hp, -30);
                 }
+            }
+        }
+    }
+}
+
+
+[numthreads(128, 1, 1)]
+void EnemyShoot(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < sphereEnemyNum[0])
+    {
+        EnemyDatum enemy = sphereEnemyData[id.x];
+        EnemyWeaponDatum weapon = enemyWeaponData[enemy.weapon];
+        float3 r = Random3DTo3D(float3(gameTime, deltaTime, float(id.x) + deltaTime));
+        
+        if (gameTime - enemy.lastShootTime > weapon.shootInterval + weapon.randomShootDelay * r.x)
+        {
+            sphereEnemyData[id.x].lastShootTime = gameTime;
+            float3 playerDir = normalize(player1Pos - enemy.pos);
+            
+            for (int i = -weapon.extraBulletsPerSide; i <= weapon.extraBulletsPerSide; i++)
+            {
+                int bulletIndex;
+                InterlockedAdd(enemyBulletNum[0], 1, bulletIndex);
+                BulletDatum bullet = enemyBulletData[bulletIndex];
+                
+                bullet.pos = enemy.pos;
+                bullet.dir = RotateAroundY(playerDir, i * weapon.angle + weapon.uniformRandomAngleBias * (r.y * 2.0f - 1.0f));
+                bullet.speed = weapon.bulletSpeed;
+                bullet.radius = weapon.bulletRadius;
+                bullet.damage = weapon.bulletDamage;
+                bullet.bounces = weapon.bulletBounces;
+                bullet.expirationTime = gameTime + weapon.bulletLifeSpan;
+                enemyBulletData[bulletIndex] = bullet;
             }
         }
     }

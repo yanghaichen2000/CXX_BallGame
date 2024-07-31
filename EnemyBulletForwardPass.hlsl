@@ -130,29 +130,25 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 ///////////////////////////////////////////////////////////////////////////////
 
 
-struct EnemyDatum
+struct BulletDatum
 {
     float3 pos;
     float3 dir;
-    int hp;
-    float size;
-    float rotationY;
-    float radius;
     float speed;
-    float maxSpeed;
-    float tmp1;
-    float tmp2;
-    float tmp3;
-    float tmp4;
+    float radius;
+    float damage;
+    int bounces;
+    float expirationTime;
+    int valid;
 };
 
-StructuredBuffer<EnemyDatum> sphereEnemyData;
+StructuredBuffer<BulletDatum> enemyBulletData;
 
 VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;
-    EnemyDatum datum = sphereEnemyData[instanceID];
-    input.positionWS = positionOS * datum.size + datum.pos + float3(-0.6f, 0.3f, 0.4f); // fix this
+    BulletDatum datum = enemyBulletData[instanceID];
+    input.positionWS = positionOS * datum.radius * 2 + datum.pos + float3(-0.6f, 0.3f, 0.4f); // fix this
     input.positionVS = TransformWorldToView(input.positionWS);
     input.positionCS = TransformWorldToHClip(input.positionWS);
  

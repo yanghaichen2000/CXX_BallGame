@@ -25,7 +25,7 @@ public class Player
         obj = _obj;
         body = _obj.GetComponent<Rigidbody>();
         playerInputManager = _playerInputManager;
-        weapon = new Shotgun(GameManager.bulletManager);
+        weapon = new BasicWeapon(GameManager.bulletManager);
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
     }
@@ -80,7 +80,7 @@ public class Player
     public void OnProcessReadbackData(ComputeCenter.PlayerDatum datum)
     {
         Vector3 dV = datum.hitMomentum;
-        int newHp = datum.hp;
+        int hpChange = datum.hpChange;
 
         bool hit = false;
         if (dV.magnitude > 0.0001f) hit = true;
@@ -90,7 +90,7 @@ public class Player
             lastHitByEnemyTime = GameManager.gameTime;
             hittable = false;
             body.velocity = body.velocity * 0.2f + dV;
-            hp = newHp;
+            hp += hpChange;
         }
     }
 

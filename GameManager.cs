@@ -111,7 +111,7 @@ public class GameManager : MonoBehaviour
         frameCount++;
         currentTime = DateTime.Now;
         gameTime = (float)(currentTime - gameStartedTime).TotalSeconds;
-        deltaTime = (float)(currentTime - lastTickTime).TotalSeconds;
+        deltaTime = Mathf.Min((float)(currentTime - lastTickTime).TotalSeconds, 0.03f);
         lastTickTime = currentTime;
     }
 }

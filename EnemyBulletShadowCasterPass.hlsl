@@ -31,29 +31,25 @@ struct Varyings
 };
 
 
-struct EnemyDatum
+struct BulletDatum
 {
     float3 pos;
     float3 dir;
-    int hp;
-    float size;
-    float rotationY;
-    float radius;
     float speed;
-    float maxSpeed;
-    float tmp1;
-    float tmp2;
-    float tmp3;
-    float tmp4;
+    float radius;
+    float damage;
+    int bounces;
+    float expirationTime;
+    int valid;
 };
 
-StructuredBuffer<EnemyDatum> sphereEnemyData;
+StructuredBuffer<BulletDatum> enemyBulletData;
 
 float4 GetShadowPositionHClipNew(Attributes input, uint instanceID)
 {
     //float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
-    EnemyDatum datum = sphereEnemyData[instanceID];
-    float3 positionWS = input.positionOS.xyz * datum.size + datum.pos + float3(-0.6f, 0.3f, 0.4f);
+    BulletDatum datum = enemyBulletData[instanceID];
+    float3 positionWS = input.positionOS.xyz * datum.radius * 2 + datum.pos + float3(-0.6f, 0.3f, 0.4f);
     float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
 
 #if _CASTING_PUNCTUAL_LIGHT_SHADOW
