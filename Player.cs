@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class Player
 {
+    public int index;
     public GameObject obj;
     public Rigidbody body;
     public PlayerInputManager playerInputManager;
@@ -16,16 +17,17 @@ public class Player
 
     public Vector3 velocity, desiredVelocity;
     public Weapon weapon;
-    public Int32 hp = 100;
+    public Int32 hp = 300;
     public bool hittable = false;
     public float lastHitByEnemyTime = -10000.0f;
 
-    public Player(GameObject _obj, PlayerInputManager _playerInputManager)
+    public Player(int _index, GameObject _obj, PlayerInputManager _playerInputManager)
     {
+        index = _index;
         obj = _obj;
         body = _obj.GetComponent<Rigidbody>();
         playerInputManager = _playerInputManager;
-        weapon = new BasicWeapon(GameManager.bulletManager);
+        weapon = new Shotgun(GameManager.bulletManager);
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
     }
@@ -79,18 +81,16 @@ public class Player
 
     public void OnProcessReadbackData(ComputeCenter.PlayerDatum datum)
     {
+        hp += datum.hpChange;
+        GameManager.uiManager.UpdatePlayerHP(index, hp);
+
         Vector3 dV = datum.hitMomentum;
-        int hpChange = datum.hpChange;
-
-        bool hit = false;
-        if (dV.magnitude > 0.0001f) hit = true;
-
+        bool hit = dV.magnitude > 0.0001f;
         if (hit && hittable)
         {
             lastHitByEnemyTime = GameManager.gameTime;
             hittable = false;
             body.velocity = body.velocity * 0.2f + dV;
-            hp += hpChange;
         }
     }
 

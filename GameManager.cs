@@ -29,6 +29,8 @@ public class GameManager : MonoBehaviour
 
     public static EnemyLegion enemyLegion;
 
+    public static UIManager uiManager;
+
     public static float enemyAndBulletIntersectionBias = 0.05f;
     public static float enemyAndEnemyIntersectionBias = 0.5f;
     public static Vector3 bulletPoolRecyclePosition = new Vector3(-15.0f, 10.0f, 5.0f);
@@ -43,9 +45,10 @@ public class GameManager : MonoBehaviour
         frameCount = 0;
         computeCenter = new ComputeCenter(this);
         bulletManager = new BulletManager();
-        player1 = new Player(GameObject.Find("Player1"), new KeyboardInputManager());
-        player2 = new Player(GameObject.Find("Player2"), new KeyboardInputManager());
+        player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
+        player2 = new Player(1, GameObject.Find("Player2"), new KeyboardInputManager());
         enemyLegion = new EnemyLegion();
+        uiManager = new UIManager();
         gameStartedTime = DateTime.Now;
         basicTransform = GameObject.Find("ball game").transform;
     }

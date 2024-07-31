@@ -11,6 +11,7 @@
 #pragma kernel UpdateEnemyBulletPosition
 #pragma kernel CullEnemyBullet
 #pragma kernel UpdateDrawEnemyBulletArgs
+#pragma kernel ProcessEnemyBulletCollision
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -55,7 +56,7 @@ float3 RotateAroundY(float3 vec, float angle)
 struct PlayerDatum
 {
     float3 pos;
-    int hp;
+    int hpChange;
     float3 hitMomentum;
     float size;
     uint hittable;
@@ -266,25 +267,58 @@ void UpdateDrawEnemyBulletArgs(uint3 id : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
-    BulletDatum bullet = playerBulletData[id.x];
-    
-    for (int i = 0; i < sphereEnemyNum[0]; i++)
+    if (id.x < playerBulletNum[0])
     {
-        EnemyDatum enemy = sphereEnemyData[i];
-        float enemyRadius = enemy.size * 0.5f;
-        float3 bulletRelativePos = bullet.pos - enemy.pos;
-            
-        if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
+        BulletDatum bullet = playerBulletData[id.x];
+   
+        for (int i = 0; i < sphereEnemyNum[0]; i++)
         {
-            InterlockedAdd(sphereEnemyData[i].hp, -bullet.damage);
-            float3 normal = normalize(bulletRelativePos);
-            bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
-            bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
-            bullet.dir.y = 0.0f;
-            bullet.dir = normalize(bullet.dir);
-            bullet.bounces -= 1;
-            playerBulletData[id.x] = bullet;
-            return;
+            EnemyDatum enemy = sphereEnemyData[i];
+            float enemyRadius = enemy.size * 0.5f;
+            float3 bulletRelativePos = bullet.pos - enemy.pos;
+            
+            if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
+            {
+                InterlockedAdd(sphereEnemyData[i].hp, -bullet.damage);
+                float3 normal = normalize(bulletRelativePos);
+                bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
+                bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
+                bullet.dir.y = 0.0f;
+                bullet.dir = normalize(bullet.dir);
+                bullet.bounces -= 1;
+                playerBulletData[id.x] = bullet;
+                return;
+            }
+        }
+    }
+}
+
+
+[numthreads(64, 1, 1)]
+void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < enemyBulletNum[0])
+    {
+        BulletDatum bullet = enemyBulletData[id.x];
+   
+        for (int i = 0; i < 2; i++)
+        {
+            PlayerDatum player = playerData[i];
+            float playerRadius = player.size * 0.5f;
+            float3 bulletRelativePos = bullet.pos - player.pos;
+            
+            if (length(bulletRelativePos) <= playerRadius + bullet.radius)
+            {
+                InterlockedAdd(playerData[i].hpChange, -bullet.damage);
+                float3 normal = normalize(bulletRelativePos);
+                bullet.pos = player.pos + (playerRadius + bullet.radius) * normal;
+                bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
+                bullet.dir.y = 0.0f;
+                bullet.dir = normalize(bullet.dir);
+                bullet.bounces -= 1;
+                enemyBulletData[id.x] = bullet;
+                return;
+            }
         }
     }
 }
@@ -370,8 +404,9 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                 {
                     float3 dir = normalize(relativePos);
                     float3 newMomentum = dir * 10.0f;
+                    newMomentum.y = 10.0f;
                     playerData[i].hitMomentum = newMomentum;
-                    InterlockedAdd(playerData[i].hp, -30);
+                    InterlockedAdd(playerData[i].hpChange, -30);
                 }
             }
         }

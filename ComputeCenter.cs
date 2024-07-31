@@ -159,6 +159,7 @@ public class ComputeCenter
     int updateEnemyBulletPositionKernel = -1;
     int cullEnemyBulletKernel = -1;
     int updateDrawEnemyBulletArgsKernel = -1;
+    int processEnemyBulletCollisionKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -255,6 +256,7 @@ public class ComputeCenter
         updateEnemyBulletPositionKernel = computeCenterCS.FindKernel("UpdateEnemyBulletPosition");
         cullEnemyBulletKernel = computeCenterCS.FindKernel("CullEnemyBullet");
         updateDrawEnemyBulletArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyBulletArgs");
+        processEnemyBulletCollisionKernel = computeCenterCS.FindKernel("ProcessEnemyBulletCollision");
 
         playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMaterial = Resources.Load<Material>("playerBullet");
@@ -320,6 +322,7 @@ public class ComputeCenter
         EnemyShoot();
 
         ProcessPlayerBulletCollision();
+        ProcessEnemyBulletCollision();
         ProcessPlayerEnemyCollision();
 
         UpdatePlayerBulletPosition();
@@ -343,9 +346,17 @@ public class ComputeCenter
 
         if (true)
         {
-            drawEnemyBulletArgsCB.GetData(drawEnemyBulletArgs);
-            Debug.Log(drawEnemyBulletArgs[1]);
+            Debug.Log(GameManager.player1.hp);
         }
+    }
+
+    public void ProcessEnemyBulletCollision()
+    {
+        int kernel = processEnemyBulletCollisionKernel;
+        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeCenterCS.Dispatch(kernel, GameUtils.GetComputeGroupNum(maxEnemyBulletNum, 64), 1, 1);
     }
 
     public void CullEnemyBullet()
@@ -410,7 +421,7 @@ public class ComputeCenter
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
-            bulletBounces = 1,
+            bulletBounces = 2,
             bulletLifeSpan = 10.0f
         };
 
