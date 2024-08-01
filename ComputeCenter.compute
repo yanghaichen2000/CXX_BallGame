@@ -145,7 +145,7 @@ float viewFrustrumZMin;
 float viewFrustrumZMax;
 float viewFrustrumXAtZMin;
 float viewFrustrumXAtZMax;
-float frustrumCullingLerpCoefficient;
+float viewFrustrumCullingLerpCoefficient;
 
 groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
@@ -159,7 +159,7 @@ bool IsInViewFrustum(float3 pos, float radius)
     float xBound = lerp(
         viewFrustrumXAtZMin,
         viewFrustrumXAtZMax,
-        (pos.z - viewFrustrumZMin) * frustrumCullingLerpCoefficient
+        (pos.z - viewFrustrumZMin) * viewFrustrumCullingLerpCoefficient
     );
     
     if (pos.x + radius < -xBound) return false;
@@ -174,14 +174,10 @@ void PlayerShoot(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < playerShootRequestNum)
     {
-        int index = playerBulletNum[0] + id.x;
+        int index;
+        InterlockedAdd(playerBulletNum[0], 1, index);
         playerBulletData[index] = playerShootRequestData[id.x];
     }
-
-    GroupMemoryBarrierWithGroupSync();
-    
-    if (id.x == 0)
-        playerBulletNum[0] += playerShootRequestNum;
 }
 
 

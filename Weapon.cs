@@ -14,7 +14,7 @@ public interface Weapon
 
 public class BasicWeapon : Weapon
 {
-    public float shootInterval = 0.06f;
+    public float shootInterval = 0.08f;
     public DateTime lastShootTime;
     public BulletManager bulletManager;
 
@@ -29,19 +29,19 @@ public class BasicWeapon : Weapon
         if ((GameManager.currentTime - lastShootTime).TotalSeconds > shootInterval)
         {
             lastShootTime = GameManager.currentTime;
-            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.1f, 1);
+            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.07f, 1);
         }
     }
 }
 
 public class Shotgun : Weapon
 {
-    public float shootInterval = 0.06f;
+    public float shootInterval = 0.08f;
     public DateTime lastShootTime;
     public BulletManager bulletManager;
 
-    public int extraBulletsPerSide = 30;
-    public float angle = 1.5f;
+    public int extraBulletsPerSide = 90;
+    public float angle = 2.0f;
 
     public Shotgun(BulletManager _bulletManager)
     {

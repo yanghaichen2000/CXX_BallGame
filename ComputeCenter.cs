@@ -12,7 +12,7 @@ using static UnityEditor.PlayerSettings;
 public class ComputeCenter
 {
     //
-    const bool debugPrintReadbackTime = false;
+    const bool debugPrintReadbackTime = true;
     int debugReadbackFrame1 = 0;
     int debugReadbackFrame2 = 0;
     //
@@ -81,7 +81,7 @@ public class ComputeCenter
 
     const int maxPlayerBulletNum = 32768;
     const int maxEnemyBulletNum = 32768;
-    const int maxNewBulletNum = 128;
+    const int maxNewBulletNum = 512;
     const int maxEnemyNum = 128;
     const int maxNewEnemyNum = 128;
     const int maxEnemyWeaponNum = 8;
@@ -368,7 +368,6 @@ public class ComputeCenter
             Ray ray = camera.ScreenPointToRay(screenCorners[i]);
             plane.Raycast(ray, out float enter);
             intersectionList[i] = ray.GetPoint(enter);
-            Debug.Log(intersectionList[i]);
         }
 
         float zMin = intersectionList[0].z;
@@ -381,7 +380,7 @@ public class ComputeCenter
         computeCenterCS.SetFloat("viewFrustrumZMax", zMax);
         computeCenterCS.SetFloat("viewFrustrumXAtZMin", xAtZMin);
         computeCenterCS.SetFloat("viewFrustrumXAtZMax", xAtZMax);
-        computeCenterCS.SetFloat("frustrumCullingLerpCoefficient", lerpCoefficient);
+        computeCenterCS.SetFloat("viewFrustrumCullingLerpCoefficient", lerpCoefficient);
     }
 
     public void ProcessEnemyBulletCollision()
@@ -486,11 +485,17 @@ public class ComputeCenter
     public void SendGPUReadbackRequest()
     {
         if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback started: {1}", debugReadbackFrame1++, GameManager.gameTime)); }
+        
         AsyncGPUReadback.Request(playerDataCB, dataRequest =>
         {
             var readbackPlayerData = dataRequest.GetData<PlayerDatum>();
-            if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback completed: {1}", debugReadbackFrame2++, GameManager.gameTime)); }
             OnGPUReadBackCompleted(readbackPlayerData);
+        });
+
+        AsyncGPUReadback.Request(sphereEnemyDataCB, dataRequest =>
+        {
+            var readbackPlayerData = dataRequest.GetData<EnemyDatum>();
+            if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback completed: {1}", debugReadbackFrame2++, GameManager.gameTime)); }
         });
     }
 
