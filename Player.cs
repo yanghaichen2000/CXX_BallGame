@@ -27,7 +27,7 @@ public class Player
         obj = _obj;
         body = _obj.GetComponent<Rigidbody>();
         playerInputManager = _playerInputManager;
-        weapon = new Shotgun(GameManager.bulletManager);
+        weapon = new Shotgun();
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
     }
@@ -81,10 +81,10 @@ public class Player
 
     public void OnProcessReadbackData(ComputeCenter.PlayerDatum datum)
     {
-        hp += datum.hpChange;
+        if (hittable) hp += datum.hpChange;
         GameManager.uiManager.UpdatePlayerHP(index, hp);
 
-        Vector3 dV = datum.hitMomentum;
+        Vector3 dV = datum.hitImpulse;
         bool hit = dV.magnitude > 0.0001f;
         if (hit && hittable)
         {

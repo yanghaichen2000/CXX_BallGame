@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,7 +13,7 @@ using static UnityEditor.PlayerSettings;
 public class ComputeCenter
 {
     //
-    const bool debugPrintReadbackTime = true;
+    const bool debugPrintReadbackTime = false;
     int debugReadbackFrame1 = 0;
     int debugReadbackFrame2 = 0;
     //
@@ -23,10 +24,10 @@ public class ComputeCenter
     {
         public Vector3 pos;
         public Int32 hpChange;
-        public float3 hitMomentum;
+        public float3 hitImpulse;
         public float size;
         public UInt32 hittable;
-        public float tmp1;
+        public float m;
         public float tmp2;
         public float tmp3;
     }
@@ -41,24 +42,22 @@ public class ComputeCenter
         public Int32 damage;
         public UInt32 bounces;
         public float expirationTime;
-        public UInt32 tmp1;
+        public float impulse;
     }
     const int bulletDatumSize = 48;
 
     public struct EnemyDatum
     {
         public Vector3 pos;
-        public Vector3 dir;
+        public Vector3 velocity;
         public Int32 hp;
         public float size;
-        public float rotationY;
         public float radius;
-        public float speed;
-        public float maxSpeed;
+        public int3 hitImpulse;
         public Int32 weapon;
         public float lastShootTime;
-        public float tmp3;
-        public float tmp4;
+        public float originalM;
+        public float m;
     }
     const int enemyDatumSize = 64;
 
@@ -75,7 +74,7 @@ public class ComputeCenter
         public Int32 bulletDamage;
         public Int32 bulletBounces;
         public float bulletLifeSpan;
-        public float tmp3;
+        public float bulletImpulse;
     }
     const int enemyWeaponDatumSize = 48;
 
@@ -153,13 +152,14 @@ public class ComputeCenter
     int updateDrawPlayerBulletArgsKernel = -1;
     int createSphereEnemyKernel = -1;
     int cullSphereEnemyKernel = -1;
-    int updateEnemyPositionKernel = -1;
+    int updateEnemyVelocityAndPositionKernel = -1;
     int processPlayerEnemyCollisionKernel = -1;
     int enemyShootKernel = -1;
     int updateEnemyBulletPositionKernel = -1;
     int cullEnemyBulletKernel = -1;
     int updateDrawEnemyBulletArgsKernel = -1;
     int processEnemyBulletCollisionKernel = -1;
+    int updateEnemyDesiredVelocityKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -250,7 +250,7 @@ public class ComputeCenter
         updateDrawPlayerBulletArgsKernel = computeCenterCS.FindKernel("UpdateDrawPlayerBulletArgs");
         createSphereEnemyKernel = computeCenterCS.FindKernel("CreateSphereEnemy");
         cullSphereEnemyKernel = computeCenterCS.FindKernel("CullSphereEnemy");
-        updateEnemyPositionKernel = computeCenterCS.FindKernel("UpdateEnemyPosition");
+        updateEnemyVelocityAndPositionKernel = computeCenterCS.FindKernel("UpdateEnemyVelocityAndPosition");
         processPlayerEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerEnemyCollision");
         enemyShootKernel = computeCenterCS.FindKernel("EnemyShoot");
         updateEnemyBulletPositionKernel = computeCenterCS.FindKernel("UpdateEnemyBulletPosition");
@@ -269,6 +269,8 @@ public class ComputeCenter
 
         InitializeComputeBuffers();
         SetFrustumCullingGlobalConstant();
+        SetEnemyMovementGlobalConstant();
+        SetCommonGlobalConstant();
     }
 
     public void InitializeComputeBuffers()
@@ -328,7 +330,7 @@ public class ComputeCenter
 
         UpdatePlayerBulletPosition();
         UpdateEnemyBulletPosition();
-        UpdateEnemyPosition();
+        UpdateEnemyVelocityAndPosition();
 
         CullPlayerBullet();
         CullEnemyBullet();
@@ -349,6 +351,24 @@ public class ComputeCenter
         {
             
         }
+    }
+
+    public void SetCommonGlobalConstant()
+    {
+        computeCenterCS.SetFloat("gravity", 9.8f);
+        computeCenterCS.SetFloat("planeXMin", -20.0f);
+        computeCenterCS.SetFloat("planeXMax", 20.0f);
+        computeCenterCS.SetFloat("planeZMin", -15.0f);
+        computeCenterCS.SetFloat("planeZMax", 15.0f);
+    }
+
+    public void SetEnemyMovementGlobalConstant()
+    {
+        computeCenterCS.SetFloat("enemyAcceleration", 0.5f);
+        computeCenterCS.SetFloat("enemyMaxSpeed", 1.0f);
+        computeCenterCS.SetFloat("enemyFrictionalDeceleration", 2.0f);
+        computeCenterCS.SetFloat("enemySpacingAcceleration", 0.2f);
+        computeCenterCS.SetFloat("enemyCollisionVelocityRestitution", 0.5f);
     }
 
     public void SetFrustumCullingGlobalConstant()
@@ -432,15 +452,16 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 20.0f,
             individualRandomAngleBias = 5.0f,
-            shootInterval = 2.0f,
+            shootInterval = 5.0f,
             extraBulletsPerSide = 1,
             angle = 90.0f,
-            randomShootDelay = 0.2f,
-            bulletSpeed = 3.0f,
+            randomShootDelay = 5.0f,
+            bulletSpeed = 1.5f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 10.0f
+            bulletLifeSpan = 10.0f,
+            bulletImpulse = 1.0f
         };
 
         enemyWeaponData[2] = new EnemyWeaponDatum
@@ -455,7 +476,8 @@ public class ComputeCenter
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 10.0f
+            bulletLifeSpan = 10.0f,
+            bulletImpulse = 1.0f
         };
 
         enemyWeaponDataCB.SetData(enemyWeaponData);
@@ -467,7 +489,7 @@ public class ComputeCenter
         {
             pos = GameManager.player1.GetPos(),
             hpChange = 0,
-            hitMomentum = new float3(0.0f, 0.0f, 0.0f),
+            hitImpulse = new float3(0.0f, 0.0f, 0.0f),
             size = 1.0f,
             hittable = GameManager.player1.hittable ? (uint)1 : 0
         };
@@ -475,7 +497,7 @@ public class ComputeCenter
         {
             pos = GameManager.player2.GetPos(),
             hpChange = 0,
-            hitMomentum = new float3(0.0f, 0.0f, 0.0f),
+            hitImpulse = new float3(0.0f, 0.0f, 0.0f),
             size = 1.0f,
             hittable = GameManager.player2.hittable ? (uint)1 : 0
         };
@@ -490,12 +512,6 @@ public class ComputeCenter
         {
             var readbackPlayerData = dataRequest.GetData<PlayerDatum>();
             OnGPUReadBackCompleted(readbackPlayerData);
-        });
-
-        AsyncGPUReadback.Request(sphereEnemyDataCB, dataRequest =>
-        {
-            var readbackPlayerData = dataRequest.GetData<EnemyDatum>();
-            if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback completed: {1}", debugReadbackFrame2++, GameManager.gameTime)); }
         });
     }
 
@@ -635,11 +651,12 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         computeCenterCS.Dispatch(kernel, GameUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
     }
-    public void UpdateEnemyPosition()
+    public void UpdateEnemyVelocityAndPosition()
     {
-        int kernel = updateEnemyPositionKernel;
+        int kernel = updateEnemyVelocityAndPositionKernel;
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
         computeCenterCS.Dispatch(kernel, GameUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
@@ -656,46 +673,7 @@ public class ComputeCenter
         computeCenterCS.SetFloats("player2Pos", pPos.x, pPos.y, pPos.z);
     }
 
-    public void UpdateEnemyData()
-    {
-        int sphereIndex = 0;
-        int cubeIndex = 0;
-        foreach (Enemy enemy in GameManager.enemyLegion.enemies)
-        {
-            if (enemy.GetEnemyType() == "Sphere")
-            {
-                SphereEnemy e = (SphereEnemy)enemy;
-                sphereEnemyData[sphereIndex] = new EnemyDatum()
-                {
-                    pos = e.pos,
-                    hp = e.hp,
-                    size = e.radius * 2.0f,
-                };
-                sphereIndex++;
-            }
-            else if (enemy.GetEnemyType() == "Cube")
-            {
-                CubeEnemy e = (CubeEnemy)enemy;
-                cubeEnemyData[cubeIndex] = new EnemyDatum()
-                {
-                    pos = e.pos,
-                    dir = e.dir,
-                    hp = e.hp,
-                    size = e.size,
-                    rotationY = e.rotationY
-                };
-                cubeIndex++;
-            }
-        }
-
-        sphereEnemyNum[0] = (uint)sphereIndex;
-        cubeEnemyNum[0] = (uint)cubeIndex;
-
-        sphereEnemyDataCB.SetData(sphereEnemyData);
-        cubeEnemyDataCB.SetData(cubeEnemyData);
-    }
-
-    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan)
+    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse)
     {
         playerShootRequestData[playerShootRequestNum] = new BulletDatum()
         {
@@ -706,22 +684,25 @@ public class ComputeCenter
             damage = _damage,
             bounces = (uint)_bounces,
             expirationTime = GameManager.gameTime + _lifeSpan,
+            impulse = _impulse
         };
         playerShootRequestNum++;
     }
 
-    public void AppendCreateSphereEnemyRequest(Vector3 _pos, float _size, float _radius, float _speed, int _hp, int _weapon)
+    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m)
     {
         createSphereEnemyRequestData[createSphereEnemyRequestNum] = new EnemyDatum()
         {
             pos = _pos,
+            velocity = _velocity,
+            hp = _hp,
             size = _size,
             radius = _radius,
-            speed = _speed,
-            hp = _hp,
-            maxSpeed = _speed,
+            hitImpulse = _hitImpulse,
             weapon = _weapon,
-            lastShootTime = -99999.0f
+            lastShootTime = _lastShootTime,
+            originalM = _originalM,
+            m = _m
         };
         createSphereEnemyRequestNum++;
     }

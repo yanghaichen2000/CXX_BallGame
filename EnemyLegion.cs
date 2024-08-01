@@ -19,17 +19,17 @@ public class EnemyLegion
 
     public void SpawnSphereEnemy(float x, float z)
     {
-        //SphereEnemy enemy = sphereEnemyInstancePool.Get();
-        //enemy.Initialize(new Vector3(x, 0.5f, z));
-        //enemies.Add(enemy);
-
         GameManager.computeCenter.AppendCreateSphereEnemyRequest(
             new Vector3(x, 0.5f, z),
+            new Vector3(0.0f, 0.0f, 0.0f),
+            1000,
             1.0f,
             0.9f,
-            0.8f,
-            10000,
-            2
+            new Unity.Mathematics.int3(0, 0, 0),
+            1,
+            -99999.0f,
+            10.0f,
+            10.0f
             );
     }
 

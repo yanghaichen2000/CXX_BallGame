@@ -22,8 +22,6 @@ public class GameManager : MonoBehaviour
     public static ComputeCenter computeCenter;
     public static float bulletLifeSpan = 12.0f;
 
-    public static BulletManager bulletManager;
-
     public static Player player1;
     public static Player player2;
 
@@ -44,7 +42,6 @@ public class GameManager : MonoBehaviour
     {
         frameCount = 0;
         computeCenter = new ComputeCenter(this);
-        bulletManager = new BulletManager();
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(1, GameObject.Find("Player2"), new KeyboardInputManager());
         enemyLegion = new EnemyLegion();

@@ -16,12 +16,10 @@ public class BasicWeapon : Weapon
 {
     public float shootInterval = 0.08f;
     public DateTime lastShootTime;
-    public BulletManager bulletManager;
 
-    public BasicWeapon(BulletManager _bulletManager)
+    public BasicWeapon()
     {
         lastShootTime = GameManager.currentTime;
-        bulletManager = _bulletManager;
     }
 
     public void Shoot(Vector3 pos, Vector3 dir)
@@ -29,7 +27,7 @@ public class BasicWeapon : Weapon
         if ((GameManager.currentTime - lastShootTime).TotalSeconds > shootInterval)
         {
             lastShootTime = GameManager.currentTime;
-            bulletManager.ShootOneBullet(pos, dir, 7.0f, 0.07f, 1);
+            GameManager.computeCenter.AppendPlayerShootRequest(pos, dir, 7.0f, 0.07f, 1, 5, 6.0f, 0.1f);
         }
     }
 }
@@ -38,15 +36,13 @@ public class Shotgun : Weapon
 {
     public float shootInterval = 0.08f;
     public DateTime lastShootTime;
-    public BulletManager bulletManager;
 
-    public int extraBulletsPerSide = 90;
+    public int extraBulletsPerSide = 5;
     public float angle = 2.0f;
 
-    public Shotgun(BulletManager _bulletManager)
+    public Shotgun()
     {
         lastShootTime = GameManager.currentTime;
-        bulletManager = _bulletManager;
     }
 
     public void Shoot(Vector3 pos, Vector3 dir)
@@ -61,7 +57,7 @@ public class Shotgun : Weapon
                 float angleOfThisBullet = i * angle + randomDithering;
                 Quaternion rotation = Quaternion.Euler(0, angleOfThisBullet, 0);
                 Vector3 dirOfThisBullet = rotation * dir;
-                bulletManager.ShootOneBullet(pos, dirOfThisBullet, 7.0f, 0.07f, 1);
+                GameManager.computeCenter.AppendPlayerShootRequest(pos, dirOfThisBullet, 7.0f, 0.07f, 1, 5, 6.0f, 1.0f);
             }
         }
     }
