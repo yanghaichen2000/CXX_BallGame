@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GameUtils
+public class GUtils
 {
     public static DateTime lastLogTime = DateTime.MinValue;
 
@@ -27,9 +27,9 @@ public class GameUtils
         return (threadNum + groupSize) / groupSize;
     }
 
-    public class Profiler : IDisposable
+    public class PFL : IDisposable
     {
-        public Profiler(string name)
+        public PFL(string name)
         {
             UnityEngine.Profiling.Profiler.BeginSample(name);
         }

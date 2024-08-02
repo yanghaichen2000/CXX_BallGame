@@ -37,7 +37,7 @@ public class Shotgun : Weapon
     public float shootInterval = 0.08f;
     public DateTime lastShootTime;
 
-    public int extraBulletsPerSide = 5;
+    public int extraBulletsPerSide = 30;
     public float angle = 2.0f;
 
     public Shotgun()
@@ -57,7 +57,7 @@ public class Shotgun : Weapon
                 float angleOfThisBullet = i * angle + randomDithering;
                 Quaternion rotation = Quaternion.Euler(0, angleOfThisBullet, 0);
                 Vector3 dirOfThisBullet = rotation * dir;
-                GameManager.computeCenter.AppendPlayerShootRequest(pos, dirOfThisBullet, 7.0f, 0.07f, 1, 5, 6.0f, 1.0f);
+                GameManager.computeCenter.AppendPlayerShootRequest(pos, dirOfThisBullet, 7.0f, 0.07f, 1, 5, 12.0f, 1.0f);
             }
         }
     }

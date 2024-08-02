@@ -12,7 +12,10 @@
 #pragma kernel CullEnemyBullet
 #pragma kernel UpdateDrawEnemyBulletArgs
 #pragma kernel ProcessEnemyBulletCollision
-
+#pragma kernel BuildPlayerBulletGrid
+#pragma kernel BuildEnemyBulletGrid
+#pragma kernel ResetBulletGrid
+#pragma kernel ProcessBulletBulletCollision
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -108,6 +111,17 @@ struct EnemyWeaponDatum
     float bulletImpulse;
 };
 
+#define BULLET_GRID_CAPACITY 28
+struct BulletGridDatum
+{
+    int size;
+    float tmp1;
+    float tmp2;
+    float tmp3;
+    int bulletIndexList[BULLET_GRID_CAPACITY];
+};
+
+
 RWStructuredBuffer<PlayerDatum> playerData;
 
 RWStructuredBuffer<BulletDatum> playerBulletData;
@@ -116,6 +130,9 @@ RWStructuredBuffer<int> playerBulletNum;
 RWStructuredBuffer<int> culledPlayerBulletNum;
 
 RWStructuredBuffer<BulletDatum> playerShootRequestData;
+
+RWStructuredBuffer<BulletGridDatum> playerBulletGridData;
+RWStructuredBuffer<BulletGridDatum> enemyBulletGridData;
 
 RWStructuredBuffer<EnemyDatum> sphereEnemyData;
 RWStructuredBuffer<int> sphereEnemyNum;
@@ -158,9 +175,28 @@ float planeXMax;
 float planeZMin;
 float planeZMax;
 
+int bulletGridLengthX;
+int bulletGridLengthZ;
+float3 bulletGridBottomLeftPos;
+float bulletGridSize;
+float bulletGridSizeInv;
+
 groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
 
+
+int GetBulletGridIndexFromId(int3 xyz)
+{
+    xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
+    return xyz.z * bulletGridLengthX + xyz.x;
+}
+
+int GetBulletGridIndexFromPos(float3 pos)
+{
+    int3 xyz = floor((pos - bulletGridBottomLeftPos + 0.00001f) * bulletGridSizeInv);
+    xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
+    return xyz.z * bulletGridLengthX + xyz.x;
+}
 
 bool IsInViewFrustum(float3 pos, float radius)
 {   
@@ -179,7 +215,8 @@ bool IsInViewFrustum(float3 pos, float radius)
     return true;
 }
 
-[numthreads(128, 1, 1)]
+
+[numthreads(256, 1, 1)]
 void PlayerShoot(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < playerShootRequestNum)
@@ -555,6 +592,7 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
                 
                 bullet.pos = enemy.pos;
                 bullet.dir = RotateAroundY(playerDir, i * weapon.angle + weapon.uniformRandomAngleBias * (r.y * 2.0f - 1.0f));
+                bullet.dir.y = 0.0f;
                 bullet.speed = weapon.bulletSpeed;
                 bullet.radius = weapon.bulletRadius;
                 bullet.damage = weapon.bulletDamage;
@@ -568,3 +606,72 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
 }
 
 
+[numthreads(256, 1, 1)]
+void ResetBulletGrid(uint3 id : SV_DispatchThreadID)
+{
+    playerBulletGridData[id.x].size = 0;
+    enemyBulletGridData[id.x].size = 0;
+}
+
+
+[numthreads(256, 1, 1)]
+void BuildPlayerBulletGrid(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < playerBulletNum[0])
+    {
+        float3 pos = playerBulletData[id.x].pos;
+        int gridIndex = GetBulletGridIndexFromPos(pos);
+        int bulletIndex;
+        InterlockedAdd(playerBulletGridData[gridIndex].size, 1, bulletIndex);
+        if (bulletIndex < BULLET_GRID_CAPACITY)
+        {
+            playerBulletGridData[gridIndex].bulletIndexList[bulletIndex] = id.x;
+        }
+    }
+}
+
+
+[numthreads(256, 1, 1)]
+void BuildEnemyBulletGrid(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < enemyBulletNum[0])
+    {
+        float3 pos = enemyBulletData[id.x].pos;
+        int gridIndex = GetBulletGridIndexFromPos(pos);
+        int bulletIndex;
+        InterlockedAdd(enemyBulletGridData[gridIndex].size, 1, bulletIndex);
+        if (bulletIndex < BULLET_GRID_CAPACITY)
+        {
+            enemyBulletGridData[gridIndex].bulletIndexList[bulletIndex] = id.x;
+        }
+    }
+}
+
+
+[numthreads(8, 1, 8)]
+void ProcessBulletBulletCollision(uint3 id : SV_DispatchThreadID)
+{
+    int gridIndex = GetBulletGridIndexFromId(id);
+    for (int i = 0; i < min(playerBulletGridData[gridIndex].size, BULLET_GRID_CAPACITY); i++)
+    {
+        int playerBulletIndex = playerBulletGridData[gridIndex].bulletIndexList[i];
+        BulletDatum playerBullet = playerBulletData[playerBulletIndex];
+        for (int gridBiasX = -1; gridBiasX <= 1; gridBiasX++)
+        {
+            for (int gridBiasZ = -1; gridBiasZ <= 1; gridBiasZ++)
+            {
+                int neighborGridIndex = GetBulletGridIndexFromId(id + int3(gridBiasX, 0, gridBiasZ));
+                for (int j = 0; j < min(enemyBulletGridData[neighborGridIndex].size, BULLET_GRID_CAPACITY); j++)
+                {
+                    int enemyBulletIndex = enemyBulletGridData[neighborGridIndex].bulletIndexList[j];
+                    BulletDatum enemyBullet = enemyBulletData[enemyBulletIndex];
+                    if (length(playerBullet.pos - enemyBullet.pos) < playerBullet.radius + enemyBullet.radius)
+                    {
+                        playerBulletData[playerBulletIndex].expirationTime = 0.0f;
+                        enemyBulletData[enemyBulletIndex].expirationTime = 0.0f;
+                    }
+                }
+            }
+        }
+    }
+}

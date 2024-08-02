@@ -26,7 +26,7 @@ public class EnemyLegion
             1.0f,
             0.9f,
             new Unity.Mathematics.int3(0, 0, 0),
-            1,
+            3,
             -99999.0f,
             10.0f,
             10.0f
@@ -42,7 +42,7 @@ public class EnemyLegion
 
     public void TickAllEnemies()
     {
-        using (new GameUtils.Profiler("enemy.ProcessBullets"))
+        using (new GUtils.PFL("enemy.ProcessBullets"))
         {
             foreach (Enemy enemy in enemies)
             {
@@ -50,7 +50,7 @@ public class EnemyLegion
             }
         }
 
-        using (new GameUtils.Profiler("enemy.Move"))
+        using (new GUtils.PFL("enemy.Move"))
         {
             foreach (Enemy enemy in enemies)
             {

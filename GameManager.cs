@@ -101,9 +101,9 @@ public class GameManager : MonoBehaviour
     public void Tick()
     {
         UpdateTime();
-        using (new GameUtils.Profiler("player1.Update")) { player1.Update(); }
-        using (new GameUtils.Profiler("player2.Update")) { player2.Update(); }
-        using (new GameUtils.Profiler("TickGPU")) { computeCenter.TickGPU(); }
+        using (new GUtils.PFL("player1.Update")) { player1.Update(); }
+        using (new GUtils.PFL("player2.Update")) { player2.Update(); }
+        using (new GUtils.PFL("TickGPU")) { computeCenter.TickGPU(); }
     }
 
     public void UpdateTime()
