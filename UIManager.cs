@@ -7,10 +7,12 @@ using UnityEngine.UI;
 public class UIManager
 {
     public TextMeshProUGUI player1HP;
+    public TextMeshProUGUI fps;
 
     public UIManager()
     {
         player1HP = GameObject.Find("text_player1_hp").GetComponent<TextMeshProUGUI>();
+        fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();
     }
 
     public void UpdatePlayerHP(int index, int value)
@@ -23,5 +25,10 @@ public class UIManager
             else if (value > 0) player1HP.color = Color.red;
             else player1HP.color = Color.black;
         }
+    }
+
+    public void UpdateFPS(float value)
+    {
+        fps.text = string.Format("FPS: {0}", (int)value);
     }
 }

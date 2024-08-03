@@ -4,12 +4,10 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Diagnostics;
 using UnityEngine.Rendering;
-using static ComputeCenter;
-using static UnityEditor.Experimental.GraphView.GraphView;
-using static UnityEditor.PlayerSettings;
 
 public class ComputeCenter
 {
@@ -25,11 +23,11 @@ public class ComputeCenter
     {
         public Vector3 pos;
         public Int32 hpChange;
-        public float3 hitImpulse;
+        public int3 hitImpulse;
         public float size;
         public UInt32 hittable;
-        public float m;
-        public float tmp2;
+        public float tmp1;
+        public Int32 hitByEnemy;
         public float tmp3;
     }
     const int playerDatumSize = 48;
@@ -44,8 +42,12 @@ public class ComputeCenter
         public UInt32 bounces;
         public float expirationTime;
         public float impulse;
+        public float virtualY;
+        public Int32 player;
+        public float tmp1;
+        public float tmp2;
     }
-    const int bulletDatumSize = 48;
+    const int bulletDatumSize = 64;
 
     public struct EnemyDatum
     {
@@ -76,8 +78,12 @@ public class ComputeCenter
         public Int32 bulletBounces;
         public float bulletLifeSpan;
         public float bulletImpulse;
+        public float virtualYRange;
+        public float tmp1;
+        public float tmp2;
+        public float tmp3;
     }
-    const int enemyWeaponDatumSize = 48;
+    const int enemyWeaponDatumSize = 64;
 
     /* (hlsl)
     struct BulletGridDatum
@@ -110,9 +116,9 @@ public class ComputeCenter
     const float bulletGridSize = 0.2f;
     const float bulletGridSizeInv = 1.0f / bulletGridSize;
 
-    const int maxPlayerBulletNum = 32768;
-    const int maxEnemyBulletNum = 32768;
-    const int maxNewBulletNum = 1024;
+    const int maxPlayerBulletNum = 131072;
+    const int maxEnemyBulletNum = 131072;
+    const int maxNewBulletNum = 2048;
     const int maxEnemyNum = 128;
     const int maxNewEnemyNum = 128;
     const int maxEnemyWeaponNum = 8;
@@ -306,14 +312,16 @@ public class ComputeCenter
         resetBulletGridKernel = computeCenterCS.FindKernel("ResetBulletGrid");
         processBulletBulletCollisionKernel = computeCenterCS.FindKernel("ProcessBulletBulletCollision");
 
-        playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
+        //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
+        playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
         playerBulletMaterial = Resources.Load<Material>("playerBullet");
 
-        enemyBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
+        //enemyBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
+        enemyBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
         enemyBulletMaterial = Resources.Load<Material>("enemyBullet");
 
         sphereEnemyMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
-        sphereEnemyMaterial = Resources.Load<Material>("enemy");
+        sphereEnemyMaterial = Resources.Load<Material>("enemy1");
 
         InitializeComputeBuffers();
         SetGlobalConstant();
@@ -444,7 +452,7 @@ public class ComputeCenter
         computeCenterCS.SetFloat("planeZMax", 15.0f);
 
         // enemy movement
-        computeCenterCS.SetFloat("enemyAcceleration", 0.5f);
+        computeCenterCS.SetFloat("enemyAcceleration", 2.0f);
         computeCenterCS.SetFloat("enemyMaxSpeed", 1.0f);
         computeCenterCS.SetFloat("enemyFrictionalDeceleration", 2.0f);
         computeCenterCS.SetFloat("enemySpacingAcceleration", 0.2f);
@@ -456,7 +464,10 @@ public class ComputeCenter
         computeCenterCS.SetVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
         computeCenterCS.SetFloat("bulletGridSize", bulletGridSize);
         computeCenterCS.SetFloat("bulletGridSizeInv", bulletGridSizeInv);
-        
+
+        // player bullet color
+        Shader.SetGlobalVector("player1BulletColor", gameManager.player1BulletColor);
+        Shader.SetGlobalVector("player2BulletColor", gameManager.player2BulletColor);
 
         // frustum culling
         SetFrustumCullingGlobalConstant();
@@ -501,7 +512,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 128), 1, 1);
     }
 
     public void CullEnemyBullet()
@@ -511,7 +522,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "culledEnemyBulletData", targetEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "culledEnemyBulletNum", targetEnemyBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void UpdateEnemyBulletPosition()
@@ -519,7 +530,7 @@ public class ComputeCenter
         int kernel = updateEnemyBulletPositionKernel;
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void EnemyShoot()
@@ -535,6 +546,8 @@ public class ComputeCenter
 
     public void InitializeEnemyWeapon()
     {
+        float constantVirtualYRange = 0.06f;
+
         enemyWeaponData[0] = new EnemyWeaponDatum
         {
             shootInterval = -1.0f,
@@ -554,7 +567,8 @@ public class ComputeCenter
             bulletDamage = 1,
             bulletBounces = 2,
             bulletLifeSpan = 10.0f,
-            bulletImpulse = 1.0f
+            bulletImpulse = 0.1f,
+            virtualYRange = constantVirtualYRange,
         };
 
         // 快速
@@ -571,7 +585,8 @@ public class ComputeCenter
             bulletDamage = 1,
             bulletBounces = 2,
             bulletLifeSpan = 12.0f,
-            bulletImpulse = 1.0f
+            bulletImpulse = 0.1f,
+            virtualYRange = constantVirtualYRange,
         };
 
         // 快速散弹
@@ -588,7 +603,44 @@ public class ComputeCenter
             bulletDamage = 1,
             bulletBounces = 2,
             bulletLifeSpan = 12.0f,
-            bulletImpulse = 1.0f
+            bulletImpulse = 0.1f,
+            virtualYRange = constantVirtualYRange,
+        };
+
+        // 离谱散弹
+        enemyWeaponData[4] = new EnemyWeaponDatum
+        {
+            uniformRandomAngleBias = 1.0f,
+            individualRandomAngleBias = 0.0f,
+            shootInterval = 0.1f,
+            extraBulletsPerSide = 10,
+            angle = 3.0f,
+            randomShootDelay = 0.0f,
+            bulletSpeed = 6.0f,
+            bulletRadius = 0.07f,
+            bulletDamage = 1,
+            bulletBounces = 2,
+            bulletLifeSpan = 12.0f,
+            bulletImpulse = 0.1f,
+            virtualYRange = constantVirtualYRange,
+        };
+
+        // 全屏
+        enemyWeaponData[5] = new EnemyWeaponDatum
+        {
+            uniformRandomAngleBias = 1.0f,
+            individualRandomAngleBias = 0.0f,
+            shootInterval = 0.1f,
+            extraBulletsPerSide = 60,
+            angle = 3.0f,
+            randomShootDelay = 0.0f,
+            bulletSpeed = 6.0f,
+            bulletRadius = 0.07f,
+            bulletDamage = 1,
+            bulletBounces = 2,
+            bulletLifeSpan = 12.0f,
+            bulletImpulse = 0.1f,
+            virtualYRange = constantVirtualYRange,
         };
 
         enemyWeaponDataCB.SetData(enemyWeaponData);
@@ -600,17 +652,19 @@ public class ComputeCenter
         {
             pos = GameManager.player1.GetPos(),
             hpChange = 0,
-            hitImpulse = new float3(0.0f, 0.0f, 0.0f),
+            hitImpulse = new int3(0, 0, 0),
             size = 1.0f,
-            hittable = GameManager.player1.hittable ? (uint)1 : 0
+            hittable = GameManager.player1.hittable ? (uint)1 : 0,
+            hitByEnemy = 0,
         };
         playerData[1] = new PlayerDatum
         {
             pos = GameManager.player2.GetPos(),
             hpChange = 0,
-            hitImpulse = new float3(0.0f, 0.0f, 0.0f),
+            hitImpulse = new int3(0, 0, 0),
             size = 1.0f,
-            hittable = GameManager.player2.hittable ? (uint)1 : 0
+            hittable = GameManager.player2.hittable ? (uint)1 : 0,
+            hitByEnemy = 0
         };
         playerDataCB.SetData(playerData);
     }
@@ -700,7 +754,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 128), 1, 1);
     }
 
     public void ProcessPlayerEnemyCollision()
@@ -724,7 +778,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "culledPlayerBulletData", targetPlayerBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "culledPlayerBulletNum", targetPlayerBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
 
     // 在剔除敌人的同时更新draw indirect参数
@@ -760,7 +814,7 @@ public class ComputeCenter
         int kernel = updatePlayerBulletPositionKernel;
         computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
     public void UpdateEnemyVelocityAndPosition()
     {
@@ -784,8 +838,14 @@ public class ComputeCenter
         computeCenterCS.SetFloats("player2Pos", pPos.x, pPos.y, pPos.z);
     }
 
-    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse)
+    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse, float _virtualY, int _player)
     {
+        if (playerShootRequestNum >= maxNewBulletNum)
+        {
+            GUtils.LogWithCD("AppendPlayerShootRequest() playerShootRequestNum >= maxNewBulletNum");
+            return;
+        }
+
         playerShootRequestData[playerShootRequestNum] = new BulletDatum()
         {
             pos = _pos,
@@ -795,7 +855,9 @@ public class ComputeCenter
             damage = _damage,
             bounces = (uint)_bounces,
             expirationTime = GameManager.gameTime + _lifeSpan,
-            impulse = _impulse
+            impulse = _impulse,
+            virtualY = _virtualY,
+            player = _player
         };
         playerShootRequestNum++;
     }

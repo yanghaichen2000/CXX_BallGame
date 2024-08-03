@@ -2,8 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
+using System.Threading;
+using Unity.VisualScripting;
 using UnityEditor;
-using UnityEditor.VersionControl;
 using UnityEngine;
 using UnityEngine.Profiling;
 using UnityEngine.UIElements;
@@ -19,6 +21,10 @@ public class GameManager : MonoBehaviour
     public static float deltaTime;
     public static int frameCount;
 
+    public Queue<float> deltaTimeQueue;
+    float timeSum;
+    float averageFPS;
+
     public static ComputeCenter computeCenter;
     public static float bulletLifeSpan = 12.0f;
 
@@ -29,6 +35,8 @@ public class GameManager : MonoBehaviour
 
     public static UIManager uiManager;
 
+    public ComputeShader computeCenterCS;
+
     public static float enemyAndBulletIntersectionBias = 0.05f;
     public static float enemyAndEnemyIntersectionBias = 0.5f;
     public static Vector3 bulletPoolRecyclePosition = new Vector3(-15.0f, 10.0f, 5.0f);
@@ -36,10 +44,18 @@ public class GameManager : MonoBehaviour
 
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
 
-    public ComputeShader computeCenterCS;
+    [SerializeField]
+    public Color player1BulletColor;
+    [SerializeField]
+    public Color player2BulletColor;
 
     void Awake()
     {
+        Screen.SetResolution(3840, 2160, true);
+        Application.targetFrameRate = 240;
+
+        deltaTimeQueue = new Queue<float>();
+        timeSum = 0.0f;
         frameCount = 0;
         computeCenter = new ComputeCenter(this);
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
@@ -54,22 +70,13 @@ public class GameManager : MonoBehaviour
     {
         lastTickTime = DateTime.Now;
 
-        for (int a = -1; a <= 1; a += 2)
+        int count = 0;
+        for (float x = -18.0f; x <= 18.0f && count < 128; x += 1.2f)
         {
-            for (int b = -1; b <= 1; b += 2)
+            for (float z = 0.0f; z <= 14.0f && count < 128; z += 1.2f)
             {
-                enemyLegion.SpawnSphereEnemy(a * 5.0f, b * 5.0f);
-                enemyLegion.SpawnSphereEnemy(a * 3.0f, b * 5.0f);
-                enemyLegion.SpawnSphereEnemy(a * 1.0f, b * 5.0f);
-                enemyLegion.SpawnSphereEnemy(a * 2.0f, b * 3.0f);
-                enemyLegion.SpawnSphereEnemy(a * 4.0f, b * 3.0f);
-                enemyLegion.SpawnSphereEnemy(a * 6.0f, b * 3.0f);
-                enemyLegion.SpawnSphereEnemy(a * 5.0f, b * 1.0f);
-                enemyLegion.SpawnSphereEnemy(a * 3.0f, b * 1.0f);
-                enemyLegion.SpawnSphereEnemy(a * 1.0f, b * 1.0f);
-                enemyLegion.SpawnSphereEnemy(a * 2.0f, b * 7.0f);
-                enemyLegion.SpawnSphereEnemy(a * 4.0f, b * 7.0f);
-                enemyLegion.SpawnSphereEnemy(a * 6.0f, b * 7.0f);
+                enemyLegion.SpawnSphereEnemy(x, z);
+                count++;
             }
         }
 
@@ -113,5 +120,11 @@ public class GameManager : MonoBehaviour
         gameTime = (float)(currentTime - gameStartedTime).TotalSeconds;
         deltaTime = Mathf.Min((float)(currentTime - lastTickTime).TotalSeconds, 0.03f);
         lastTickTime = currentTime;
+
+        if (deltaTimeQueue.Count >= 20) timeSum -= deltaTimeQueue.Dequeue();
+        deltaTimeQueue.Enqueue(deltaTime);
+        timeSum += deltaTime;
+        averageFPS = deltaTimeQueue.Count > 0 ? (1.0f / (timeSum / deltaTimeQueue.Count)) : 1;
+        uiManager.UpdateFPS(averageFPS);
     }
 }

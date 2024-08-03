@@ -61,11 +61,11 @@ struct PlayerDatum
 {
     float3 pos;
     int hpChange;
-    float3 hitImpulse;
+    int3 hitImpulse;
     float size;
     uint hittable;
     float tmp1;
-    float tmp2;
+    int hitByEnemy;
     float tmp3;
 };
 
@@ -79,6 +79,10 @@ struct BulletDatum
     uint bounces;
     float expirationTime;
     float impulse;
+    float virtualY;
+    int player;
+    int tmp1;
+    float tmp2;
 };
 
 struct EnemyDatum
@@ -109,6 +113,10 @@ struct EnemyWeaponDatum
     int bulletBounces;
     float bulletLifeSpan;
     float bulletImpulse;
+    float virtualYRange;
+    float tmp1;
+    float tmp2;
+    float tmp3;
 };
 
 #define BULLET_GRID_CAPACITY 28
@@ -244,7 +252,7 @@ void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= playerBulletNum[0]) return;
@@ -253,7 +261,7 @@ void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void UpdateEnemyBulletPosition(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= enemyBulletNum[0]) return;
@@ -262,7 +270,7 @@ void UpdateEnemyBulletPosition(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = playerBulletData[id.x];
@@ -278,7 +286,7 @@ void CullPlayerBullet(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
 {
     BulletDatum bullet = enemyBulletData[id.x];
@@ -337,7 +345,7 @@ void UpdateDrawEnemyBulletArgs(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(128, 1, 1)]
 void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < playerBulletNum[0])
@@ -370,7 +378,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 }
  
 
-[numthreads(64, 1, 1)]
+[numthreads(128, 1, 1)]
 void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < enemyBulletNum[0])
@@ -387,6 +395,8 @@ void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
             {
                 InterlockedAdd(playerData[i].hpChange, -bullet.damage);
                 float3 normal = normalize(bulletRelativePos);
+                InterlockedAdd(playerData[i].hitImpulse.x, (int)(-normal.x * bullet.impulse * 10000.0f));
+                InterlockedAdd(playerData[i].hitImpulse.z, (int)(-normal.z * bullet.impulse * 10000.0f));
                 bullet.pos = player.pos + (playerRadius + bullet.radius) * normal;
                 bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
                 bullet.dir.y = 0.0f;
@@ -410,7 +420,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         EnemyDatum enemy = sphereEnemyData[id.x];
         enemy.velocity += (float3)enemy.hitImpulse * 0.0001 / enemy.m;
         enemy.hitImpulse = int3(0, 0, 0);
-        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.1f : enemy.originalM;
+        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.2f : enemy.originalM;
         enemyData[id.x] = enemy;
     }
     if (id.x == 0) enemyNum = sphereEnemyNum[0];
@@ -423,7 +433,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     {
         enemy = enemyData[id.x];
         // move towards player
-        enemy.velocity += enemyAcceleration * normalize(playerData[0].pos - enemy.pos) * deltaTime;
+        enemy.velocity += enemyAcceleration * normalize((playerData[0].pos - enemy.pos) * float3(1.0f, 0.0f, 1.0f)) * deltaTime;
         // frictional deceleration
         enemy.velocity -= normalize(enemy.velocity) * enemyFrictionalDeceleration * max(0.0f, (length(enemy.velocity) - enemyMaxSpeed)) * deltaTime;
         // TODO: try to control the distance to other enemies
@@ -442,7 +452,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     GroupMemoryBarrierWithGroupSync();
     
     // deal with collisions
-    for (int itr = 0; itr < 3; itr++)
+    for (int itr = 0; itr < 5; itr++)
     {
         float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
         float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
@@ -557,9 +567,10 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                 if (player.hittable == 1 && distance < (player.size + enemy.size) * 0.5)
                 {
                     float3 dir = normalize(relativePos);
-                    float3 newMomentum = dir * 10.0f;
-                    newMomentum.y = 10.0f;
-                    playerData[i].hitImpulse = newMomentum;
+                    float3 dV = dir * 12.0f;
+                    dV.y = 12.0f;
+                    playerData[i].hitByEnemy = 1;
+                    playerData[i].hitImpulse = 10000.0f * dV;
                     InterlockedAdd(playerData[i].hpChange, -30);
                 }
             }
@@ -575,23 +586,24 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
     {
         EnemyDatum enemy = sphereEnemyData[id.x];
         EnemyWeaponDatum weapon = enemyWeaponData[enemy.weapon];
-        float3 r = Random3DTo3D(float3(gameTime, deltaTime, float(id.x) + deltaTime));
+        float3 r3 = Random3DTo3D(float3(gameTime, deltaTime, float(id.x) + deltaTime));
         
         if (weapon.shootInterval > 0
-            && gameTime - enemy.lastShootTime > weapon.shootInterval + weapon.randomShootDelay * r.x
+            && gameTime - enemy.lastShootTime > weapon.shootInterval + weapon.randomShootDelay * r3.x
             && enemy.pos.y > 0.499f)
         {
             sphereEnemyData[id.x].lastShootTime = gameTime;
-            float3 playerDir = normalize(player1Pos - enemy.pos);
+            float3 playerDir = normalize((player1Pos - enemy.pos) * float3(1.0f, 0.0f, 1.0f));
             
             for (int i = -weapon.extraBulletsPerSide; i <= weapon.extraBulletsPerSide; i++)
             {
                 int bulletIndex;
                 InterlockedAdd(enemyBulletNum[0], 1, bulletIndex);
                 BulletDatum bullet = enemyBulletData[bulletIndex];
-                
+                float r1 = Random3DTo1D(gameTime, (float)i * 14375.5964, deltaTime) + r3.z;
+                 
                 bullet.pos = enemy.pos;
-                bullet.dir = RotateAroundY(playerDir, i * weapon.angle + weapon.uniformRandomAngleBias * (r.y * 2.0f - 1.0f));
+                bullet.dir = RotateAroundY(playerDir, i * weapon.angle + weapon.uniformRandomAngleBias * (r3.y * 2.0f - 1.0f));
                 bullet.dir.y = 0.0f;
                 bullet.speed = weapon.bulletSpeed;
                 bullet.radius = weapon.bulletRadius;
@@ -599,6 +611,7 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
                 bullet.bounces = weapon.bulletBounces;
                 bullet.expirationTime = gameTime + weapon.bulletLifeSpan;
                 bullet.impulse = weapon.bulletImpulse;
+                bullet.virtualY = 0.5f + (r1 - 0.5) * weapon.virtualYRange * 2.0f;
                 enemyBulletData[bulletIndex] = bullet;
             }
         }
@@ -665,7 +678,9 @@ void ProcessBulletBulletCollision(uint3 id : SV_DispatchThreadID)
                 {
                     int enemyBulletIndex = enemyBulletGridData[neighborGridIndex].bulletIndexList[j];
                     BulletDatum enemyBullet = enemyBulletData[enemyBulletIndex];
-                    if (length(playerBullet.pos - enemyBullet.pos) < playerBullet.radius + enemyBullet.radius)
+                    float radiusSum = playerBullet.radius + enemyBullet.radius;
+                    if (length(playerBullet.pos - enemyBullet.pos) < radiusSum
+                        && abs(playerBullet.virtualY - enemyBullet.virtualY) < radiusSum)
                     {
                         playerBulletData[playerBulletIndex].expirationTime = 0.0f;
                         enemyBulletData[enemyBulletIndex].expirationTime = 0.0f;

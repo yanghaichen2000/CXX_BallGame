@@ -18,6 +18,7 @@ public class Player
     public Vector3 velocity, desiredVelocity;
     public Weapon weapon;
     public Int32 hp = 300;
+    public float m = 100.0f;
     public bool hittable = false;
     public float lastHitByEnemyTime = -10000.0f;
 
@@ -27,7 +28,7 @@ public class Player
         obj = _obj;
         body = _obj.GetComponent<Rigidbody>();
         playerInputManager = _playerInputManager;
-        weapon = new Shotgun();
+        weapon = new Weapon(index);
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
     }
@@ -50,8 +51,14 @@ public class Player
     {
         if (GameManager.gameTime > lastHitByEnemyTime + hitProtectionDuration)
         {
+            if (!hittable) weapon.SetLastShootTime(GameManager.gameTime);
             hittable = true;
         }
+
+        if (hp > 200) m = 2.0f;
+        else if (hp > 100) m = 1.5f;
+        else if (hp > 0) m = 1.0f;
+        else m = 0.5f;
     }
 
     public void Shoot()
@@ -84,14 +91,22 @@ public class Player
         if (hittable) hp += datum.hpChange;
         GameManager.uiManager.UpdatePlayerHP(index, hp);
 
-        Vector3 dV = datum.hitImpulse;
-        bool hit = dV.magnitude > 0.0001f;
-        if (hit && hittable)
+        Vector3 dV = new Vector3(datum.hitImpulse.x / 10000.0f, datum.hitImpulse.y / 10000.0f, datum.hitImpulse.z / 10000.0f);
+        bool hitByEnemy = datum.hitByEnemy != 0 ? true : false;
+        if (hittable)
         {
-            lastHitByEnemyTime = GameManager.gameTime;
-            hittable = false;
-            body.velocity = body.velocity * 0.2f + dV;
+            if (hitByEnemy)
+            {
+                lastHitByEnemyTime = GameManager.gameTime;
+                hittable = false;
+                body.velocity = body.velocity * 0.2f + dV / m;
+            }
+            else
+            {
+                body.velocity = body.velocity + dV / m;
+            }
         }
+        
     }
 
     public void UpdateMaterial()

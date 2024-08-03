@@ -63,6 +63,8 @@ struct Varyings
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
+
+    uint customInstanceId : TEXCOORD10;
 };
 
 void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData)
@@ -171,6 +173,8 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+    
+    output.customInstanceId = instanceID;
 
     VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz, instanceID);
 
@@ -265,6 +269,11 @@ void LitPassFragment(
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
 
+    float enemyHP = max(sphereEnemyData[input.customInstanceId].hp, 0.0f);
+    float enemyCondition = 1.0f - enemyHP / 1000.0f;
+    surfaceData.albedo = lerp(surfaceData.albedo, float3(0.5f, 0.5f, 0.5f), enemyCondition);
+    surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
+    
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));

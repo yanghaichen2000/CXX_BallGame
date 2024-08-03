@@ -136,10 +136,14 @@ struct BulletDatum
     float3 dir;
     float speed;
     float radius;
-    float damage;
-    int bounces;
+    int damage;
+    uint bounces;
     float expirationTime;
-    int valid;
+    float impulse;
+    float virtualY;
+    int player;
+    float tmp1;
+    float tmp2;
 };
 
 StructuredBuffer<BulletDatum> enemyBulletData;

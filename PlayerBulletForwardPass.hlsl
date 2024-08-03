@@ -63,6 +63,8 @@ struct Varyings
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
+
+    uint customInstanceId : TEXCOORD10;
 };
 
 void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData)
@@ -136,13 +138,19 @@ struct BulletDatum
     float3 dir;
     float speed;
     float radius;
-    float damage;
-    int bounces;
+    int damage;
+    uint bounces;
     float expirationTime;
-    int valid;
+    float impulse;
+    float virtualY;
+    int player;
+    float tmp1;
+    float tmp2;
 };
 
 StructuredBuffer<BulletDatum> playerBulletData;
+float3 player1BulletColor;
+float3 player2BulletColor;
 
 VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instanceID)
 {
@@ -167,6 +175,8 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+    
+    output.customInstanceId = instanceID;
 
     VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz, instanceID);
 
@@ -247,6 +257,7 @@ void LitPassFragment(
 #endif
 
     SurfaceData surfaceData;
+    
     InitializeStandardLitSurfaceData(input.uv, surfaceData);
 
 #ifdef LOD_FADE_CROSSFADE
@@ -260,7 +271,12 @@ void LitPassFragment(
 #ifdef _DBUFFER
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
-
+    
+    BulletDatum datum = playerBulletData[input.customInstanceId];
+    int player = datum.player;
+    if (player == 0) surfaceData.albedo = player1BulletColor;
+    else surfaceData.albedo = player2BulletColor;
+    
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
