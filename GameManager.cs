@@ -59,7 +59,7 @@ public class GameManager : MonoBehaviour
         frameCount = 0;
         computeCenter = new ComputeCenter(this);
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
-        player2 = new Player(1, GameObject.Find("Player2"), new KeyboardInputManager());
+        player2 = new Player(1, GameObject.Find("Player2"), new ControllerInputManager());
         enemyLegion = new EnemyLegion();
         uiManager = new UIManager();
         gameStartedTime = DateTime.Now;
@@ -79,6 +79,8 @@ public class GameManager : MonoBehaviour
                 count++;
             }
         }
+
+        
 
         /*
         enemyLegion.SpawnStaticCube(-10.0f, -15.0f);
@@ -103,6 +105,7 @@ public class GameManager : MonoBehaviour
     void FixedUpdate()
     {
         player1.FixedUpdate();
+        player2.FixedUpdate();
     }
 
     public void Tick()

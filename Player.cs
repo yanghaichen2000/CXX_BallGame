@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.Rendering.LookDev;
 using UnityEngine;
 
 public class Player
@@ -15,7 +16,7 @@ public class Player
     public Color initialBaseColor;
     public Material material;
 
-    public Vector3 velocity, desiredVelocity;
+    public Vector3 velocity;
     public Weapon weapon;
     public Int32 hp = 300;
     public float m = 100.0f;
@@ -37,7 +38,6 @@ public class Player
     {
         UpdateBasicCondition();
         playerInputManager.Update();
-        UpdateDesiredVelocity();
         Shoot();
         UpdateMaterial();
     }
@@ -70,16 +70,13 @@ public class Player
         }
     }
 
-    public void UpdateDesiredVelocity()
-    {
-        Vector2 playerInput = playerInputManager.GetPlayerMovementInput();
-        desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
-    }
-
     public void UpdateVelocity()
     {
         velocity = body.velocity;
 
+        Vector2 playerInput = playerInputManager.GetPlayerMovementInput();
+        Vector3 desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
+        
         float maxSpeedChange = maxAcceleration * Time.deltaTime;
         velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
         velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);

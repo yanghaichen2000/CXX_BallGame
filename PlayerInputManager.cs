@@ -53,31 +53,34 @@ public class KeyboardInputManager : PlayerInputManager
 public class ControllerInputManager : PlayerInputManager
 {
     public Vector2 playerMovementInput;
-    public Vector3 shootTarget;
+    public Vector3 shootDir;
 
     public ControllerInputManager()
     {
-        shootTarget = new Vector3(0, 0, 0);
+        shootDir = new Vector3(0.0f, 0.0f, 1.0f);
     }
 
     public void Update()
     {
-        playerMovementInput = new Vector2(0.0f, 0.0f);
+        playerMovementInput.x = Input.GetAxis("J_Horizontal");
+        playerMovementInput.y = Input.GetAxis("J_Vertical");
+
+        float rightStickHorizontal = Input.GetAxis("R_Horizontal");
+        float rightStickVertical = Input.GetAxis("R_Vertical");
+        Vector3 newShootDir = new Vector3(rightStickHorizontal, 0.0f, rightStickVertical);
+        if (newShootDir.magnitude > 0.01f)
+        {
+            shootDir = newShootDir.normalized;
+        }
     }
 
     public Vector2 GetPlayerMovementInput()
     {
-        playerMovementInput.x = Input.GetAxis("J_Horizontal");
-        playerMovementInput.y = Input.GetAxis("J_Vertical");
-        playerMovementInput = Vector2.ClampMagnitude(playerMovementInput, 1f);
         return playerMovementInput;
     }
 
     public Vector3 GetShootDir(Vector3 playerPos)
     {
-        float rightStickHorizontal = Input.GetAxis("R_Horizontal");
-        float rightStickVertical = Input.GetAxis("R_Vertical");
-        Vector3 shootDir = new Vector3(rightStickHorizontal, 0.0f, rightStickVertical).normalized;
         return shootDir;
     }
 }

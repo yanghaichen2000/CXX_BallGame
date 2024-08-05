@@ -44,7 +44,7 @@ public class ComputeCenter
         public float impulse;
         public float virtualY;
         public Int32 player;
-        public float tmp1;
+        public float renderingBiasY;
         public float tmp2;
     }
     const int bulletDatumSize = 64;
@@ -380,14 +380,14 @@ public class ComputeCenter
 
         using (new GUtils.PFL("BuildBulletGrid")) { BuildBulletGrid(); }
 
-        using (new GUtils.PFL("ProcessBulletBulletCollision")) { ProcessBulletBulletCollision(); }
         using (new GUtils.PFL("ProcessPlayerBulletCollision")) { ProcessPlayerBulletCollision(); }
         using (new GUtils.PFL("ProcessEnemyBulletCollision")) { ProcessEnemyBulletCollision(); }
-        using (new GUtils.PFL("ProcessPlayerEnemyCollision")) { ProcessPlayerEnemyCollision(); }
+        using (new GUtils.PFL("ProcessPlayerEnemyCollision")) { ProcessPlayerEnemyCollision(); } // 这个必须要放在敌人和子弹碰撞之后
+        using (new GUtils.PFL("ProcessBulletBulletCollision")) { ProcessBulletBulletCollision(); }
 
         using (new GUtils.PFL("UpdatePlayerBulletPosition")) { UpdatePlayerBulletPosition(); }
         using (new GUtils.PFL("UpdateEnemyBulletPosition")) { UpdateEnemyBulletPosition(); }
-        using (new GUtils.PFL("UpdateEnemyVelocityAndPosition")) { UpdateEnemyVelocityAndPosition(); }
+        using (new GUtils.PFL("UpdateEnemyVelocityAndPosition")) { UpdateEnemyVelocityAndPosition(); } // 线程同步还没做好，可能出问题
 
         using (new GUtils.PFL("CullPlayerBullet")) { CullPlayerBullet(); }
         using (new GUtils.PFL("CullEnemyBullet")) { CullEnemyBullet(); }
@@ -512,7 +512,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 128), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void CullEnemyBullet()
@@ -541,7 +541,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "enemyWeaponData", enemyWeaponDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 128), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     public void InitializeEnemyWeapon()
@@ -838,7 +838,7 @@ public class ComputeCenter
         computeCenterCS.SetFloats("player2Pos", pPos.x, pPos.y, pPos.z);
     }
 
-    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse, float _virtualY, int _player)
+    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse, float _virtualY, int _player, float renderingBiasY)
     {
         if (playerShootRequestNum >= maxNewBulletNum)
         {
@@ -857,7 +857,8 @@ public class ComputeCenter
             expirationTime = GameManager.gameTime + _lifeSpan,
             impulse = _impulse,
             virtualY = _virtualY,
-            player = _player
+            player = _player,
+            renderingBiasY = renderingBiasY,
         };
         playerShootRequestNum++;
     }

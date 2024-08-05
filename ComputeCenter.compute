@@ -241,14 +241,10 @@ void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < createSphereEnemyRequestNum)
     {
-        int index = sphereEnemyNum[0] + id.x;
+        int index;
+        InterlockedAdd(sphereEnemyNum[0], 1, index);
         sphereEnemyData[index] = createSphereEnemyRequestData[id.x];
     }
-    
-    GroupMemoryBarrierWithGroupSync();
-    
-    if (id.x == 0)
-        sphereEnemyNum[0] += createSphereEnemyRequestNum;
 }
 
 
@@ -378,7 +374,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 }
  
 
-[numthreads(128, 1, 1)]
+[numthreads(256, 1, 1)]
 void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < enemyBulletNum[0])
@@ -414,7 +410,7 @@ void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
 void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
 {    
     // apply and clear impulse
-    // update m
+    float enemy_m = 0.0f; /////////////////// do this
     if (id.x < sphereEnemyNum[0])
     {
         EnemyDatum enemy = sphereEnemyData[id.x];

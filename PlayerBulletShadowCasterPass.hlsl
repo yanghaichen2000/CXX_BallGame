@@ -31,23 +31,7 @@ struct Varyings
 };
 
 
-struct BulletDatum
-{
-    float3 pos;
-    float3 dir;
-    float speed;
-    float radius;
-    int damage;
-    uint bounces;
-    float expirationTime;
-    float impulse;
-    float virtualY;
-    int player;
-    float tmp1;
-    float tmp2;
-};
-
-StructuredBuffer<BulletDatum> playerBulletData;
+#include "Assets/Scripts/ShaderCommon.hlsl"
 
 float4 GetShadowPositionHClipNew(Attributes input, uint instanceID)
 {

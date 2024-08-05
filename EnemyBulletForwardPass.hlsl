@@ -129,39 +129,7 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 //                  Vertex and Fragment functions                            //
 ///////////////////////////////////////////////////////////////////////////////
 
-
-struct BulletDatum
-{
-    float3 pos;
-    float3 dir;
-    float speed;
-    float radius;
-    int damage;
-    uint bounces;
-    float expirationTime;
-    float impulse;
-    float virtualY;
-    int player;
-    float tmp1;
-    float tmp2;
-};
-
-StructuredBuffer<BulletDatum> enemyBulletData;
-
-VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instanceID)
-{
-    VertexPositionInputs input;
-    BulletDatum datum = enemyBulletData[instanceID];
-    input.positionWS = positionOS * datum.radius * 2 + datum.pos;
-    input.positionVS = TransformWorldToView(input.positionWS);
-    input.positionCS = TransformWorldToHClip(input.positionWS);
- 
-    float4 ndc = input.positionCS * 0.5f;
-    input.positionNDC.xy = float2(ndc.x, ndc.y * _ProjectionParams.x) + ndc.w;
-    input.positionNDC.zw = input.positionCS.zw;
- 
-    return input;
-}
+#include "Assets/Scripts/ShaderCommon.hlsl"
 
 // Used in Standard (Physically Based) shader
 Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
@@ -172,7 +140,7 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-    VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz, instanceID);
+    VertexPositionInputs vertexInput = GetEnemyBulletVertexPositionInputs(input.positionOS.xyz, instanceID);
 
     // normalWS and tangentWS already normalize.
     // this is required to avoid skewing the direction during interpolation
