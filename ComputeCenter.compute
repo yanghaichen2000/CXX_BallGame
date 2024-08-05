@@ -16,6 +16,7 @@
 #pragma kernel BuildEnemyBulletGrid
 #pragma kernel ResetBulletGrid
 #pragma kernel ProcessBulletBulletCollision
+#pragma kernel UpdateDrawEnemyArgs
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -143,7 +144,9 @@ RWStructuredBuffer<BulletGridDatum> playerBulletGridData;
 RWStructuredBuffer<BulletGridDatum> enemyBulletGridData;
 
 RWStructuredBuffer<EnemyDatum> sphereEnemyData;
+RWStructuredBuffer<EnemyDatum> culledSphereEnemyData;
 RWStructuredBuffer<int> sphereEnemyNum;
+RWStructuredBuffer<int> culledSphereEnemyNum;
 
 RWStructuredBuffer<EnemyDatum> createSphereEnemyRequestData;
 
@@ -298,32 +301,16 @@ void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(128, 1, 1)]
 void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
 {
-    EnemyDatum enemy;
     if (id.x < sphereEnemyNum[0])
     {
-        enemy = sphereEnemyData[id.x];
-    }
-    int historySphereEnemyNum = sphereEnemyNum[0];
-    
-    GroupMemoryBarrierWithGroupSync();
-    
-    if (id.x == 0)
-        sphereEnemyNum[0] = 0;
-
-    if (id.x < historySphereEnemyNum) 
-    {
+        EnemyDatum enemy = sphereEnemyData[id.x];
         int index;
-        InterlockedAdd(sphereEnemyNum[0], 1, index);
-        sphereEnemyData[index] = enemy;
+        InterlockedAdd(culledSphereEnemyNum[0], 1, index);
+        culledSphereEnemyData[index] = enemy;
     }
-    
-    GroupMemoryBarrierWithGroupSync();
-    
-    if (id.x == 0)
-        drawSphereEnemyArgs[1] = sphereEnemyNum[0];
 }
 
 
@@ -341,7 +328,14 @@ void UpdateDrawEnemyBulletArgs(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(128, 1, 1)]
+[numthreads(1, 1, 1)]
+void UpdateDrawEnemyArgs(uint3 id : SV_DispatchThreadID)
+{
+    drawSphereEnemyArgs[1] = sphereEnemyNum[0];
+}
+
+
+[numthreads(64, 1, 1)]
 void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < playerBulletNum[0])
@@ -433,7 +427,6 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         // frictional deceleration
         enemy.velocity -= normalize(enemy.velocity) * enemyFrictionalDeceleration * max(0.0f, (length(enemy.velocity) - enemyMaxSpeed)) * deltaTime;
         // TODO: try to control the distance to other enemies
-
     }
     
     GroupMemoryBarrierWithGroupSync();
@@ -448,14 +441,14 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     GroupMemoryBarrierWithGroupSync();
     
     // deal with collisions
-    for (int itr = 0; itr < 3; itr++)
+    for (int itr = 0; itr < 1; itr++)
     {
         float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
         float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
         if (id.x < enemyNum)
         {
             enemy = enemyData[id.x];
-            for (int i = 0; i < enemyNum; i++)
+            for (int i = 0; i < min(enemyNum, 64); i++)
             {
                 if (i == id.x) continue;
                 EnemyDatum another = enemyData[i];
@@ -525,7 +518,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         }
         else
         {
-            float YLimit = -10000.0f;
+            float YLimit = -10005.0f;
             if (maxDistance > 0.0f && maxDistance < 0.5f && enemy.pos.y > 0.0f)
             {
                 YLimit = sqrt(0.25f - maxDistance * maxDistance);
@@ -686,3 +679,6 @@ void ProcessBulletBulletCollision(uint3 id : SV_DispatchThreadID)
         }
     }
 }
+
+
+

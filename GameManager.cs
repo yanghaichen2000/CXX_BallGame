@@ -56,7 +56,7 @@ public class GameManager : MonoBehaviour
 
         deltaTimeQueue = new Queue<float>();
         timeSum = 0.0f;
-        frameCount = 0;
+        frameCount = -1;
         computeCenter = new ComputeCenter(this);
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(1, GameObject.Find("Player2"), new ControllerInputManager());
@@ -104,7 +104,7 @@ public class GameManager : MonoBehaviour
         int spawnIndex = frameCount / 10;
         float x = -18.0f + (spawnIndex % 30) * 1.2f;
         float z = 0.0f + (spawnIndex / 30) * 1.2f;
-        if (spawn && spawnIndex < 128) enemyLegion.SpawnSphereEnemy(x, z);
+        if (spawn && spawnIndex < 256) enemyLegion.SpawnSphereEnemy(x, z);
 
         using (new GUtils.PFL("player1.Update")) { player1.Update(); }
         using (new GUtils.PFL("player2.Update")) { player2.Update(); }

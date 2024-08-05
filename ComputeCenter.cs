@@ -1,12 +1,7 @@
-using JetBrains.Annotations;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Diagnostics;
 using UnityEngine.Rendering;
 
 public class ComputeCenter
@@ -119,8 +114,8 @@ public class ComputeCenter
     const int maxPlayerBulletNum = 131072;
     const int maxEnemyBulletNum = 131072;
     const int maxNewBulletNum = 2048;
-    const int maxEnemyNum = 512;
-    const int maxNewEnemyNum = 256;
+    const int maxEnemyNum = 256;
+    const int maxNewEnemyNum = 128;
     const int maxEnemyWeaponNum = 8;
 
     PlayerDatum[] playerData;
@@ -206,11 +201,11 @@ public class ComputeCenter
     int cullEnemyBulletKernel = -1;
     int updateDrawEnemyBulletArgsKernel = -1;
     int processEnemyBulletCollisionKernel = -1;
-    int updateEnemyDesiredVelocityKernel = -1;
     int buildPlayerBulletGridKernel = -1;
     int buildEnemyBulletGridKernel = -1;
     int resetBulletGridKernel = -1;
     int processBulletBulletCollisionKernel = -1;
+    int updateDrawEnemyArgsKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -325,6 +320,7 @@ public class ComputeCenter
         buildEnemyBulletGridKernel = computeCenterCS.FindKernel("BuildEnemyBulletGrid");
         resetBulletGridKernel = computeCenterCS.FindKernel("ResetBulletGrid");
         processBulletBulletCollisionKernel = computeCenterCS.FindKernel("ProcessBulletBulletCollision");
+        updateDrawEnemyArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyArgs");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -411,7 +407,7 @@ public class ComputeCenter
         using (new GUtils.PFL("ClearPlayerShootRequest")) { ClearPlayerShootRequest(); }
         using (new GUtils.PFL("ClearCreateEnemyRequest")) { ClearCreateEnemyRequest(); }
 
-        using (new GUtils.PFL("SwapBulletDataBuffer")) { SwapBulletDataBuffer(); }
+        using (new GUtils.PFL("SwapBulletDataBuffer")) { SwapAndResetDataBuffer(); }
 
         using (new GUtils.PFL("DrawPlayerBullet")) { DrawPlayerBullet(); }
         using (new GUtils.PFL("DrawEnemyBullet")) { DrawEnemyBullet(); }
@@ -552,7 +548,7 @@ public class ComputeCenter
     {
         int kernel = enemyShootKernel;
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", targetSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "enemyWeaponData", enemyWeaponDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
@@ -699,6 +695,12 @@ public class ComputeCenter
             var readbackData = dataRequest.GetData<int>();
             Debug.Log(readbackData[0]);
         });
+
+        AsyncGPUReadback.Request(sourceSphereEnemyDataCB, dataRequest =>
+        {
+            var readbackData = dataRequest.GetData<EnemyDatum>();
+            Debug.Log(readbackData[0].pos);
+        });
     }
 
     public void OnGPUReadBackCompleted(NativeArray<PlayerDatum> readbackPlayerData)
@@ -707,12 +709,14 @@ public class ComputeCenter
         GameManager.player2.OnProcessReadbackData(readbackPlayerData[1]);
     }
 
-    public void ResetCulledBulletNum()
+    public void ResetCulledInstanceNum()
     {
         playerBulletNum[0] = 0;
         targetPlayerBulletNumCB.SetData(playerBulletNum);
         enemyBulletNum[0] = 0;
         targetEnemyBulletNumCB.SetData(enemyBulletNum);
+        sphereEnemyNum[0] = 0;
+        targetSphereEnemyNumCB.SetData(sphereEnemyNum);
     }
 
     public void DrawPlayerBullet()
@@ -758,6 +762,11 @@ public class ComputeCenter
     {
         Shader.SetGlobalBuffer("sphereEnemyData", sourceSphereEnemyDataCB);
 
+        int kernel = updateDrawEnemyArgsKernel;
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
+        computeCenterCS.Dispatch(kernel, 1, 1, 1);
+
         Graphics.DrawMeshInstancedIndirect(
             sphereEnemyMesh,
             0,
@@ -775,7 +784,7 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 128), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
     }
 
     public void ProcessPlayerEnemyCollision()
@@ -802,18 +811,18 @@ public class ComputeCenter
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
 
-    // 在剔除敌人的同时更新draw indirect参数
-    // 注意，这样做要求所有线程必须在同一个线程组
     public void CullEnemy()
     {
         int kernel = cullSphereEnemyKernel;
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "culledSphereEnemyData", targetSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "culledSphereEnemyNum", targetSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 64), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
-    public void SwapBulletDataBuffer()
+    public void SwapAndResetDataBuffer()
     {
         currentResourceCBIndex = 1 - currentResourceCBIndex;
 
@@ -827,7 +836,12 @@ public class ComputeCenter
         sourceEnemyBulletNumCB = enemyBulletNumCB[currentResourceCBIndex];
         targetEnemyBulletNumCB = enemyBulletNumCB[1 - currentResourceCBIndex];
 
-        ResetCulledBulletNum();
+        sourceSphereEnemyDataCB = sphereEnemyDataCB[currentResourceCBIndex];
+        targetSphereEnemyDataCB = sphereEnemyDataCB[1 - currentResourceCBIndex];
+        sourceSphereEnemyNumCB = sphereEnemyNumCB[currentResourceCBIndex];
+        targetSphereEnemyNumCB = sphereEnemyNumCB[1 - currentResourceCBIndex];
+
+        ResetCulledInstanceNum();
     }
 
     public void UpdatePlayerBulletPosition()
@@ -919,7 +933,6 @@ public class ComputeCenter
     public void ExecuteCreateEnemyRequest()
     {
         Debug.Assert(createSphereEnemyRequestNum <= maxNewEnemyNum);
-        Debug.Assert(createCubeEnemyRequestNum <= maxNewEnemyNum);
 
         if (createSphereEnemyRequestNum > 0)
         {
