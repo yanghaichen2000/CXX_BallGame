@@ -70,18 +70,6 @@ public class GameManager : MonoBehaviour
     {
         lastTickTime = DateTime.Now;
 
-        int count = 0;
-        for (float x = -18.0f; x <= 18.0f && count < 128; x += 1.2f)
-        {
-            for (float z = 0.0f; z <= 14.0f && count < 128; z += 1.2f)
-            {
-                enemyLegion.SpawnSphereEnemy(x, z);
-                count++;
-            }
-        }
-
-        
-
         /*
         enemyLegion.SpawnStaticCube(-10.0f, -15.0f);
         enemyLegion.SpawnStaticCube(0.0f, -15.0f);
@@ -111,6 +99,13 @@ public class GameManager : MonoBehaviour
     public void Tick()
     {
         UpdateTime();
+
+        bool spawn = frameCount % 10 == 0;
+        int spawnIndex = frameCount / 10;
+        float x = -18.0f + (spawnIndex % 30) * 1.2f;
+        float z = 0.0f + (spawnIndex / 30) * 1.2f;
+        if (spawn && spawnIndex < 128) enemyLegion.SpawnSphereEnemy(x, z);
+
         using (new GUtils.PFL("player1.Update")) { player1.Update(); }
         using (new GUtils.PFL("player2.Update")) { player2.Update(); }
         using (new GUtils.PFL("TickGPU")) { computeCenter.TickGPU(); }

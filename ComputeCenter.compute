@@ -298,7 +298,7 @@ void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(128, 1, 1)]
+[numthreads(64, 1, 1)]
 void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
 {
     EnemyDatum enemy;
@@ -448,7 +448,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     GroupMemoryBarrierWithGroupSync();
     
     // deal with collisions
-    for (int itr = 0; itr < 5; itr++)
+    for (int itr = 0; itr < 3; itr++)
     {
         float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
         float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
