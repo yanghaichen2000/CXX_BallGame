@@ -30,6 +30,7 @@ public class GameManager : MonoBehaviour
 
     public static Player player1;
     public static Player player2;
+    public static PlayerSkillManager playerSkillManager;
 
     public static EnemyLegion enemyLegion;
 
@@ -60,6 +61,7 @@ public class GameManager : MonoBehaviour
         computeCenter = new ComputeCenter(this);
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(1, GameObject.Find("Player2"), new ControllerInputManager());
+        playerSkillManager = new PlayerSkillManager();
         enemyLegion = new EnemyLegion();
         uiManager = new UIManager();
         gameStartedTime = DateTime.Now;
@@ -100,14 +102,15 @@ public class GameManager : MonoBehaviour
     {
         UpdateTime();
 
-        bool spawn = frameCount % 10 == 0;
-        int spawnIndex = frameCount / 10;
+        bool spawn = frameCount % 20 == 0;
+        int spawnIndex = frameCount / 20;
         float x = -18.0f + (spawnIndex % 30) * 1.2f;
-        float z = 0.0f + (spawnIndex / 30) * 1.2f;
-        if (spawn && spawnIndex < 256) enemyLegion.SpawnSphereEnemy(x, z);
+        float z = -5.0f + (spawnIndex / 30) * 1.01f;
+        if (spawn && spawnIndex < 512 && z < 15.0f) enemyLegion.SpawnSphereEnemy(x, z);
 
         using (new GUtils.PFL("player1.Update")) { player1.Update(); }
         using (new GUtils.PFL("player2.Update")) { player2.Update(); }
+        using (new GUtils.PFL("playerSkillManager.Tick")) { playerSkillManager.Tick(); }
         using (new GUtils.PFL("TickGPU")) { computeCenter.TickGPU(); }
     }
 

@@ -114,7 +114,7 @@ public class ComputeCenter
     const int maxPlayerBulletNum = 131072;
     const int maxEnemyBulletNum = 131072;
     const int maxNewBulletNum = 2048;
-    const int maxEnemyNum = 256;
+    const int maxEnemyNum = 512;
     const int maxNewEnemyNum = 128;
     const int maxEnemyWeaponNum = 8;
 
@@ -413,7 +413,8 @@ public class ComputeCenter
         using (new GUtils.PFL("DrawEnemyBullet")) { DrawEnemyBullet(); }
         using (new GUtils.PFL("DrawEnemy")) { DrawEnemy(); }
 
-        using (new GUtils.PFL("SendGPUReadbackRequest")) { SendGPUReadbackRequest(); }
+        using (new GUtils.PFL("SendReadbackRequest")) { SendReadbackRequest(); }
+        using (new GUtils.PFL("SendDebugReadbackRequest")) { SendDebugReadbackRequest(); }
 
         if (true)
         {
@@ -547,6 +548,7 @@ public class ComputeCenter
     public void EnemyShoot()
     {
         int kernel = enemyShootKernel;
+        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "enemyWeaponData", enemyWeaponDataCB);
@@ -600,15 +602,15 @@ public class ComputeCenter
             virtualYRange = constantVirtualYRange,
         };
 
-        // ¿ìËÙÉ¢µ¯
+        // Ò»°ãÉ¢µ¯
         enemyWeaponData[3] = new EnemyWeaponDatum
         {
             uniformRandomAngleBias = 1.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.2f,
+            shootInterval = 0.3f,
             extraBulletsPerSide = 3,
             angle = 5.0f,
-            randomShootDelay = 0.0f,
+            randomShootDelay = 0.3f,
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
@@ -680,30 +682,39 @@ public class ComputeCenter
         playerDataCB.SetData(playerData);
     }
 
-    public void SendGPUReadbackRequest()
+    public void SendReadbackRequest()
     {
         if (debugPrintReadbackTime) { Debug.Log(String.Format("frame {0} readback started: {1}", debugReadbackFrame1++, GameManager.gameTime)); }
         
         AsyncGPUReadback.Request(playerDataCB, dataRequest =>
         {
             var readbackPlayerData = dataRequest.GetData<PlayerDatum>();
-            OnGPUReadBackCompleted(readbackPlayerData);
-        });
-
-        AsyncGPUReadback.Request(sourceSphereEnemyNumCB, dataRequest =>
-        {
-            var readbackData = dataRequest.GetData<int>();
-            Debug.Log(readbackData[0]);
-        });
-
-        AsyncGPUReadback.Request(sourceSphereEnemyDataCB, dataRequest =>
-        {
-            var readbackData = dataRequest.GetData<EnemyDatum>();
-            Debug.Log(readbackData[0].pos);
+            OnPlayerDataReadBackCompleted(readbackPlayerData);
         });
     }
 
-    public void OnGPUReadBackCompleted(NativeArray<PlayerDatum> readbackPlayerData)
+    public void SendDebugReadbackRequest()
+    {
+        AsyncGPUReadback.Request(sourceSphereEnemyNumCB, dataRequest =>
+        {
+            var readbackData = dataRequest.GetData<int>();
+            GameManager.uiManager.enemyNum.text = string.Format("enemyNum = {0}", readbackData[0]);
+        });
+
+        AsyncGPUReadback.Request(sourceEnemyBulletNumCB, dataRequest =>
+        {
+            var readbackData = dataRequest.GetData<int>();
+            GameManager.uiManager.enemyBulletNum.text = string.Format("enemyBulletNum = {0}", readbackData[0]);
+        });
+
+        AsyncGPUReadback.Request(sourcePlayerBulletNumCB, dataRequest =>
+        {
+            var readbackData = dataRequest.GetData<int>();
+            GameManager.uiManager.playerBulletNum.text = string.Format("playerBulletNum = {0}", readbackData[0]);
+        });
+    }
+
+    public void OnPlayerDataReadBackCompleted(NativeArray<PlayerDatum> readbackPlayerData)
     {
         GameManager.player1.OnProcessReadbackData(readbackPlayerData[0]);
         GameManager.player2.OnProcessReadbackData(readbackPlayerData[1]);

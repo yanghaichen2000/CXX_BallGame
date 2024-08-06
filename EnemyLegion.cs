@@ -9,7 +9,7 @@ public class EnemyLegion
         GameManager.computeCenter.AppendCreateSphereEnemyRequest(
             new Vector3(x, 0.5f, z),
             new Vector3(0.0f, 0.0f, 0.0f),
-            1000,
+            600,
             1.0f,
             0.9f,
             new Unity.Mathematics.int3(0, 0, 0),

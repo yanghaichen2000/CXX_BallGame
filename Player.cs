@@ -32,6 +32,8 @@ public class Player
         weapon = new Weapon(index);
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
+
+        if (index == 1) hp = 500;
     }
 
     public void Update()

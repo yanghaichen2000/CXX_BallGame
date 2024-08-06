@@ -411,19 +411,22 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         enemy.velocity += (float3)enemy.hitImpulse * 0.0001 / enemy.m;
         enemy.hitImpulse = int3(0, 0, 0);
         enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.2f : enemy.originalM;
-        enemyData[id.x] = enemy;
+        sphereEnemyData[id.x] = enemy;
     }
-    if (id.x == 0) enemyNum = sphereEnemyNum[0];
     
     GroupMemoryBarrierWithGroupSync();
     
     EnemyDatum enemy;
     // calculate desired velocity
-    if (id.x < enemyNum)
+    if (id.x < sphereEnemyNum[0])
     {
-        enemy = enemyData[id.x];
+        enemy = sphereEnemyData[id.x];
         // move towards player
-        enemy.velocity += enemyAcceleration * normalize((playerData[0].pos - enemy.pos) * float3(1.0f, 0.0f, 1.0f)) * deltaTime;
+        float3 player1RelativePos = playerData[0].pos - enemy.pos;
+        float3 player2RelativePos = playerData[1].pos - enemy.pos;
+        float3 dir = length(player1RelativePos) < length(player2RelativePos) ?
+            player1RelativePos : player2RelativePos;
+        enemy.velocity += enemyAcceleration * normalize(dir * float3(1.0f, 0.0f, 1.0f)) * deltaTime;
         // frictional deceleration
         enemy.velocity -= normalize(enemy.velocity) * enemyFrictionalDeceleration * max(0.0f, (length(enemy.velocity) - enemyMaxSpeed)) * deltaTime;
         // TODO: try to control the distance to other enemies
@@ -432,10 +435,10 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     GroupMemoryBarrierWithGroupSync();
     
     // update position
-    if (id.x < enemyNum)
+    if (id.x < sphereEnemyNum[0])
     {
         enemy.pos += enemy.velocity * deltaTime * float3(1.0f, 0.0f, 1.0f);
-        enemyData[id.x] = enemy;
+        sphereEnemyData[id.x] = enemy;
     }
     
     GroupMemoryBarrierWithGroupSync();
@@ -445,13 +448,13 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     {
         float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
         float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
-        if (id.x < enemyNum)
+        if (id.x < sphereEnemyNum[0])
         {
-            enemy = enemyData[id.x];
-            for (int i = 0; i < min(enemyNum, 64); i++)
+            enemy = sphereEnemyData[id.x];
+            for (int i = 0; i < sphereEnemyNum[0]; i++)
             {
                 if (i == id.x) continue;
-                EnemyDatum another = enemyData[i];
+                EnemyDatum another = sphereEnemyData[i];
                 float3 relativePos = another.pos - enemy.pos;
                 float collisionDistance = length(relativePos) - 0.5f * (enemy.size + another.size);
                 float3 normal = normalize(relativePos);
@@ -468,19 +471,19 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         
         GroupMemoryBarrierWithGroupSync();
         
-        if (id.x < enemyNum)
+        if (id.x < sphereEnemyNum[0])
         {
-            enemyData[id.x].pos += deltaPos;
-            enemyData[id.x].velocity += deltaVelocity;
+            sphereEnemyData[id.x].pos += deltaPos;
+            sphereEnemyData[id.x].velocity += deltaVelocity;
         }
         
         GroupMemoryBarrierWithGroupSync();
     }
     
     // apply gravity
-    if (id.x < enemyNum)
+    if (id.x < sphereEnemyNum[0])
     {
-        enemy = enemyData[id.x];
+        enemy = sphereEnemyData[id.x];
         
         // chack whether it is on the plane //
         float maxDistance = -1000.0f;
@@ -513,8 +516,8 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
 
         if (maxDistance <= 0.0f && enemy.velocity.y >= -0.01f)
         {
-            enemyData[id.x].velocity.y = 0.0f;
-            enemyData[id.x].pos.y = 0.5f;
+            sphereEnemyData[id.x].velocity.y = 0.0f;
+            sphereEnemyData[id.x].pos.y = 0.5f;
         }
         else
         {
@@ -524,17 +527,11 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
                 YLimit = sqrt(0.25f - maxDistance * maxDistance);
             }
             float maxFallDistance = 0.5f * gravity * deltaTime * deltaTime;
-            enemy.pos.y += enemyData[id.x].velocity.y * deltaTime;
-            enemyData[id.x].pos.y = max(enemy.pos.y, YLimit);
-            enemyData[id.x].velocity.y -= gravity * deltaTime;
-            enemyData[id.x].velocity += borderAcceleration * deltaTime;
+            enemy.pos.y += sphereEnemyData[id.x].velocity.y * deltaTime;
+            sphereEnemyData[id.x].pos.y = max(enemy.pos.y, YLimit);
+            sphereEnemyData[id.x].velocity.y -= gravity * deltaTime;
+            sphereEnemyData[id.x].velocity += borderAcceleration * deltaTime;
         }
-    }
-    
-    // update data
-    if (id.x < enemyNum)
-    {
-        sphereEnemyData[id.x] = enemyData[id.x];
     }
 }
 
@@ -582,8 +579,13 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
             && enemy.pos.y > 0.499f)
         {
             sphereEnemyData[id.x].lastShootTime = gameTime;
-            float3 playerDir = normalize((player1Pos - enemy.pos) * float3(1.0f, 0.0f, 1.0f));
             
+            float3 player1RelativePos = playerData[0].pos - enemy.pos;
+            float3 player2RelativePos = playerData[1].pos - enemy.pos;
+            float3 playerDir = length(player1RelativePos) < length(player2RelativePos) ?
+                player1RelativePos : player2RelativePos;
+            playerDir = normalize(playerDir * float3(1.0f, 0.0f, 1.0f));    
+
             for (int i = -weapon.extraBulletsPerSide; i <= weapon.extraBulletsPerSide; i++)
             {
                 int bulletIndex;

@@ -37,16 +37,17 @@ public class Weapon
         if (playerIndex == 0)
         {
             impulse = 0.5f;
-            extraBulletsPerSide = 20;
+            extraBulletsPerSide = 60;
             shootInterval = 0.03f;
-            angle = 2.0f;
+            angle = 1.5f;
+            damage = 3;
         }
         else
         {
-            impulse = 1.0f;
-            extraBulletsPerSide = 4;
+            impulse = 4.0f;
+            extraBulletsPerSide = 10;
             shootInterval = 0.02f;
-            angle = 2.0f;
+            angle = 1.0f;
             speed = 20.0f;
             angleBiasRange = 0.2f;
             virtualYBase = 10.0f;

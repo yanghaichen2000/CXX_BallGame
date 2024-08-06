@@ -270,7 +270,7 @@ void LitPassFragment(
 #endif
 
     float enemyHP = max(sphereEnemyData[input.customInstanceId].hp, 0.0f);
-    float enemyCondition = 1.0f - enemyHP / 1000.0f;
+    float enemyCondition = 1.0f - enemyHP / 600.0f;
     surfaceData.albedo = lerp(surfaceData.albedo, float3(0.5f, 0.5f, 0.5f), enemyCondition);
     surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
     
