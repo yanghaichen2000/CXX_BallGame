@@ -9,9 +9,11 @@ public class UIManager
     public Dictionary<string, TextMeshProUGUI> textData;
 
     public TextMeshProUGUI player1HP;
-    public TextMeshProUGUI player2HP;
-
+    public TextMeshProUGUI player1Mass;
     public TextMeshProUGUI player1Skill0;
+
+    public TextMeshProUGUI player2HP;
+    public TextMeshProUGUI player2Mass;
     public TextMeshProUGUI player2Skill0;
 
     public TextMeshProUGUI fps;
@@ -22,9 +24,11 @@ public class UIManager
     public UIManager()
     {
         player1HP = GameObject.Find("text_player1HP").GetComponent<TextMeshProUGUI>();
-        player2HP = GameObject.Find("text_player2HP").GetComponent<TextMeshProUGUI>();
-
+        player1Mass = GameObject.Find("text_player1Mass").GetComponent<TextMeshProUGUI>();
         player1Skill0 = GameObject.Find("text_player1Skill0").GetComponent<TextMeshProUGUI>();
+
+        player2HP = GameObject.Find("text_player2HP").GetComponent<TextMeshProUGUI>();
+        player2Mass = GameObject.Find("text_player2Mass").GetComponent<TextMeshProUGUI>();
         player2Skill0 = GameObject.Find("text_player2Skill0").GetComponent<TextMeshProUGUI>();
 
         fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();

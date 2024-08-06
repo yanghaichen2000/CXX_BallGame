@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
-using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -24,6 +23,78 @@ public struct PlayerWeaponDatum
     public float renderingBiasY;
 }
 
+public class PlayerWeaponDatumSample
+{
+    public static PlayerWeaponDatum player1Super = new PlayerWeaponDatum()
+    {
+        shootInterval = 0.05f,
+        virtualYRange = 0.2f,
+        virtualYBase = 0.5f,
+        angleBiasRange = 1.0f,
+        extraBulletsPerSide = 120,
+        angle = 0.5f,
+        speed = 8.0f,
+        radius = 0.07f,
+        damage = 3,
+        bounces = 5,
+        lifeSpan = 12.0f,
+        impulse = 0.5f,
+        renderingBiasY = 0.0f,
+    };
+
+    public static PlayerWeaponDatum player1Weak = new PlayerWeaponDatum()
+    {
+        shootInterval = 0.3f,
+        virtualYRange = 0.2f,
+        virtualYBase = 0.5f,
+        angleBiasRange = 1.0f,
+        extraBulletsPerSide = 1,
+        angle = 25.0f,
+        speed = 8.0f,
+        radius = 0.07f,
+        damage = 3,
+        bounces = 5,
+        lifeSpan = 12.0f,
+        impulse = 0.5f,
+        renderingBiasY = 0.0f,
+    };
+
+    public static PlayerWeaponDatum player2Super = new PlayerWeaponDatum()
+    {
+        shootInterval = 0.05f,
+        virtualYRange = 0.0f,
+        virtualYBase = 10.0f,
+        angleBiasRange = 0.5f,
+        extraBulletsPerSide = 20,
+        angle = 0.4f,
+        speed = 20.0f,
+        radius = 0.07f,
+        damage = 1,
+        bounces = 2,
+        lifeSpan = 12.0f,
+        impulse = 5.0f,
+        renderingBiasY = 0.1f,
+    };
+
+    public static PlayerWeaponDatum player2Weak = new PlayerWeaponDatum()
+    {
+        shootInterval = 0.15f,
+        virtualYRange = 0.0f,
+        virtualYBase = 10.0f,
+        angleBiasRange = 1.0f,
+        extraBulletsPerSide = 0,
+        angle = 0.4f,
+        speed = 20.0f,
+        radius = 0.07f,
+        damage = 1,
+        bounces = 2,
+        lifeSpan = 12.0f,
+        impulse = 4.0f,
+        renderingBiasY = 0.1f,
+    };
+}
+
+
 public class Weapon
 {
     public int playerIndex;
@@ -41,35 +112,11 @@ public class Weapon
         Debug.Assert(playerIndex == 0 || playerIndex == 1);
         if (playerIndex == 0)
         {
-            datum.shootInterval = 0.05f;
-            datum.virtualYRange = 0.2f;
-            datum.virtualYBase = 0.5f;
-            datum.angleBiasRange = 1.0f;
-            datum.extraBulletsPerSide = 120;
-            datum.angle = 1.5f;
-            datum.speed = 8.0f;
-            datum.radius = 0.07f;
-            datum.damage = 3;
-            datum.bounces = 5;
-            datum.lifeSpan = 12.0f;
-            datum.impulse = 0.5f;
-            datum.renderingBiasY = 0.0f;
+            datum = PlayerWeaponDatumSample.player1Super;
         }
         else
         {
-            datum.shootInterval = 0.06f;
-            datum.virtualYRange = 0.0f;
-            datum.virtualYBase = 10.0f;
-            datum.angleBiasRange = 1.0f;
-            datum.extraBulletsPerSide = 20;
-            datum.angle = 0.4f;
-            datum.speed = 20.0f;
-            datum.radius = 0.07f;
-            datum.damage = 1;
-            datum.bounces = 2;
-            datum.lifeSpan = 12.0f;
-            datum.impulse = 4.0f;
-            datum.renderingBiasY = 0.1f;
+            datum = PlayerWeaponDatumSample.player2Super;
         }
     }
 

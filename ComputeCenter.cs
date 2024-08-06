@@ -621,7 +621,7 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 1.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.1f,
+            shootInterval = 0.8f,
             extraBulletsPerSide = 0,
             angle = 0.0f,
             randomShootDelay = 0.0f,
@@ -639,7 +639,7 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 1.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.15f,
+            shootInterval = 0.12f,
             extraBulletsPerSide = 2,
             angle = 10.0f,
             randomShootDelay = 0.3f,

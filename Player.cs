@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Rendering.LookDev;
+using TMPro;
 using UnityEngine;
 
 public class Player
@@ -14,13 +14,14 @@ public class Player
     public float maxAcceleration = 10.0f;
     public float hitProtectionDuration = 3.0f;
     public float autoRestoreHPRate = 10.0f;
-    public Int32 maxHP = 300;
+    public Int32 initialMaxHP = 300;
     public Color initialBaseColor;
     public Material material;
 
     public Vector3 velocity;
     public Weapon weapon;
     public Int32 hp = 300;
+    public Int32 maxHP = 300;
     public float m = 100.0f;
     public bool hittable = false;
     public float lastHitByEnemyTime = -10000.0f;
@@ -40,7 +41,8 @@ public class Player
     public void Update()
     {
         AutoRestoreHP();
-        UpdateBasicCondition();
+        UpdateHittableState();
+        UpdateMass();
         playerInputManager.Update();
         Shoot();
         UpdateMaterial();
@@ -51,18 +53,33 @@ public class Player
         UpdateVelocity();
     }
 
-    public void UpdateBasicCondition()
+    public void UpdateHittableState()
     {
         if (GameManager.gameTime > lastHitByEnemyTime + hitProtectionDuration)
         {
             if (!hittable) weapon.SetLastShootTime(GameManager.gameTime);
             hittable = true;
         }
+    }
 
-        if (hp > 200) m = 2.0f;
-        else if (hp > 100) m = 1.5f;
-        else if (hp > 0) m = 1.0f;
-        else m = 0.5f;
+    public void UpdateMass()
+    {
+        if (index == 0 && 
+            GameManager.playerSkillManager.skills["Player1Skill0"].GetState() == 1)
+        {
+            m = 10000.0f;
+        }
+        else
+        {
+            if (hp > 200) m = 2.0f;
+            else if (hp > 100) m = 1.5f;
+            else if (hp > 0) m = 1.0f;
+            else m = 0.5f;
+        }
+
+        TextMeshProUGUI text = index == 0 ?
+            GameManager.uiManager.player1Mass : GameManager.uiManager.player2Mass;
+        text.text = string.Format("EQ. Mass: {0:F2} kg", m);
     }
 
     public void Shoot()
@@ -112,13 +129,21 @@ public class Player
 
     public void OnProcessPlayerSkillReadbackData(ComputeCenter.PlayerSkillDatum datum)
     {
-        updateHP(datum.player2Skill0HPRestoration);
+        updateHP(datum.player2Skill0HPRestoration / 2, true);
     }
 
-    public void updateHP(int hpChange)
+    public void updateHP(int hpChange, bool canBreakBound = false)
     {
-        hp = Mathf.Min(hp + hpChange, maxHP);
-        maxHP = (hp + 99) / 100 * 100;
+        if (canBreakBound)
+        {
+            hp = Mathf.Min(hp + hpChange, initialMaxHP);
+        }
+        else
+        {
+            hp = Mathf.Min(hp + hpChange, maxHP);
+        }
+        hp = Mathf.Max(hp, 0);
+        maxHP = Mathf.Max((hp + 99) / 100 * 100, 0);
         GameManager.uiManager.UpdatePlayerHP(index, hp);
     }
 

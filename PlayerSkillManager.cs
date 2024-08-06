@@ -1,20 +1,22 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerSkillManager
 {
-    Skill[] skills;
+    public Dictionary<string, Skill> skills;
 
     public PlayerSkillManager()
     {
-        skills = new Skill[2];
-        skills[0] = new Player1Skill0();
-        skills[1] = new Player2Skill0();
+        skills = new Dictionary<string, Skill>();
+        skills["Player1Skill0"] = new Player1Skill0();
+        skills["Player2Skill0"] = new Player2Skill0();
     }
 
     public void Tick()
     {
-        foreach (Skill skill in skills)
+        foreach (var pair in skills)
         {
+            Skill skill = pair.Value;
             skill.UpdateState();
             skill.UpdateUI();
             skill.UpdateComputeBufferData();
@@ -28,6 +30,8 @@ public interface Skill
     public void UpdateState();
     public void UpdateUI();
     public void UpdateComputeBufferData();
+
+    public int GetState();
 }
 
 
@@ -90,6 +94,11 @@ public class Player1Skill0 : Skill
     {
         GameManager.computeCenter.playerSkillData[0].player1Skill0 = state;
     }
+
+    public int GetState()
+    {
+        return state;
+    }
 }
 
 public class Player2Skill0 : Skill
@@ -150,5 +159,10 @@ public class Player2Skill0 : Skill
     public void UpdateComputeBufferData()
     {
         GameManager.computeCenter.playerSkillData[0].player2Skill0 = state;
+    }
+
+    public int GetState()
+    {
+        return state;
     }
 }
