@@ -128,7 +128,7 @@ public class ComputeCenter
     const int maxPlayerBulletNum = 131072;
     const int maxEnemyBulletNum = 131072;
     const int maxNewBulletNum = 2048;
-    const int maxEnemyNum = 512;
+    const int maxEnemyNum = 1024;
     const int maxNewEnemyNum = 128;
     const int maxEnemyWeaponNum = 8;
 
@@ -639,9 +639,9 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 1.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.3f,
-            extraBulletsPerSide = 3,
-            angle = 5.0f,
+            shootInterval = 0.15f,
+            extraBulletsPerSide = 2,
+            angle = 10.0f,
             randomShootDelay = 0.3f,
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
@@ -729,7 +729,15 @@ public class ComputeCenter
         AsyncGPUReadback.Request(playerDataCB, dataRequest =>
         {
             var readbackPlayerData = dataRequest.GetData<PlayerDatum>();
-            OnPlayerDataReadBackCompleted(readbackPlayerData);
+            GameManager.player1.OnProcessPlayerReadbackData(readbackPlayerData[0]);
+            GameManager.player2.OnProcessPlayerReadbackData(readbackPlayerData[1]);
+        });
+
+        AsyncGPUReadback.Request(playerSkillDataCB, dataRequest =>
+        {
+            var readbackPlayerData = dataRequest.GetData<PlayerSkillDatum>();
+            GameManager.player1.OnProcessPlayerSkillReadbackData(readbackPlayerData[0]);
+            GameManager.player2.OnProcessPlayerSkillReadbackData(readbackPlayerData[0]);
         });
     }
 
@@ -752,12 +760,6 @@ public class ComputeCenter
             var readbackData = dataRequest.GetData<int>();
             GameManager.uiManager.playerBulletNum.text = string.Format("playerBulletNum = {0}", readbackData[0]);
         });
-    }
-
-    public void OnPlayerDataReadBackCompleted(NativeArray<PlayerDatum> readbackPlayerData)
-    {
-        GameManager.player1.OnProcessReadbackData(readbackPlayerData[0]);
-        GameManager.player2.OnProcessReadbackData(readbackPlayerData[1]);
     }
 
     public void ResetCulledInstanceNum()

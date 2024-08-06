@@ -70,11 +70,19 @@ public class Player1Skill0 : Skill
         if (state == 0)
         {
             GameManager.uiManager.player1Skill0.text = "E: Ready";
+            GameManager.uiManager.player1Skill0.color = Color.white;
         }
-        else if (state == 1 || state == 2)
+        else if (state == 1)
+        {
+            GameManager.uiManager.player1Skill0.text = string.Format("E: {0:F2}s",
+                duration - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.player1Skill0.color = Color.green;
+        }
+        else if (state == 2)
         {
             GameManager.uiManager.player1Skill0.text = string.Format("E: {0:F2}s",
                 cd - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.player1Skill0.color = Color.red;
         }
     }
 
@@ -123,11 +131,19 @@ public class Player2Skill0 : Skill
         if (state == 0)
         {
             GameManager.uiManager.player2Skill0.text = "RB: Ready";
+            GameManager.uiManager.player2Skill0.color = Color.white;
         }
-        else if (state == 1 || state == 2)
+        else if (state == 1)
+        {
+            GameManager.uiManager.player2Skill0.text = string.Format("RB: {0:F2}s",
+                duration - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.player2Skill0.color = Color.green;
+        }
+        else if (state == 2)
         {
             GameManager.uiManager.player2Skill0.text = string.Format("RB: {0:F2}s",
                 cd - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.player2Skill0.color = Color.red;
         }
     }
 

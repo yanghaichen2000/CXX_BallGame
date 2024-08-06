@@ -13,6 +13,8 @@ public class Player
     public float maxSpeed = 4.0f;
     public float maxAcceleration = 10.0f;
     public float hitProtectionDuration = 3.0f;
+    public float autoRestoreHPRate = 10.0f;
+    public Int32 maxHP = 300;
     public Color initialBaseColor;
     public Material material;
 
@@ -22,6 +24,7 @@ public class Player
     public float m = 100.0f;
     public bool hittable = false;
     public float lastHitByEnemyTime = -10000.0f;
+    public float availableAutoRestoreHP = 0.0f;
 
     public Player(int _index, GameObject _obj, PlayerInputManager _playerInputManager)
     {
@@ -32,12 +35,11 @@ public class Player
         weapon = new Weapon(index);
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
-
-        if (index == 1) hp = 500;
     }
 
     public void Update()
     {
+        AutoRestoreHP();
         UpdateBasicCondition();
         playerInputManager.Update();
         Shoot();
@@ -85,11 +87,12 @@ public class Player
         body.velocity = velocity;
     }
 
-    public void OnProcessReadbackData(ComputeCenter.PlayerDatum datum)
+    public void OnProcessPlayerReadbackData(ComputeCenter.PlayerDatum datum)
     {
-        if (hittable) hp += datum.hpChange;
-        GameManager.uiManager.UpdatePlayerHP(index, hp);
+        // 更新hp
+        if (hittable) updateHP(datum.hpChange);
 
+        // 更新速度
         Vector3 dV = new Vector3(datum.hitImpulse.x / 10000.0f, datum.hitImpulse.y / 10000.0f, datum.hitImpulse.z / 10000.0f);
         bool hitByEnemy = datum.hitByEnemy != 0 ? true : false;
         if (hittable)
@@ -105,7 +108,33 @@ public class Player
                 body.velocity = body.velocity + dV / m;
             }
         }
-        
+    }
+
+    public void OnProcessPlayerSkillReadbackData(ComputeCenter.PlayerSkillDatum datum)
+    {
+        updateHP(datum.player2Skill0HPRestoration);
+    }
+
+    public void updateHP(int hpChange)
+    {
+        hp = Mathf.Min(hp + hpChange, maxHP);
+        maxHP = (hp + 99) / 100 * 100;
+        GameManager.uiManager.UpdatePlayerHP(index, hp);
+    }
+
+    public void AutoRestoreHP()
+    {
+        if (hittable && body.position.y < 0.5001)
+        {
+            availableAutoRestoreHP += autoRestoreHPRate * GameManager.deltaTime;
+        }
+            
+        if (availableAutoRestoreHP > 1.0f)
+        {
+            int hpchange = (int)MathF.Floor(availableAutoRestoreHP);
+            availableAutoRestoreHP -= hpchange;
+            updateHP(hpchange);
+        }
     }
 
     public void UpdateMaterial()

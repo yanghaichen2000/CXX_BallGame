@@ -72,19 +72,7 @@ public class GameManager : MonoBehaviour
     {
         lastTickTime = DateTime.Now;
 
-        /*
-        enemyLegion.SpawnStaticCube(-10.0f, -15.0f);
-        enemyLegion.SpawnStaticCube(0.0f, -15.0f);
-        enemyLegion.SpawnStaticCube(10.0f, -15.0f);
-        enemyLegion.SpawnStaticCube(-10.0f, 15.0f);
-        enemyLegion.SpawnStaticCube(0.0f, 15.0f);
-        enemyLegion.SpawnStaticCube(10.0f, 15.0f);
-
-        enemyLegion.SpawnStaticCube(-20.0f, 5.0f);
-        enemyLegion.SpawnStaticCube(-20.0f, -5.0f);
-        enemyLegion.SpawnStaticCube(20.0f, 5.0f);
-        enemyLegion.SpawnStaticCube(20.0f, -5.0f);
-        */
+        enemyLegion.CreateSpawnEnemyRequest(1024);
     }
 
     void Update()
@@ -102,12 +90,7 @@ public class GameManager : MonoBehaviour
     {
         UpdateTime();
 
-        bool spawn = frameCount % 10 == 0;
-        int spawnIndex = frameCount / 10;
-        float x = -18.0f + (spawnIndex % 30) * 1.2f;
-        float z = -5.0f + (spawnIndex / 30) * 1.01f;
-        if (spawn && spawnIndex < 512 && z < 15.0f) enemyLegion.SpawnSphereEnemy(x, z);
-
+        using (new GUtils.PFL("EnemyLegion.Tick")) { enemyLegion.Tick(); }
         using (new GUtils.PFL("player1.Update")) { player1.Update(); }
         using (new GUtils.PFL("player2.Update")) { player2.Update(); }
         using (new GUtils.PFL("playerSkillManager.Tick")) { playerSkillManager.Tick(); }

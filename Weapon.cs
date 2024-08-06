@@ -41,11 +41,11 @@ public class Weapon
         Debug.Assert(playerIndex == 0 || playerIndex == 1);
         if (playerIndex == 0)
         {
-            datum.shootInterval = 0.06f;
+            datum.shootInterval = 0.05f;
             datum.virtualYRange = 0.2f;
             datum.virtualYBase = 0.5f;
             datum.angleBiasRange = 1.0f;
-            datum.extraBulletsPerSide = 60;
+            datum.extraBulletsPerSide = 120;
             datum.angle = 1.5f;
             datum.speed = 8.0f;
             datum.radius = 0.07f;
@@ -61,8 +61,8 @@ public class Weapon
             datum.virtualYRange = 0.0f;
             datum.virtualYBase = 10.0f;
             datum.angleBiasRange = 1.0f;
-            datum.extraBulletsPerSide = 10;
-            datum.angle = 1.0f;
+            datum.extraBulletsPerSide = 20;
+            datum.angle = 0.4f;
             datum.speed = 20.0f;
             datum.radius = 0.07f;
             datum.damage = 1;

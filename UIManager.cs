@@ -36,7 +36,8 @@ public class UIManager
     public void UpdatePlayerHP(int index, int value)
     {
         TextMeshProUGUI hpText = index == 0 ? player1HP : player2HP;
-        hpText.text = string.Format("HP: {0}", Mathf.Max(value, 0));
+        Player player = index == 0 ? GameManager.player1 : GameManager.player2;
+        hpText.text = string.Format("HP: {0} / {1}", Mathf.Max(value, 0), player.maxHP);
         if (value > 200) hpText.color = Color.green;
         else if (value > 100) hpText.color = Color.yellow;
         else if (value > 0) hpText.color = Color.red;

@@ -336,9 +336,9 @@ void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
 [numthreads(128, 1, 1)]
 void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < sphereEnemyNum[0])
+    EnemyDatum enemy = sphereEnemyData[id.x];
+    if (id.x < sphereEnemyNum[0] && enemy.pos.y > -10.0f)
     {
-        EnemyDatum enemy = sphereEnemyData[id.x];
         int index;
         InterlockedAdd(culledSphereEnemyNum[0], 1, index);
         culledSphereEnemyData[index] = enemy;
