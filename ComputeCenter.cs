@@ -3,6 +3,7 @@ using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
+using static ComputeCenter;
 
 public class ComputeCenter
 {
@@ -26,6 +27,19 @@ public class ComputeCenter
         public float tmp3;
     }
     const int playerDatumSize = 48;
+
+    public struct PlayerSkillDatum
+    {
+        public Int32 player1Skill0;
+        public Int32 player1Skill1;
+        public Int32 player2Skill0;
+        public Int32 player2Skill1;
+        public Int32 sharedSkill0;
+        public Int32 sharedSkill1;
+        public Int32 player2Skill0HPRestoration;
+        public Int32 tmp2;
+    }
+    const int playerSkillDatumSize = 32;
 
     public struct BulletDatum
     {
@@ -121,6 +135,9 @@ public class ComputeCenter
     PlayerDatum[] playerData;
     ComputeBuffer playerDataCB;
 
+    public PlayerSkillDatum[] playerSkillData;
+    ComputeBuffer playerSkillDataCB;
+
     int currentResourceCBIndex;
 
     BulletDatum[] playerBulletData;
@@ -197,7 +214,7 @@ public class ComputeCenter
     int updateEnemyVelocityAndPositionKernel = -1;
     int processPlayerEnemyCollisionKernel = -1;
     int enemyShootKernel = -1;
-    int updateEnemyBulletPositionKernel = -1;
+    int updateEnemyBulletVelocityAndPositionKernel = -1;
     int cullEnemyBulletKernel = -1;
     int updateDrawEnemyBulletArgsKernel = -1;
     int processEnemyBulletCollisionKernel = -1;
@@ -223,6 +240,9 @@ public class ComputeCenter
 
         playerData = new PlayerDatum[2];
         playerDataCB = new ComputeBuffer(2, playerDatumSize);
+
+        playerSkillData = new PlayerSkillDatum[1];
+        playerSkillDataCB = new ComputeBuffer(1, playerSkillDatumSize);
 
         currentResourceCBIndex = 0;
 
@@ -312,7 +332,7 @@ public class ComputeCenter
         updateEnemyVelocityAndPositionKernel = computeCenterCS.FindKernel("UpdateEnemyVelocityAndPosition");
         processPlayerEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerEnemyCollision");
         enemyShootKernel = computeCenterCS.FindKernel("EnemyShoot");
-        updateEnemyBulletPositionKernel = computeCenterCS.FindKernel("UpdateEnemyBulletPosition");
+        updateEnemyBulletVelocityAndPositionKernel = computeCenterCS.FindKernel("UpdateEnemyBulletVelocityAndPosition");
         cullEnemyBulletKernel = computeCenterCS.FindKernel("CullEnemyBullet");
         updateDrawEnemyBulletArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyBulletArgs");
         processEnemyBulletCollisionKernel = computeCenterCS.FindKernel("ProcessEnemyBulletCollision");
@@ -341,6 +361,13 @@ public class ComputeCenter
     {
         playerBulletDataCB[0].SetData(playerBulletData);
         playerBulletDataCB[1].SetData(playerBulletData);
+
+        playerSkillData[0].player1Skill0 = 0;
+        playerSkillData[0].player1Skill1 = 0;
+        playerSkillData[0].player2Skill0 = 0;
+        playerSkillData[0].player2Skill1 = 0;
+        playerSkillData[0].sharedSkill0 = 0;
+        playerSkillData[0].sharedSkill1 = 0;
 
         enemyBulletDataCB[0].SetData(enemyBulletData);
         enemyBulletDataCB[1].SetData(enemyBulletData);
@@ -384,6 +411,7 @@ public class ComputeCenter
     {
         using (new GUtils.PFL("UpdateComputeGlobalConstant")) { UpdateComputeGlobalConstant(); }
         using (new GUtils.PFL("UpdatePlayerComputeBuffer")) { UpdatePlayerComputeBuffer(); }
+        using (new GUtils.PFL("UpdatePlayerSkillComputeBuffer")) { UpdatePlayerSkillComputeBuffer(); }
 
         using (new GUtils.PFL("ExecutePlayerShootRequest")) { ExecutePlayerShootRequest(); }
         using (new GUtils.PFL("ExecuteCreateEnemyRequest")) { ExecuteCreateEnemyRequest(); }
@@ -397,7 +425,7 @@ public class ComputeCenter
         using (new GUtils.PFL("ProcessBulletBulletCollision")) { ProcessBulletBulletCollision(); }
 
         using (new GUtils.PFL("UpdatePlayerBulletPosition")) { UpdatePlayerBulletPosition(); }
-        using (new GUtils.PFL("UpdateEnemyBulletPosition")) { UpdateEnemyBulletPosition(); }
+        using (new GUtils.PFL("UpdateEnemyBulletVelocityAndPosition")) { UpdateEnemyBulletVelocityAndPosition(); }
         using (new GUtils.PFL("UpdateEnemyVelocityAndPosition")) { UpdateEnemyVelocityAndPosition(); } // 线程同步还没做好，可能出问题
 
         using (new GUtils.PFL("CullPlayerBullet")) { CullPlayerBullet(); }
@@ -523,7 +551,10 @@ public class ComputeCenter
         int kernel = processEnemyBulletCollisionKernel;
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeCenterCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
@@ -537,11 +568,12 @@ public class ComputeCenter
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
-    public void UpdateEnemyBulletPosition()
+    public void UpdateEnemyBulletVelocityAndPosition()
     {
-        int kernel = updateEnemyBulletPositionKernel;
+        int kernel = updateEnemyBulletVelocityAndPositionKernel;
         computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
@@ -680,6 +712,14 @@ public class ComputeCenter
             hitByEnemy = 0
         };
         playerDataCB.SetData(playerData);
+    }
+
+    public void UpdatePlayerSkillComputeBuffer()
+    {
+        // 技能状态数据已经在Skill.UpdateComputeBufferData()中更新
+
+        playerSkillData[0].player2Skill0HPRestoration = 0;
+        playerSkillDataCB.SetData(playerSkillData);
     }
 
     public void SendReadbackRequest()

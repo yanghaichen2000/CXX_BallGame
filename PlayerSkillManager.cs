@@ -33,8 +33,8 @@ public interface Skill
 
 public class Player1Skill0 : Skill
 {
-    public float cd = 5.0f;
-    public float duration = 2.0f;
+    public float cd = 15.0f;
+    public float duration = 5.0f;
 
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
@@ -69,7 +69,7 @@ public class Player1Skill0 : Skill
     {
         if (state == 0)
         {
-            GameManager.uiManager.player1Skill0.text = "E: Available";
+            GameManager.uiManager.player1Skill0.text = "E: Ready";
         }
         else if (state == 1 || state == 2)
         {
@@ -80,14 +80,14 @@ public class Player1Skill0 : Skill
 
     public void UpdateComputeBufferData()
     {
-
+        GameManager.computeCenter.playerSkillData[0].player1Skill0 = state;
     }
 }
 
 public class Player2Skill0 : Skill
 {
     public float cd = 10.0f;
-    public float duration = 2.0f;
+    public float duration = 5.0f;
 
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
@@ -122,7 +122,7 @@ public class Player2Skill0 : Skill
     {
         if (state == 0)
         {
-            GameManager.uiManager.player2Skill0.text = "RB: Available";
+            GameManager.uiManager.player2Skill0.text = "RB: Ready";
         }
         else if (state == 1 || state == 2)
         {
@@ -133,6 +133,6 @@ public class Player2Skill0 : Skill
 
     public void UpdateComputeBufferData()
     {
-
+        GameManager.computeCenter.playerSkillData[0].player2Skill0 = state;
     }
 }

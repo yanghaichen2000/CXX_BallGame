@@ -7,22 +7,27 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 
+public struct PlayerWeaponDatum
+{
+    public float shootInterval;
+    public float virtualYRange;
+    public float virtualYBase;
+    public float angleBiasRange;
+    public int extraBulletsPerSide;
+    public float angle;
+    public float speed;
+    public float radius;
+    public int damage;
+    public int bounces;
+    public float lifeSpan;
+    public float impulse;
+    public float renderingBiasY;
+}
+
 public class Weapon
 {
     public int playerIndex;
-    public float shootInterval = 0.06f;
-    public float virtualYRange = 0.2f;
-    public float virtualYBase = 0.5f;
-    public float angleBiasRange = 1.0f;
-    public int extraBulletsPerSide = 8;
-    public float angle = 3.0f;
-    public float speed = 8.0f;
-    public float radius = 0.07f;
-    public int damage = 1;
-    public int bounces = 5;
-    public float lifeSpan = 12.0f;
-    public float impulse = 1.0f;
-    public float renderingBiasY = 0.0f;
+    PlayerWeaponDatum datum;
 
     public float lastShootTime;
     public Vector3 lastShootPos = new Vector3(0.0f, 0.0f, 0.0f);
@@ -36,32 +41,43 @@ public class Weapon
         Debug.Assert(playerIndex == 0 || playerIndex == 1);
         if (playerIndex == 0)
         {
-            impulse = 0.5f;
-            extraBulletsPerSide = 60;
-            shootInterval = 0.03f;
-            angle = 1.5f;
-            damage = 3;
+            datum.shootInterval = 0.06f;
+            datum.virtualYRange = 0.2f;
+            datum.virtualYBase = 0.5f;
+            datum.angleBiasRange = 1.0f;
+            datum.extraBulletsPerSide = 60;
+            datum.angle = 1.5f;
+            datum.speed = 8.0f;
+            datum.radius = 0.07f;
+            datum.damage = 3;
+            datum.bounces = 5;
+            datum.lifeSpan = 12.0f;
+            datum.impulse = 0.5f;
+            datum.renderingBiasY = 0.0f;
         }
         else
         {
-            impulse = 4.0f;
-            extraBulletsPerSide = 10;
-            shootInterval = 0.02f;
-            angle = 1.0f;
-            speed = 20.0f;
-            angleBiasRange = 0.2f;
-            virtualYBase = 10.0f;
-            virtualYRange = 0.0f;
-            bounces = 2;
-            renderingBiasY = 0.1f;
+            datum.shootInterval = 0.06f;
+            datum.virtualYRange = 0.0f;
+            datum.virtualYBase = 10.0f;
+            datum.angleBiasRange = 1.0f;
+            datum.extraBulletsPerSide = 10;
+            datum.angle = 1.0f;
+            datum.speed = 20.0f;
+            datum.radius = 0.07f;
+            datum.damage = 1;
+            datum.bounces = 2;
+            datum.lifeSpan = 12.0f;
+            datum.impulse = 4.0f;
+            datum.renderingBiasY = 0.1f;
         }
     }
 
     public void Shoot(Vector3 pos, Vector3 dir)
     {
         float currentShootTime = GameManager.gameTime;
-        int currentBulletIndex = (int)Mathf.Floor(currentShootTime / shootInterval);
-        int lastBulletIndex = (int)Mathf.Floor(lastShootTime / shootInterval);
+        int currentBulletIndex = (int)Mathf.Floor(currentShootTime / datum.shootInterval);
+        int lastBulletIndex = (int)Mathf.Floor(lastShootTime / datum.shootInterval);
 
         if (currentBulletIndex != lastBulletIndex) 
         {
@@ -69,20 +85,20 @@ public class Weapon
 
             for (int bulletIndex = lastBulletIndex + 1; bulletIndex <= currentBulletIndex; bulletIndex++)
             {
-                float shootTime = shootInterval * bulletIndex;
+                float shootTime = datum.shootInterval * bulletIndex;
                 float lerpCoeff = (shootTime - lastShootTime) / (currentShootTime - lastShootTime);
-                float randomAngleBias = UnityEngine.Random.Range(-angleBiasRange, angleBiasRange);
+                float randomAngleBias = UnityEngine.Random.Range(-datum.angleBiasRange, datum.angleBiasRange);
                 
-                for (int i = -extraBulletsPerSide; i <= extraBulletsPerSide; i++)
+                for (int i = -datum.extraBulletsPerSide; i <= datum.extraBulletsPerSide; i++)
                 {
-                    float angleOfThisBullet = i * angle + randomAngleBias;
+                    float angleOfThisBullet = i * datum.angle + randomAngleBias;
                     Quaternion rotation = Quaternion.Euler(0, angleOfThisBullet, 0);
                     Vector3 interpolatedShootDir = (lerpCoeff * dir + (1.0f - lerpCoeff) * lastShootDir).normalized;
                     Vector3 dirOfThisBullet = rotation * interpolatedShootDir;
                     Vector3 shootPosOfThisBullet = lerpCoeff * pos + (1.0f - lerpCoeff) * lastShootPos;
-                    Vector3 currentPosOfThisBullet = shootPosOfThisBullet + (currentShootTime - shootTime) * speed * dirOfThisBullet;
-                    float virtualY = UnityEngine.Random.Range(virtualYBase - virtualYRange, virtualYBase + virtualYRange);
-                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, speed, radius, damage, bounces, lifeSpan, impulse, virtualY, playerIndex, renderingBiasY);
+                    Vector3 currentPosOfThisBullet = shootPosOfThisBullet + (currentShootTime - shootTime) * datum.speed * dirOfThisBullet;
+                    float virtualY = UnityEngine.Random.Range(datum.virtualYBase - datum.virtualYRange, datum.virtualYBase + datum.virtualYRange);
+                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, playerIndex, datum.renderingBiasY);
                 }
             }
 

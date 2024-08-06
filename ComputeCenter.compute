@@ -8,7 +8,7 @@
 #pragma kernel UpdateEnemyVelocityAndPosition
 #pragma kernel ProcessPlayerEnemyCollision
 #pragma kernel EnemyShoot
-#pragma kernel UpdateEnemyBulletPosition
+#pragma kernel UpdateEnemyBulletVelocityAndPosition
 #pragma kernel CullEnemyBullet
 #pragma kernel UpdateDrawEnemyBulletArgs
 #pragma kernel ProcessEnemyBulletCollision
@@ -68,6 +68,19 @@ struct PlayerDatum
     float tmp1;
     int hitByEnemy;
     float tmp3;
+};
+
+
+struct PlayerSkillDatum
+{
+    int player1Skill0;
+    int player1Skill1;
+    int player2Skill0;
+    int player2Skill1;
+    int sharedSkill0;
+    int sharedSkill1;
+    int player2Skill0HPRestoration;
+    int tmp2;
 };
 
 struct BulletDatum
@@ -132,6 +145,8 @@ struct BulletGridDatum
 
 
 RWStructuredBuffer<PlayerDatum> playerData;
+
+RWStructuredBuffer<PlayerSkillDatum> playerSkillData;
 
 RWStructuredBuffer<BulletDatum> playerBulletData;
 RWStructuredBuffer<BulletDatum> culledPlayerBulletData;
@@ -261,11 +276,28 @@ void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 
 
 [numthreads(256, 1, 1)]
-void UpdateEnemyBulletPosition(uint3 id : SV_DispatchThreadID)
+void UpdateEnemyBulletVelocityAndPosition(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= enemyBulletNum[0]) return;
+    
     BulletDatum bullet = enemyBulletData[id.x];
-    enemyBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
+    
+    if (playerSkillData[0].player1Skill0 == 1)
+    {
+        float3 playerDir = (player1Pos - bullet.pos) * float3(1.0f, 0.0f, 1.0f);
+        float playerDistance = length(playerDir);
+        playerDir = normalize(playerDir);
+        float3 bulletVelocity = bullet.speed * bullet.dir;
+        bulletVelocity += clamp(1.0f / (playerDistance * playerDistance), 0.2f, 0.3f) * playerDir;
+        bullet.speed = lerp(bullet.speed, length(bulletVelocity), 0.1);
+        bullet.dir = normalize(bulletVelocity);
+        bullet.pos += bulletVelocity * deltaTime;
+        enemyBulletData[id.x] = bullet;
+    }
+    else
+    {
+        enemyBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
+    }
 }
 
 
@@ -383,16 +415,30 @@ void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
             
             if (length(bulletRelativePos) <= playerRadius + bullet.radius)
             {
-                InterlockedAdd(playerData[i].hpChange, -bullet.damage);
                 float3 normal = normalize(bulletRelativePos);
-                InterlockedAdd(playerData[i].hitImpulse.x, (int)(-normal.x * bullet.impulse * 10000.0f));
-                InterlockedAdd(playerData[i].hitImpulse.z, (int)(-normal.z * bullet.impulse * 10000.0f));
                 bullet.pos = player.pos + (playerRadius + bullet.radius) * normal;
                 bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
                 bullet.dir.y = 0.0f;
                 bullet.dir = normalize(bullet.dir);
                 bullet.bounces -= 1;
-                enemyBulletData[id.x] = bullet;
+                if (i == 1 && playerSkillData[0].player2Skill0 == 1)
+                {
+                    InterlockedAdd(playerSkillData[0].player2Skill0HPRestoration, bullet.damage);
+                    bullet.virtualY = 10.0f;
+                    bullet.player = 1;
+                    int newIndex;
+                    InterlockedAdd(playerBulletNum[0], 1, newIndex);
+                    playerBulletData[newIndex] = bullet;
+                    enemyBulletData[id.x].pos = float3(-100.0f, 0.0f, -100.0f);
+                }
+                else
+                {
+                    InterlockedAdd(playerData[i].hpChange, -bullet.damage);
+                    InterlockedAdd(playerData[i].hitImpulse.x, (int) (-normal.x * bullet.impulse * 10000.0f));
+                    InterlockedAdd(playerData[i].hitImpulse.z, (int) (-normal.z * bullet.impulse * 10000.0f));
+                    enemyBulletData[id.x] = bullet;
+                }
+                
                 return;
             }
         }

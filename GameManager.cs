@@ -102,8 +102,8 @@ public class GameManager : MonoBehaviour
     {
         UpdateTime();
 
-        bool spawn = frameCount % 20 == 0;
-        int spawnIndex = frameCount / 20;
+        bool spawn = frameCount % 10 == 0;
+        int spawnIndex = frameCount / 10;
         float x = -18.0f + (spawnIndex % 30) * 1.2f;
         float z = -5.0f + (spawnIndex / 30) * 1.01f;
         if (spawn && spawnIndex < 512 && z < 15.0f) enemyLegion.SpawnSphereEnemy(x, z);
