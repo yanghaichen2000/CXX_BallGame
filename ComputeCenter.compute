@@ -456,7 +456,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         EnemyDatum enemy = sphereEnemyData[id.x];
         enemy.velocity += (float3)enemy.hitImpulse * 0.0001 / enemy.m;
         enemy.hitImpulse = int3(0, 0, 0);
-        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.2f : enemy.originalM;
+        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.1f : enemy.originalM;
         sphereEnemyData[id.x] = enemy;
     }
     

@@ -18,10 +18,14 @@ struct BulletDatum
 };
 
 StructuredBuffer<BulletDatum> playerBulletData;
+StructuredBuffer<BulletDatum> enemyBulletData;
+
 float3 player1BulletColor;
 float3 player2BulletColor;
+float3 enemyBulletColor;
 
-StructuredBuffer<BulletDatum> enemyBulletData;
+float3 bulletLightDir;
+float bulletLightIntensity;
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
@@ -38,6 +42,13 @@ VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint
     return input;
 }
 
+float4 GetPlayerBulletVertexPositionCS(float3 positionOS, uint instanceID)
+{
+    BulletDatum datum = playerBulletData[instanceID];
+    float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
+    return TransformWorldToHClip(positionWS);
+}
+
 VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;
@@ -51,6 +62,29 @@ VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint 
     input.positionNDC.zw = input.positionCS.zw;
  
     return input;
+}
+
+float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
+{
+    BulletDatum datum = enemyBulletData[instanceID];
+    float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
+    return TransformWorldToHClip(positionWS);
+}
+
+float3 BulletDiffuseShading(float3 baseColor, float3 normal)
+{
+    return baseColor * bulletLightIntensity * saturate(dot(bulletLightDir, normal)) + float3(0.2f, 0.2f, 0.2f);
+}
+
+float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
+{
+    float d = saturate(dot(bulletLightDir, normal));
+    float d2 = d * d;
+    float d4 = d2 * d2;
+    return float3(0.2f, 0.2f, 0.2f) + lerp(
+        baseColor * bulletLightIntensity * d,
+        baseColor * bulletLightIntensity * d4 * 5.0f,
+        0.2f);
 }
 
 #endif

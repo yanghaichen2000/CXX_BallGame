@@ -15,7 +15,7 @@ public class EnemyLegion
     {
         remainingNum = 0;
         lastSpawnEnemyTime = -9999.9f;
-        spawnEnemyInterval = 0.07f;
+        spawnEnemyInterval = 0.06f;
     }
 
     public void SpawnSphereEnemy(float x, float z)

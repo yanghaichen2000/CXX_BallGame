@@ -505,9 +505,15 @@ public class ComputeCenter
         computeCenterCS.SetFloat("bulletGridSize", bulletGridSize);
         computeCenterCS.SetFloat("bulletGridSizeInv", bulletGridSizeInv);
 
-        // player bullet color
+        // bullet color
         Shader.SetGlobalVector("player1BulletColor", gameManager.player1BulletColor);
         Shader.SetGlobalVector("player2BulletColor", gameManager.player2BulletColor);
+        Shader.SetGlobalVector("enemyBulletColor", gameManager.enemyBulletColor);
+
+        // lighting
+        Vector3 lightDir = GameObject.Find("Directional Light").GetComponent<Transform>().forward;
+        Shader.SetGlobalVector("bulletLightDir", -lightDir);
+        Shader.SetGlobalFloat("bulletLightIntensity", gameManager.bulletDirectionalLightIntensity);
 
         // frustum culling
         SetFrustumCullingGlobalConstant();
@@ -639,8 +645,8 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 1.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.12f,
-            extraBulletsPerSide = 2,
+            shootInterval = 0.1f,
+            extraBulletsPerSide = 3,
             angle = 10.0f,
             randomShootDelay = 0.3f,
             bulletSpeed = 6.0f,

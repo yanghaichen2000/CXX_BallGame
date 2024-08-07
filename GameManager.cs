@@ -45,14 +45,14 @@ public class GameManager : MonoBehaviour
 
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
 
-    [SerializeField]
     public Color player1BulletColor;
-    [SerializeField]
     public Color player2BulletColor;
+    public Color enemyBulletColor;
+    [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
 
     void Awake()
     {
-        Screen.SetResolution(3840, 2160, true);
+        //Screen.SetResolution(2560, 1440, true);
         Application.targetFrameRate = 240;
 
         deltaTimeQueue = new Queue<float>();
@@ -72,7 +72,7 @@ public class GameManager : MonoBehaviour
     {
         lastTickTime = DateTime.Now;
 
-        enemyLegion.CreateSpawnEnemyRequest(1024);
+        enemyLegion.CreateSpawnEnemyRequest(800);
     }
 
     void Update()
