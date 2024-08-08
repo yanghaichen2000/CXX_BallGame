@@ -77,9 +77,7 @@ public class Player
             else m = 0.5f;
         }
 
-        TextMeshProUGUI text = index == 0 ?
-            GameManager.uiManager.player1Mass : GameManager.uiManager.player2Mass;
-        text.text = string.Format("EQ. Mass: {0:F2} kg", m);
+        GameManager.uiManager.UpdatePlayerMass(index, m);
     }
 
     public void Shoot()

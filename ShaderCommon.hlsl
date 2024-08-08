@@ -41,6 +41,9 @@ float3 enemyBulletColor;
 float3 bulletLightDir;
 float bulletLightIntensity;
 
+float gameTime;
+
+
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;

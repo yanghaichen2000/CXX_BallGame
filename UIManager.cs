@@ -4,32 +4,58 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+public class PlayerSkillUI
+{
+    public TextMeshProUGUI text;
+    public TextMeshProUGUI textKey;
+    public Image image;
+    public Image imageMask;
+
+    public PlayerSkillUI(int playerIndex, int skillIndex)
+    {
+        text = GameObject.Find(string.Format("text_player{0}Skill{1}", playerIndex + 1, skillIndex)).GetComponent<TextMeshProUGUI>();
+        textKey = GameObject.Find(string.Format("text_player{0}Skill{1}Key", playerIndex + 1, skillIndex)).GetComponent<TextMeshProUGUI>();
+        image = GameObject.Find(string.Format("image_player{0}Skill{1}", playerIndex + 1, skillIndex)).GetComponent<Image>();
+        imageMask = GameObject.Find(string.Format("image_player{0}Skill{1}Mask", playerIndex + 1, skillIndex)).GetComponent<Image>();
+
+        Debug.Assert(text != null);
+        Debug.Assert(textKey != null);
+        Debug.Assert(image != null);
+        Debug.Assert(imageMask != null);
+    }
+}
+
 public class UIManager
 {
-    public Dictionary<string, TextMeshProUGUI> textData;
+    public TextMeshProUGUI text_player1HP;
+    public TextMeshProUGUI text_player1Mass;
+    public Image image_player1HP;
 
-    public TextMeshProUGUI player1HP;
-    public TextMeshProUGUI player1Mass;
-    public TextMeshProUGUI player1Skill0;
+    public TextMeshProUGUI text_player2HP;
+    public TextMeshProUGUI text_player2Mass;
+    public Image image_player2HP;
 
-    public TextMeshProUGUI player2HP;
-    public TextMeshProUGUI player2Mass;
-    public TextMeshProUGUI player2Skill0;
+    public PlayerSkillUI[,] playerSkillUI;
 
     public TextMeshProUGUI fps;
     public TextMeshProUGUI enemyNum;
     public TextMeshProUGUI enemyBulletNum;
     public TextMeshProUGUI playerBulletNum;
 
+    
+
     public UIManager()
     {
-        player1HP = GameObject.Find("text_player1HP").GetComponent<TextMeshProUGUI>();
-        player1Mass = GameObject.Find("text_player1Mass").GetComponent<TextMeshProUGUI>();
-        player1Skill0 = GameObject.Find("text_player1Skill0").GetComponent<TextMeshProUGUI>();
+        text_player1HP = GameObject.Find("text_player1HP").GetComponent<TextMeshProUGUI>();
+        text_player1Mass = GameObject.Find("text_player1Mass").GetComponent<TextMeshProUGUI>();
+        image_player1HP = GameObject.Find("image_player1HP").GetComponent<Image>();
 
-        player2HP = GameObject.Find("text_player2HP").GetComponent<TextMeshProUGUI>();
-        player2Mass = GameObject.Find("text_player2Mass").GetComponent<TextMeshProUGUI>();
-        player2Skill0 = GameObject.Find("text_player2Skill0").GetComponent<TextMeshProUGUI>();
+        text_player2HP = GameObject.Find("text_player2HP").GetComponent<TextMeshProUGUI>();
+        text_player2Mass = GameObject.Find("text_player2Mass").GetComponent<TextMeshProUGUI>();
+        image_player2HP = GameObject.Find("image_player2HP").GetComponent<Image>();
+
+        playerSkillUI = new PlayerSkillUI[2, 4];
+        playerSkillUI[0, 0] = new PlayerSkillUI(0, 0);
 
         fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();
         enemyNum = GameObject.Find("text_enemyNum").GetComponent<TextMeshProUGUI>();
@@ -39,13 +65,56 @@ public class UIManager
 
     public void UpdatePlayerHP(int index, int value)
     {
-        TextMeshProUGUI hpText = index == 0 ? player1HP : player2HP;
+        TextMeshProUGUI hpText = index == 0 ? text_player1HP : text_player2HP;
         Player player = index == 0 ? GameManager.player1 : GameManager.player2;
+        Image image = index == 0 ? image_player1HP : image_player2HP;
+
         hpText.text = string.Format("HP: {0} / {1}", Mathf.Max(value, 0), player.maxHP);
-        if (value > 200) hpText.color = Color.green;
-        else if (value > 100) hpText.color = Color.yellow;
-        else if (value > 0) hpText.color = Color.red;
-        else hpText.color = Color.black;
+
+        Color color;
+        if (value > 200) color = Color.green;
+        else if (value > 100) color = Color.yellow;
+        else if (value > 0) color = Color.red;
+        else color = Color.black;
+
+        if (image != null)
+        {
+            image.fillAmount = value / 300.0f;
+            image.color = color;
+        }
+    }
+
+    public void UpdatePlayerMass(int index, float value)
+    {
+        TextMeshProUGUI massText = index == 0 ?
+            GameManager.uiManager.text_player1Mass : GameManager.uiManager.text_player2Mass;
+        Player player = index == 0 ? GameManager.player1 : GameManager.player2;
+
+        massText.text = string.Format("Mass: {0:F2} kg", player.m);
+    }
+
+    public void UpdatePlayerSkillUI(int playerIndex, int skillIndex, bool isInCd, float remainingTime = -1.0f, float totalTime = 1000.0f)
+    {
+        PlayerSkillUI ui = playerSkillUI[playerIndex, skillIndex];
+        if (isInCd)
+        {
+            ui.imageMask.fillAmount = remainingTime / totalTime;
+            ui.text.color = Color.red;
+        }
+        else
+        {
+            ui.imageMask.fillAmount = 0.0f;
+            ui.text.color = Color.green;
+        }
+
+        if (remainingTime > 0)
+        {
+            ui.text.text = string.Format("{0:F1}s", remainingTime);
+        }
+        else
+        {
+            ui.text.text = " ";
+        }
     }
 
     public void UpdateFPS(float value)

@@ -122,7 +122,8 @@ void UnlitPassFragment(
     half3 color = BulletBlinnPhongShading(baseColor, input.normalWS);
     if (playerSkillData[0].sharedSkill0 == 1 || playerSkillData[0].sharedSkill0 == 2)
     {
-        half3 rainbowMask = HSVToRGB(float3(frac((input.screenUV.x + input.screenUV.y) * 0.05), 0.85f, 1.0f));
+        float hue = frac((input.screenUV.x + input.screenUV.y) * 0.05 - gameTime * 1.5f);
+        half3 rainbowMask = HSVToRGB(float3(hue, 0.85f, 1.0f));
         color = lerp(color, rainbowMask, 0.4);
     }
 

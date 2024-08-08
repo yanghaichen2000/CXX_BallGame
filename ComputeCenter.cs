@@ -822,6 +822,8 @@ public class ComputeCenter
         Shader.SetGlobalBuffer("playerBulletData", sourcePlayerBulletDataCB);
         Shader.SetGlobalBuffer("enemyBulletData", sourceEnemyBulletDataCB);
         Shader.SetGlobalBuffer("playerSkillData", playerSkillDataCB);
+
+        Shader.SetGlobalFloat("gameTime", GameManager.gameTime);
     }
 
     public void DrawEnemyBullet()

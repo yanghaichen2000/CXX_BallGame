@@ -740,7 +740,7 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
         int index;
         InterlockedAdd(playerBulletNum[0], 1, index);
         playerBulletData[index] = enemyBulletData[id.x];
-        float r = Random3DTo1D(gameTime, id.x, index);
+        float r = Random3DTo1D(gameTime, id.x * 0.5f, index * 0.5f);
         playerBulletData[index].impulse = 3;
         playerBulletData[index].player = r < player1BulletRate ? 0 : 1;
     }

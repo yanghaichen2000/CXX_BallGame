@@ -19,7 +19,6 @@ public class PlayerSkillManager
         {
             Skill skill = pair.Value;
             skill.UpdateState();
-            skill.UpdateUI();
             skill.UpdateComputeBufferData();
         }
     }
@@ -29,7 +28,6 @@ public class PlayerSkillManager
 public interface Skill
 {
     public void UpdateState();
-    public void UpdateUI();
     public void UpdateComputeBufferData();
 
     public int GetState();
@@ -48,6 +46,7 @@ public class Player1Skill0 : Skill
     {
         if (state == 0) // 可使用
         {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, false);
             if (Input.GetKey(KeyCode.E))
             {
                 state = 1;
@@ -56,6 +55,7 @@ public class Player1Skill0 : Skill
         }
         else if (state == 1) // 已触发
         {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, false, duration - (GameManager.gameTime - lastTriggeredTime));
             if (GameManager.gameTime - lastTriggeredTime >= duration)
             {
                 state = 2;
@@ -63,31 +63,11 @@ public class Player1Skill0 : Skill
         }
         else if (state == 2) // 冷却中
         {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd - duration);
             if (GameManager.gameTime - lastTriggeredTime >= cd)
             {
                 state = 0;
             }
-        }
-    }
-
-    public void UpdateUI()
-    {
-        if (state == 0)
-        {
-            GameManager.uiManager.player1Skill0.text = "E: Ready";
-            GameManager.uiManager.player1Skill0.color = Color.white;
-        }
-        else if (state == 1)
-        {
-            GameManager.uiManager.player1Skill0.text = string.Format("E: {0:F2}s",
-                duration - (GameManager.gameTime - lastTriggeredTime));
-            GameManager.uiManager.player1Skill0.color = Color.green;
-        }
-        else if (state == 2)
-        {
-            GameManager.uiManager.player1Skill0.text = string.Format("E: {0:F2}s",
-                cd - (GameManager.gameTime - lastTriggeredTime));
-            GameManager.uiManager.player1Skill0.color = Color.red;
         }
     }
 
@@ -133,27 +113,6 @@ public class Player2Skill0 : Skill
             {
                 state = 0;
             }
-        }
-    }
-
-    public void UpdateUI()
-    {
-        if (state == 0)
-        {
-            GameManager.uiManager.player2Skill0.text = "RB: Ready";
-            GameManager.uiManager.player2Skill0.color = Color.white;
-        }
-        else if (state == 1)
-        {
-            GameManager.uiManager.player2Skill0.text = string.Format("RB: {0:F2}s",
-                duration - (GameManager.gameTime - lastTriggeredTime));
-            GameManager.uiManager.player2Skill0.color = Color.green;
-        }
-        else if (state == 2)
-        {
-            GameManager.uiManager.player2Skill0.text = string.Format("RB: {0:F2}s",
-                cd - (GameManager.gameTime - lastTriggeredTime));
-            GameManager.uiManager.player2Skill0.color = Color.red;
         }
     }
 
