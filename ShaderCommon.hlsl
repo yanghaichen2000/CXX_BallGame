@@ -43,6 +43,8 @@ float bulletLightIntensity;
 
 float gameTime;
 
+float sharedSkill0LastTriggeredTime;
+
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {

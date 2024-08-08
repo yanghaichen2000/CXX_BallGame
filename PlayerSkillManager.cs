@@ -19,7 +19,7 @@ public class PlayerSkillManager
         {
             Skill skill = pair.Value;
             skill.UpdateState();
-            skill.UpdateComputeBufferData();
+            skill.UpdateGPUDataAndBuffer();
         }
     }
 }
@@ -28,7 +28,7 @@ public class PlayerSkillManager
 public interface Skill
 {
     public void UpdateState();
-    public void UpdateComputeBufferData();
+    public void UpdateGPUDataAndBuffer();
 
     public int GetState();
 }
@@ -71,7 +71,7 @@ public class Player1Skill0 : Skill
         }
     }
 
-    public void UpdateComputeBufferData()
+    public void UpdateGPUDataAndBuffer()
     {
         GameManager.computeCenter.playerSkillData[0].player1Skill0 = state;
     }
@@ -116,7 +116,7 @@ public class Player2Skill0 : Skill
         }
     }
 
-    public void UpdateComputeBufferData()
+    public void UpdateGPUDataAndBuffer()
     {
         GameManager.computeCenter.playerSkillData[0].player2Skill0 = state;
     }
@@ -129,8 +129,8 @@ public class Player2Skill0 : Skill
 
 public class SharedSkill0 : Skill
 {
-    public float cd = 2.5f;
-    public float delay = 2.0f;
+    public float cd = 3.5f;
+    public float delay = 3.0f;
 
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
@@ -166,18 +166,33 @@ public class SharedSkill0 : Skill
         }
         else if (state == 3) // 执行，玩家1触发
         {
+            GameManager.cameraMotionManager.ShakeByNegativeZDisplacement();
             state = 5;
         }
         else if (state == 4) // 执行，玩家2触发
         {
+            GameManager.cameraMotionManager.ShakeByNegativeZDisplacement();
             state = 5;
         }
         else if (state == 5) // 冷却中
         {
+
             if (GameManager.gameTime - lastTriggeredTime >= cd)
             {
                 state = 0;
             }
+        }
+
+        if (state == 0)
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 2, false);
+            GameManager.uiManager.UpdatePlayerSkillUI(1, 2, false);
+        }
+        else
+        {
+            float remainingTime = cd - (GameManager.gameTime - lastTriggeredTime);
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 2, true, remainingTime, cd);
+            GameManager.uiManager.UpdatePlayerSkillUI(1, 2, true, remainingTime, cd);
         }
     }
 
@@ -186,9 +201,10 @@ public class SharedSkill0 : Skill
 
     }
 
-    public void UpdateComputeBufferData()
+    public void UpdateGPUDataAndBuffer()
     {
         GameManager.computeCenter.playerSkillData[0].sharedSkill0 = state;
+        Shader.SetGlobalFloat("sharedSkill0LastTriggeredTime", lastTriggeredTime);
     }
 
     public int GetState()

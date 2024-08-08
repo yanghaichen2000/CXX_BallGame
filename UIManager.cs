@@ -56,6 +56,8 @@ public class UIManager
 
         playerSkillUI = new PlayerSkillUI[2, 4];
         playerSkillUI[0, 0] = new PlayerSkillUI(0, 0);
+        playerSkillUI[0, 2] = new PlayerSkillUI(0, 2);
+        playerSkillUI[1, 2] = new PlayerSkillUI(1, 2);
 
         fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();
         enemyNum = GameObject.Find("text_enemyNum").GetComponent<TextMeshProUGUI>();

@@ -124,7 +124,7 @@ void UnlitPassFragment(
     {
         float hue = frac((input.screenUV.x + input.screenUV.y) * 0.05 - gameTime * 1.5f);
         half3 rainbowMask = HSVToRGB(float3(hue, 0.85f, 1.0f));
-        color = lerp(color, rainbowMask, 0.4);
+        color = lerp(color, rainbowMask, (gameTime - sharedSkill0LastTriggeredTime) * 0.15f);
     }
 
     alpha = AlphaDiscard(alpha, _Cutoff);
