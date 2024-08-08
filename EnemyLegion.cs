@@ -42,7 +42,7 @@ public class EnemyLegion
         dir = 0;
     }
 
-    public void Tick()
+    public void Update()
     {
         if (GameManager.gameTime - lastSpawnEnemyTime > spawnEnemyInterval
             && remainingNum > 0)

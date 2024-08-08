@@ -409,7 +409,7 @@ public class ComputeCenter
         InitializeEnemyWeapon();
     }
 
-    public void TickGPU()
+    public void UpdateGPU()
     {
         using (new GUtils.PFL("UpdateComputeGlobalConstant")) { UpdateComputeGlobalConstant(); }
         using (new GUtils.PFL("UpdatePlayerComputeBuffer")) { UpdatePlayerComputeBuffer(); }

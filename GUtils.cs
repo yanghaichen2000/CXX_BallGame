@@ -39,5 +39,15 @@ public class GUtils
             UnityEngine.Profiling.Profiler.EndSample();
         }
     }
+
+    public static Vector3 Vector3Pow(Vector3 x, float y)
+    {
+        return new Vector3(MathF.Pow(x.x, y), MathF.Pow(x.y, y), MathF.Pow(x.z, y));
+    }
+
+    public static Vector3 Vector3Mul(Vector3 x, Vector3 y)
+    {
+        return new Vector3(x.x * y.x, x.y * y.y, x.z * y.z);
+    }
 }
 

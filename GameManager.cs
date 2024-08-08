@@ -36,6 +36,8 @@ public class GameManager : MonoBehaviour
 
     public static UIManager uiManager;
 
+    public static CameraMotionManager cameraMotionManager;
+
     public ComputeShader computeCenterCS;
 
     public static float enemyAndBulletIntersectionBias = 0.05f;
@@ -66,6 +68,7 @@ public class GameManager : MonoBehaviour
         uiManager = new UIManager();
         gameStartedTime = DateTime.Now;
         basicTransform = GameObject.Find("ball game").transform;
+        cameraMotionManager = new CameraMotionManager();
     }
 
     void Start()
@@ -90,11 +93,12 @@ public class GameManager : MonoBehaviour
     {
         UpdateTime();
 
-        using (new GUtils.PFL("EnemyLegion.Tick")) { enemyLegion.Tick(); }
+        using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
+        using (new GUtils.PFL("EnemyLegion.Tick")) { enemyLegion.Update(); }
         using (new GUtils.PFL("player1.Update")) { player1.Update(); }
         using (new GUtils.PFL("player2.Update")) { player2.Update(); }
-        using (new GUtils.PFL("playerSkillManager.Tick")) { playerSkillManager.Tick(); }
-        using (new GUtils.PFL("TickGPU")) { computeCenter.TickGPU(); }
+        using (new GUtils.PFL("playerSkillManager.Tick")) { playerSkillManager.Update(); }
+        using (new GUtils.PFL("TickGPU")) { computeCenter.UpdateGPU(); }
     }
 
     public void UpdateTime()

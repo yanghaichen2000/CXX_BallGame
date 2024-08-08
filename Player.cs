@@ -97,6 +97,7 @@ public class Player
         Vector3 desiredVelocity = new Vector3(playerInput.x, 0f, playerInput.y) * maxSpeed;
         
         float maxSpeedChange = maxAcceleration * Time.deltaTime;
+        if (obj.transform.localPosition.y > 0.501f) maxSpeedChange *= 0.3f;
         velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
         velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);
         body.velocity = velocity;
@@ -117,6 +118,9 @@ public class Player
                 lastHitByEnemyTime = GameManager.gameTime;
                 hittable = false;
                 body.velocity = body.velocity * 0.2f + dV / m;
+
+                float shakeForce = Math.Clamp(1.0f / m, 0.5f, 5.0f);
+                GameManager.cameraMotionManager.ShakeByRotation(shakeForce);
             }
             else
             {

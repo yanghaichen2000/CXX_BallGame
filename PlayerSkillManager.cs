@@ -13,7 +13,7 @@ public class PlayerSkillManager
         skills["SharedSkill0"] = new SharedSkill0();
     }
 
-    public void Tick()
+    public void Update()
     {
         foreach (var pair in skills)
         {

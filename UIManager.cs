@@ -72,7 +72,7 @@ public class UIManager
         hpText.text = string.Format("HP: {0} / {1}", Mathf.Max(value, 0), player.maxHP);
 
         Color color;
-        if (value > 200) color = Color.green;
+        if (value > 200) color = new Color(0.1f, 0.8f, 0.1f);
         else if (value > 100) color = Color.yellow;
         else if (value > 0) color = Color.red;
         else color = Color.black;
