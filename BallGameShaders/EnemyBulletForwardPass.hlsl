@@ -36,6 +36,7 @@ struct Varyings
     #endif
     
     uint customInstanceId : TEXCOORD5;
+    float2 screenUV : TEXCOORD6;
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
@@ -97,6 +98,7 @@ void InitializeInputData(Varyings input, out InputData inputData)
 
     output.customInstanceId = instanceID;
     output.normalWS = input.normalOS;
+    output.screenUV = vertexInput.positionNDC.xy;
         
     return output;
 }
@@ -115,8 +117,14 @@ void UnlitPassFragment(
     half2 uv = input.uv;
     half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
     float3 baseColor = enemyBulletColor * texColor.rgb;
-    half3 color = BulletBlinnPhongShading(baseColor, input.normalWS);
     half alpha = texColor.a * 1.0f;
+    
+    half3 color = BulletBlinnPhongShading(baseColor, input.normalWS);
+    if (playerSkillData[0].sharedSkill0 == 1 || playerSkillData[0].sharedSkill0 == 2)
+    {
+        half3 rainbowMask = HSVToRGB(float3(frac((input.screenUV.x + input.screenUV.y) * 0.05), 0.85f, 1.0f));
+        color = lerp(color, rainbowMask, 0.4);
+    }
 
     alpha = AlphaDiscard(alpha, _Cutoff);
     color = AlphaModulate(color, alpha);

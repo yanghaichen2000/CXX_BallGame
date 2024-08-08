@@ -10,6 +10,7 @@ public class PlayerSkillManager
         skills = new Dictionary<string, Skill>();
         skills["Player1Skill0"] = new Player1Skill0();
         skills["Player2Skill0"] = new Player2Skill0();
+        skills["SharedSkill0"] = new SharedSkill0();
     }
 
     public void Tick()
@@ -159,6 +160,76 @@ public class Player2Skill0 : Skill
     public void UpdateComputeBufferData()
     {
         GameManager.computeCenter.playerSkillData[0].player2Skill0 = state;
+    }
+
+    public int GetState()
+    {
+        return state;
+    }
+}
+
+public class SharedSkill0 : Skill
+{
+    public float cd = 2.5f;
+    public float delay = 2.0f;
+
+    public float lastTriggeredTime = -99999.9f;
+    public int state = 0;
+
+    public void UpdateState()
+    {
+        if (state == 0) // 可使用
+        {
+            if (Input.GetKey("joystick button 0"))
+            {
+                state = 1;
+                lastTriggeredTime = GameManager.gameTime;
+            }
+            else if (Input.GetKey(KeyCode.R))
+            {
+                state = 2;
+                lastTriggeredTime = GameManager.gameTime;
+            }
+        }
+        else if (state == 1) // 延迟中，玩家1触发
+        {
+            if (GameManager.gameTime - lastTriggeredTime >= delay)
+            {
+                state = 3;
+            }
+        }
+        else if (state == 2) // 延迟中，玩家2触发
+        {
+            if (GameManager.gameTime - lastTriggeredTime >= delay)
+            {
+                state = 4;
+            }
+        }
+        else if (state == 3) // 执行，玩家1触发
+        {
+            state = 5;
+        }
+        else if (state == 4) // 执行，玩家2触发
+        {
+            state = 5;
+        }
+        else if (state == 5) // 冷却中
+        {
+            if (GameManager.gameTime - lastTriggeredTime >= cd)
+            {
+                state = 0;
+            }
+        }
+    }
+
+    public void UpdateUI()
+    {
+
+    }
+
+    public void UpdateComputeBufferData()
+    {
+        GameManager.computeCenter.playerSkillData[0].sharedSkill0 = state;
     }
 
     public int GetState()

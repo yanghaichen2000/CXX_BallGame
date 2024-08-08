@@ -1,6 +1,18 @@
 #ifndef BALL_GAME_SHADER_COMMON
 #define BALL_GAME_SHADER_COMMON
 
+struct PlayerSkillDatum
+{
+    int player1Skill0;
+    int player1Skill1;
+    int player2Skill0;
+    int player2Skill1;
+    int sharedSkill0;
+    int sharedSkill1;
+    int player2Skill0HPRestoration;
+    int tmp2;
+};
+
 struct BulletDatum
 {
 	float3 pos;
@@ -19,6 +31,8 @@ struct BulletDatum
 
 StructuredBuffer<BulletDatum> playerBulletData;
 StructuredBuffer<BulletDatum> enemyBulletData;
+
+StructuredBuffer<PlayerSkillDatum> playerSkillData;
 
 float3 player1BulletColor;
 float3 player2BulletColor;
@@ -85,6 +99,14 @@ float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
         baseColor * bulletLightIntensity * d,
         baseColor * bulletLightIntensity * d4 * 5.0f,
         0.2f);
+}
+
+// (hue, saturation, value)
+float3 HSVToRGB(float3 c)
+{
+    float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
 #endif

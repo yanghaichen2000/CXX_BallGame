@@ -223,6 +223,7 @@ public class ComputeCenter
     int resetBulletGridKernel = -1;
     int processBulletBulletCollisionKernel = -1;
     int updateDrawEnemyArgsKernel = -1;
+    int skillTransferBulletTypeKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -341,6 +342,7 @@ public class ComputeCenter
         resetBulletGridKernel = computeCenterCS.FindKernel("ResetBulletGrid");
         processBulletBulletCollisionKernel = computeCenterCS.FindKernel("ProcessBulletBulletCollision");
         updateDrawEnemyArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyArgs");
+        skillTransferBulletTypeKernel = computeCenterCS.FindKernel("SkillTransferBulletType");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -437,6 +439,9 @@ public class ComputeCenter
 
         using (new GUtils.PFL("SwapBulletDataBuffer")) { SwapAndResetDataBuffer(); }
 
+        using (new GUtils.PFL("SkillTransferBulletType")) { SkillTransferBulletType(); }
+
+        using (new GUtils.PFL("UpdateGlobalBufferForRendering")) { UpdateGlobalBufferForRendering(); }
         using (new GUtils.PFL("DrawPlayerBullet")) { DrawPlayerBullet(); }
         using (new GUtils.PFL("DrawEnemyBullet")) { DrawEnemyBullet(); }
         using (new GUtils.PFL("DrawEnemy")) { DrawEnemy(); }
@@ -447,6 +452,23 @@ public class ComputeCenter
         if (true)
         {
             
+        }
+    }
+
+    public void SkillTransferBulletType()
+    {
+        int state = GameManager.playerSkillManager.skills["SharedSkill0"].GetState();
+        if (state == 3 || state == 4)
+        {
+            int kernel = skillTransferBulletTypeKernel;
+            computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+            computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+            computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+            computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+
+            enemyBulletNum[0] = 0;
+            sourceEnemyBulletNumCB.SetData(enemyBulletNum);
         }
     }
 
@@ -780,8 +802,6 @@ public class ComputeCenter
 
     public void DrawPlayerBullet()
     {
-        Shader.SetGlobalBuffer("playerBulletData", sourcePlayerBulletDataCB);
-
         int kernel = updateDrawPlayerBulletArgsKernel;
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "drawPlayerBulletArgs", drawPlayerBulletArgsCB);
@@ -797,10 +817,15 @@ public class ComputeCenter
         );
     }
 
+    public void UpdateGlobalBufferForRendering()
+    {
+        Shader.SetGlobalBuffer("playerBulletData", sourcePlayerBulletDataCB);
+        Shader.SetGlobalBuffer("enemyBulletData", sourceEnemyBulletDataCB);
+        Shader.SetGlobalBuffer("playerSkillData", playerSkillDataCB);
+    }
+
     public void DrawEnemyBullet()
     {
-        Shader.SetGlobalBuffer("enemyBulletData", sourceEnemyBulletDataCB);
-
         int kernel = updateDrawEnemyBulletArgsKernel;
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "drawEnemyBulletArgs", drawEnemyBulletArgsCB);

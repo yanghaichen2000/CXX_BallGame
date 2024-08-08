@@ -17,6 +17,7 @@
 #pragma kernel ResetBulletGrid
 #pragma kernel ProcessBulletBulletCollision
 #pragma kernel UpdateDrawEnemyArgs
+#pragma kernel SkillTransferBulletType
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -729,4 +730,19 @@ void ProcessBulletBulletCollision(uint3 id : SV_DispatchThreadID)
 }
 
 
+[numthreads(256, 1, 1)]
+void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
+{
+    int state = playerSkillData[0].sharedSkill0;
+    float player1BulletRate = state == 3 ? 0.8f : 0.2f;
+    if (id.x < enemyBulletNum[0])
+    {
+        int index;
+        InterlockedAdd(playerBulletNum[0], 1, index);
+        playerBulletData[index] = enemyBulletData[id.x];
+        float r = Random3DTo1D(gameTime, id.x, index);
+        playerBulletData[index].impulse = 3;
+        playerBulletData[index].player = r < player1BulletRate ? 0 : 1;
+    }
+}
 
