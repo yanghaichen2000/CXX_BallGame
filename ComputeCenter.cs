@@ -94,6 +94,15 @@ public class ComputeCenter
     }
     const int enemyWeaponDatumSize = 64;
 
+    public struct AvailablePositionDatum
+    {
+        public Vector3 pos1;
+        public Vector3 pos2;
+        public int num;
+        public int tmp;
+    }
+    const int availablePositionDatumSize = 32;
+
     /* (hlsl)
     struct BulletGridDatum
     {
@@ -203,6 +212,9 @@ public class ComputeCenter
     UInt32[] drawSphereEnemyArgs;
     ComputeBuffer drawSphereEnemyArgsCB;
 
+    AvailablePositionDatum[] availablePositionData;
+    ComputeBuffer availablePositionDataCB;
+
     ComputeShader computeCenterCS;
     int playerShootKernel = -1;
     int updatePlayerBulletPositionKernel = -1;
@@ -224,6 +236,7 @@ public class ComputeCenter
     int processBulletBulletCollisionKernel = -1;
     int updateDrawEnemyArgsKernel = -1;
     int skillTransferBulletTypeKernel = -1;
+    int skillGetAvailablePositionKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -322,6 +335,9 @@ public class ComputeCenter
         drawSphereEnemyArgs = new UInt32[5];
         drawSphereEnemyArgsCB = new ComputeBuffer(1, 5 * sizeof(UInt32), ComputeBufferType.IndirectArguments);
 
+        availablePositionData = new AvailablePositionDatum[1];
+        availablePositionDataCB = new ComputeBuffer(1, availablePositionDatumSize);
+
         computeCenterCS = gameManager.computeCenterCS;
         playerShootKernel = computeCenterCS.FindKernel("PlayerShoot");
         updatePlayerBulletPositionKernel = computeCenterCS.FindKernel("UpdatePlayerBulletPosition");
@@ -343,6 +359,7 @@ public class ComputeCenter
         processBulletBulletCollisionKernel = computeCenterCS.FindKernel("ProcessBulletBulletCollision");
         updateDrawEnemyArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyArgs");
         skillTransferBulletTypeKernel = computeCenterCS.FindKernel("SkillTransferBulletType");
+        skillGetAvailablePositionKernel = computeCenterCS.FindKernel("SkillGetAvailablePosition");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -440,6 +457,7 @@ public class ComputeCenter
         using (new GUtils.PFL("SwapBulletDataBuffer")) { SwapAndResetDataBuffer(); }
 
         using (new GUtils.PFL("SkillTransferBulletType")) { SkillTransferBulletType(); }
+        using (new GUtils.PFL("SkillTransferBulletType")) { SkillGetAvailablePosition(); }
 
         using (new GUtils.PFL("UpdateGlobalBufferForRendering")) { UpdateGlobalBufferForRendering(); }
         using (new GUtils.PFL("DrawPlayerBullet")) { DrawPlayerBullet(); }
@@ -453,6 +471,18 @@ public class ComputeCenter
         {
             
         }
+    }
+
+    public void SkillGetAvailablePosition()
+    {
+        availablePositionData[0].num = 0;
+        availablePositionDataCB.SetData(availablePositionData);
+
+        int kernel = skillGetAvailablePositionKernel;
+        computeCenterCS.SetBuffer(kernel, "availablePositionData", availablePositionDataCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.Dispatch(kernel, 16, 1, 16); // 这个改了之后需要同步改compute shader
     }
 
     public void SkillTransferBulletType()
@@ -763,9 +793,17 @@ public class ComputeCenter
 
         AsyncGPUReadback.Request(playerSkillDataCB, dataRequest =>
         {
-            var readbackPlayerData = dataRequest.GetData<PlayerSkillDatum>();
-            GameManager.player1.OnProcessPlayerSkillReadbackData(readbackPlayerData[0]);
-            GameManager.player2.OnProcessPlayerSkillReadbackData(readbackPlayerData[0]);
+            var readbackPlayerSkillData = dataRequest.GetData<PlayerSkillDatum>();
+            GameManager.player1.OnProcessPlayerSkillReadbackData(readbackPlayerSkillData[0]);
+            GameManager.player2.OnProcessPlayerSkillReadbackData(readbackPlayerSkillData[0]);
+        });
+
+        AsyncGPUReadback.Request(availablePositionDataCB, dataRequest =>
+        {
+            var availablePositionData = dataRequest.GetData<AvailablePositionDatum>();
+            Player2Skill1.availablePosition1 = availablePositionData[0].pos1;
+            Player2Skill1.availablePosition2 = availablePositionData[0].pos2;
+            Player2Skill1.canTeleport = availablePositionData[0].num >= 2;
         });
     }
 

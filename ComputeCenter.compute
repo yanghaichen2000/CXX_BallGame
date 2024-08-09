@@ -18,6 +18,7 @@
 #pragma kernel ProcessBulletBulletCollision
 #pragma kernel UpdateDrawEnemyArgs
 #pragma kernel SkillTransferBulletType
+#pragma kernel SkillGetAvailablePosition
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -134,6 +135,14 @@ struct EnemyWeaponDatum
     float tmp3;
 };
 
+struct AvailablePositionDatum
+{
+    float3 pos1;
+    float3 pos2;
+    int num;
+    int tmp;
+};
+
 #define BULLET_GRID_CAPACITY 28
 struct BulletGridDatum
 {
@@ -176,6 +185,8 @@ RWStructuredBuffer<EnemyWeaponDatum> enemyWeaponData;
 RWStructuredBuffer<int> drawPlayerBulletArgs;
 RWStructuredBuffer<int> drawSphereEnemyArgs;
 RWStructuredBuffer<int> drawEnemyBulletArgs;
+
+RWStructuredBuffer<AvailablePositionDatum> availablePositionData;
 
 int playerShootRequestNum;
 int createSphereEnemyRequestNum;
@@ -746,3 +757,37 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
     }
 }
 
+
+// range: x = [-18, 18], z = [-13, 13]
+#define TEST_POSITION_START float3(-17.9296875f, 0.5f, -12.4921875)
+#define TEST_POSITION_STEP float3(0.140625f, 0.0f, 0.1015625f)
+[numthreads(16, 1, 16)]
+void SkillGetAvailablePosition(uint3 id : SV_DispatchThreadID)
+{
+    float3 currentPos = TEST_POSITION_START + TEST_POSITION_STEP * id;
+    for (int i = 0; i < sphereEnemyNum[0]; i++)
+    {
+        if (length(sphereEnemyData[i].pos - currentPos) < 2.0f)
+        {
+            return;
+        }
+    }
+    
+    int index;
+    InterlockedAdd(availablePositionData[0].num, 1, index);
+    if (index == 0)
+    {
+        availablePositionData[0].pos1 = currentPos;
+    }
+    else if (index == 1)
+    {
+        if (length(availablePositionData[0].pos1 - currentPos) > 2.0f)
+        {
+            availablePositionData[0].pos2 = currentPos;
+        }
+        else
+        {
+            availablePositionData[0].num = 1;
+        }
+    }
+}

@@ -126,6 +126,7 @@ void UnlitPassFragment(
         half3 rainbowMask = HSVToRGB(float3(hue, 0.85f, 1.0f));
         color = lerp(color, rainbowMask, (gameTime - sharedSkill0LastTriggeredTime) * 0.15f);
     }
+    
 
     alpha = AlphaDiscard(alpha, _Cutoff);
     color = AlphaModulate(color, alpha);

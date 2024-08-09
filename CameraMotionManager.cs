@@ -68,9 +68,9 @@ public class CameraMotionManager
         currentAngle = new Vector3(d * 2.0f, dir.x, dir.y) * force;
     }
 
-    public void ShakeByNegativeZDisplacement(float force = 1.0f)
+    public void ShakeByZDisplacement(float force = 1.0f)
     {
-        currentDisplacementSpeed = new Vector3(0.0f, 0.0f, -3.0f) * force;
-        currentDisplacement = new Vector3(0.0f, 0.0f, -0.2f) * force;
+        currentDisplacementSpeed = new Vector3(0.0f, 0.0f, 3.0f) * force;
+        currentDisplacement = new Vector3(0.0f, 0.0f, 0.2f) * force;
     }
 }

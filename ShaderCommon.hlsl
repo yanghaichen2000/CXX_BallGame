@@ -44,6 +44,7 @@ float bulletLightIntensity;
 float gameTime;
 
 float sharedSkill0LastTriggeredTime;
+float sharedSkill0CdStartTime;;
 
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
@@ -92,7 +93,7 @@ float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
 
 float3 BulletDiffuseShading(float3 baseColor, float3 normal)
 {
-    return baseColor * bulletLightIntensity * saturate(dot(bulletLightDir, normal)) + float3(0.2f, 0.2f, 0.2f);
+    return baseColor * bulletLightIntensity * saturate(dot(bulletLightDir, normal));
 }
 
 float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
@@ -100,10 +101,10 @@ float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
     float d = saturate(dot(bulletLightDir, normal));
     float d2 = d * d;
     float d4 = d2 * d2;
-    return float3(0.2f, 0.2f, 0.2f) + lerp(
+    return float3(0.1f, 0.1f, 0.1f) * baseColor + lerp(
         baseColor * bulletLightIntensity * d,
         baseColor * bulletLightIntensity * d4 * 5.0f,
-        0.2f);
+        0.1f);
 }
 
 // (hue, saturation, value)

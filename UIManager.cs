@@ -55,9 +55,13 @@ public class UIManager
         image_player2HP = GameObject.Find("image_player2HP").GetComponent<Image>();
 
         playerSkillUI = new PlayerSkillUI[2, 4];
-        playerSkillUI[0, 0] = new PlayerSkillUI(0, 0);
-        playerSkillUI[0, 2] = new PlayerSkillUI(0, 2);
-        playerSkillUI[1, 2] = new PlayerSkillUI(1, 2);
+        for (int p = 0; p < 2; p++)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                playerSkillUI[p, i] = new PlayerSkillUI(p, i);
+            }
+        }
 
         fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();
         enemyNum = GameObject.Find("text_enemyNum").GetComponent<TextMeshProUGUI>();
