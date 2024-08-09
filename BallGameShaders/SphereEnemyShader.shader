@@ -168,7 +168,7 @@ Shader "Ball Game/Sphere Enemy"
 
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             //#include "Packages/com.unity.render-pipelines.universal/Shaders/LitForwardPass.hlsl"
-            #include "Assets/Scripts/SphereEnemyForwardPass.hlsl"
+            #include "Assets/Scripts/BallGameShaders/SphereEnemyForwardPass.hlsl"
             ENDHLSL
         }
 
@@ -219,7 +219,7 @@ Shader "Ball Game/Sphere Enemy"
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
             //#include "Packages/com.unity.render-pipelines.universal/Shaders/ShadowCasterPass.hlsl"
-            #include "Assets/Scripts/SphereEnemyShadowCasterPass.hlsl"
+            #include "Assets/Scripts/BallGameShaders/SphereEnemyShadowCasterPass.hlsl"
             ENDHLSL
         }
 

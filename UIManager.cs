@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using static UnityEngine.Rendering.DebugUI;
 
 public class PlayerSkillUI
 {
@@ -25,17 +26,22 @@ public class PlayerSkillUI
     }
 }
 
+
 public class UIManager
 {
     public TextMeshProUGUI text_player1HP;
     public TextMeshProUGUI text_player1Mass;
+    public TextMeshProUGUI text_player1Level;
     public Image image_player1HP;
 
     public TextMeshProUGUI text_player2HP;
     public TextMeshProUGUI text_player2Mass;
+    public TextMeshProUGUI text_player2Level;
     public Image image_player2HP;
 
     public PlayerSkillUI[,] playerSkillUI;
+
+    public TextMeshProUGUI text_nextWave;
 
     public TextMeshProUGUI fps;
     public TextMeshProUGUI enemyNum;
@@ -43,16 +49,19 @@ public class UIManager
     public TextMeshProUGUI playerBulletNum;
 
     
-
     public UIManager()
     {
         text_player1HP = GameObject.Find("text_player1HP").GetComponent<TextMeshProUGUI>();
         text_player1Mass = GameObject.Find("text_player1Mass").GetComponent<TextMeshProUGUI>();
+        text_player1Level = GameObject.Find("text_player1Level").GetComponent<TextMeshProUGUI>();
         image_player1HP = GameObject.Find("image_player1HP").GetComponent<Image>();
 
         text_player2HP = GameObject.Find("text_player2HP").GetComponent<TextMeshProUGUI>();
         text_player2Mass = GameObject.Find("text_player2Mass").GetComponent<TextMeshProUGUI>();
+        text_player2Level = GameObject.Find("text_player2Level").GetComponent<TextMeshProUGUI>();
         image_player2HP = GameObject.Find("image_player2HP").GetComponent<Image>();
+
+        text_nextWave = GameObject.Find("text_nextWave").GetComponent<TextMeshProUGUI>();
 
         playerSkillUI = new PlayerSkillUI[2, 4];
         for (int p = 0; p < 2; p++)
@@ -120,6 +129,25 @@ public class UIManager
         else
         {
             ui.text.text = " ";
+        }
+    }
+
+    public void UpdateNextWave(float time)
+    {
+        text_nextWave.text = string.Format("Next Wave Arrives in: {0:F0}s", time);
+    }
+
+    public void UpdatePlayerLevel(int player, int exp)
+    {
+        int level = GameManager.allLevelPlayerData.GetCurrentLevel(exp);
+        int nextLevelExp = GameManager.allLevelPlayerData.GetLevelExp(level + 1);
+        if (player == 0)
+        {
+            text_player1Level.text = string.Format("Lv.{0} ({1}/{2})", level, exp, nextLevelExp);
+        }
+        else
+        {
+            text_player2Level.text = string.Format("Lv.{0} ({1}/{2})", level, exp, nextLevelExp);
         }
     }
 

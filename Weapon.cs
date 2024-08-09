@@ -59,6 +59,23 @@ public class PlayerWeaponDatumSample
         renderingBiasY = 0.0f,
     };
 
+    public static PlayerWeaponDatum player1Initial = new PlayerWeaponDatum()
+    {
+        shootInterval = 0.6f,
+        virtualYRange = 0.2f,
+        virtualYBase = 0.5f,
+        angleBiasRange = 1.0f,
+        extraBulletsPerSide = 1,
+        angle = 20.0f,
+        speed = 8.0f,
+        radius = 0.07f,
+        damage = 3,
+        bounces = 5,
+        lifeSpan = 12.0f,
+        impulse = 0.5f,
+        renderingBiasY = 0.0f,
+    };
+
     public static PlayerWeaponDatum player2Super = new PlayerWeaponDatum()
     {
         shootInterval = 0.05f,
@@ -92,8 +109,24 @@ public class PlayerWeaponDatumSample
         impulse = 4.0f,
         renderingBiasY = 0.1f,
     };
-}
 
+    public static PlayerWeaponDatum player2Initial = new PlayerWeaponDatum()
+    {
+        shootInterval = 0.3f,
+        virtualYRange = 0.0f,
+        virtualYBase = 10.0f,
+        angleBiasRange = 1.0f,
+        extraBulletsPerSide = 0,
+        angle = 0.4f,
+        speed = 15.0f,
+        radius = 0.07f,
+        damage = 1,
+        bounces = 2,
+        lifeSpan = 12.0f,
+        impulse = 4.0f,
+        renderingBiasY = 0.1f,
+    };
+}
 
 public class Weapon
 {
@@ -118,6 +151,15 @@ public class Weapon
         {
             datum = PlayerWeaponDatumSample.player2Super;
         }
+    }
+
+    public Weapon(int _playerIndex, PlayerWeaponDatum _datum)
+    {
+        lastShootTime = -0.001f;
+        playerIndex = _playerIndex;
+
+        Debug.Assert(playerIndex == 0 || playerIndex == 1);
+        datum = _datum;
     }
 
     public void Shoot(Vector3 pos, Vector3 dir)

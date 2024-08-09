@@ -29,6 +29,26 @@ struct BulletDatum
 	float tmp2;
 };
 
+struct EnemyDatum
+{
+    float3 pos;
+    float3 velocity;
+    int maxHP;
+    int hp;
+    float size;
+    float radius;
+    int3 hitImpulse;
+    int weapon;
+    float lastShootTime;
+    float originalM;
+    float m;
+    float acceleration;
+    float frictionalDeceleration;
+    float maxSpeed;
+};
+
+StructuredBuffer<EnemyDatum> sphereEnemyData;
+
 StructuredBuffer<BulletDatum> playerBulletData;
 StructuredBuffer<BulletDatum> enemyBulletData;
 

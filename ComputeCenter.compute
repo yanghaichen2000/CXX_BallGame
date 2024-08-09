@@ -105,6 +105,7 @@ struct EnemyDatum
 {
     float3 pos;
     float3 velocity;
+    int maxHP;
     int hp;
     float size;
     float radius;
@@ -113,6 +114,9 @@ struct EnemyDatum
     float lastShootTime;
     float originalM;
     float m;
+    float acceleration;
+    float frictionalDeceleration;
+    float maxSpeed;
 };
 
 struct EnemyWeaponDatum
@@ -188,6 +192,8 @@ RWStructuredBuffer<int> drawEnemyBulletArgs;
 
 RWStructuredBuffer<AvailablePositionDatum> availablePositionData;
 
+RWStructuredBuffer<int> deadEnemyNum;
+
 int playerShootRequestNum;
 int createSphereEnemyRequestNum;
 float deltaTime;
@@ -201,9 +207,6 @@ float viewFrustrumXAtZMin;
 float viewFrustrumXAtZMax;
 float viewFrustrumCullingLerpCoefficient;
 
-float enemyAcceleration;
-float enemyMaxSpeed;
-float enemyFrictionalDeceleration;
 float enemySpacingAcceleration;
 float enemyCollisionVelocityRestitution;
 
@@ -349,11 +352,18 @@ void CullEnemyBullet(uint3 id : SV_DispatchThreadID)
 void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
 {
     EnemyDatum enemy = sphereEnemyData[id.x];
-    if (id.x < sphereEnemyNum[0] && enemy.pos.y > -10.0f)
+    if (id.x < sphereEnemyNum[0])
     {
-        int index;
-        InterlockedAdd(culledSphereEnemyNum[0], 1, index);
-        culledSphereEnemyData[index] = enemy;
+        if (enemy.pos.y > -10.0f)
+        {
+            int index;
+            InterlockedAdd(culledSphereEnemyNum[0], 1, index);
+            culledSphereEnemyData[index] = enemy;
+        }
+        else
+        {
+            InterlockedAdd(deadEnemyNum[0], 1);
+        }
     }
 }
 
@@ -484,9 +494,9 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         float3 player2RelativePos = playerData[1].pos - enemy.pos;
         float3 dir = length(player1RelativePos) < length(player2RelativePos) ?
             player1RelativePos : player2RelativePos;
-        enemy.velocity += enemyAcceleration * normalize(dir * float3(1.0f, 0.0f, 1.0f)) * deltaTime;
+        enemy.velocity += enemy.acceleration * normalize(dir * float3(1.0f, 0.0f, 1.0f)) * deltaTime;
         // frictional deceleration
-        enemy.velocity -= normalize(enemy.velocity) * enemyFrictionalDeceleration * max(0.0f, (length(enemy.velocity) - enemyMaxSpeed)) * deltaTime;
+        enemy.velocity -= normalize(enemy.velocity) * enemy.frictionalDeceleration * max(0.0f, (length(enemy.velocity) - enemy.maxSpeed)) * deltaTime;
         // TODO: try to control the distance to other enemies
     }
     

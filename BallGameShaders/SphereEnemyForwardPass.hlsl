@@ -131,24 +131,7 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 //                  Vertex and Fragment functions                            //
 ///////////////////////////////////////////////////////////////////////////////
 
-
-struct EnemyDatum
-{
-    float3 pos;
-    float3 dir;
-    int hp;
-    float size;
-    float rotationY;
-    float radius;
-    float speed;
-    float maxSpeed;
-    float tmp1;
-    float tmp2;
-    float tmp3;
-    float tmp4;
-};
-
-StructuredBuffer<EnemyDatum> sphereEnemyData;
+#include "Assets/Scripts/ShaderCommon.hlsl"
 
 VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instanceID)
 {
@@ -269,8 +252,9 @@ void LitPassFragment(
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
 
-    float enemyHP = max(sphereEnemyData[input.customInstanceId].hp, 0.0f);
-    float enemyCondition = 1.0f - enemyHP / 600.0f;
+    EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
+    float enemyHP = max(enemy.hp, 0.0f);
+    float enemyCondition = 1.0f - enemyHP / enemy.maxHP;
     surfaceData.albedo = lerp(surfaceData.albedo, float3(0.5f, 0.5f, 0.5f), enemyCondition);
     surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
     

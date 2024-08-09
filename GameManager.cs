@@ -32,9 +32,14 @@ public class GameManager : MonoBehaviour
     public static Player player2;
     public static PlayerSkillManager playerSkillManager;
 
+    public static AllLevelPlayerData allLevelPlayerData;
+
+    public static AllEnemyProperty allEnemyProperty;
     public static EnemyLegion enemyLegion;
 
     public static UIManager uiManager;
+
+    public static GameLevel level;
 
     public static CameraMotionManager cameraMotionManager;
 
@@ -63,42 +68,41 @@ public class GameManager : MonoBehaviour
         computeCenter = new ComputeCenter(this);
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(1, GameObject.Find("Player2"), new ControllerInputManager());
+        allLevelPlayerData = new AllLevelPlayerData();
         playerSkillManager = new PlayerSkillManager();
+        allEnemyProperty = new AllEnemyProperty();
         enemyLegion = new EnemyLegion();
         uiManager = new UIManager();
         gameStartedTime = DateTime.Now;
         basicTransform = GameObject.Find("ball game").transform;
         cameraMotionManager = new CameraMotionManager();
+        level = new GameLevel();
     }
 
     void Start()
     {
         lastTickTime = DateTime.Now;
 
-        enemyLegion.CreateSpawnEnemyRequest(800);
+        level.StartLevel();
     }
 
     void Update()
     {
-        Tick();
+        UpdateTime();
+
+        using (new GUtils.PFL("GameLevel.Update")) { level.Update(); }
+        using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
+        using (new GUtils.PFL("EnemyLegion.Update")) { enemyLegion.Update(); }
+        using (new GUtils.PFL("player1.Update")) { player1.Update(); }
+        using (new GUtils.PFL("player2.Update")) { player2.Update(); }
+        using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
+        using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
     }
 
     void FixedUpdate()
     {
         player1.FixedUpdate();
         player2.FixedUpdate();
-    }
-
-    public void Tick()
-    {
-        UpdateTime();
-
-        using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
-        using (new GUtils.PFL("EnemyLegion.Tick")) { enemyLegion.Update(); }
-        using (new GUtils.PFL("player1.Update")) { player1.Update(); }
-        using (new GUtils.PFL("player2.Update")) { player2.Update(); }
-        using (new GUtils.PFL("playerSkillManager.Tick")) { playerSkillManager.Update(); }
-        using (new GUtils.PFL("TickGPU")) { computeCenter.UpdateGPU(); }
     }
 
     public void UpdateTime()

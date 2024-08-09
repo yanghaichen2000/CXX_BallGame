@@ -31,23 +31,7 @@ struct Varyings
 };
 
 
-struct EnemyDatum
-{
-    float3 pos;
-    float3 dir;
-    int hp;
-    float size;
-    float rotationY;
-    float radius;
-    float speed;
-    float maxSpeed;
-    float tmp1;
-    float tmp2;
-    float tmp3;
-    float tmp4;
-};
-
-StructuredBuffer<EnemyDatum> sphereEnemyData;
+#include "Assets/Scripts/ShaderCommon.hlsl"
 
 float4 GetShadowPositionHClipNew(Attributes input, uint instanceID)
 {

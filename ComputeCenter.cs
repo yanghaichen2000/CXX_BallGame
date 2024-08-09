@@ -62,6 +62,7 @@ public class ComputeCenter
     {
         public Vector3 pos;
         public Vector3 velocity;
+        public Int32 maxHP;
         public Int32 hp;
         public float size;
         public float radius;
@@ -70,8 +71,11 @@ public class ComputeCenter
         public float lastShootTime;
         public float originalM;
         public float m;
+        public float acceleration;
+        public float frictionalDeceleration;
+        public float maxSpeed;
     }
-    const int enemyDatumSize = 64;
+    const int enemyDatumSize = 80;
 
     public struct EnemyWeaponDatum
     {
@@ -215,6 +219,9 @@ public class ComputeCenter
     AvailablePositionDatum[] availablePositionData;
     ComputeBuffer availablePositionDataCB;
 
+    Int32[] deadEnemyNum;
+    ComputeBuffer deadEnemyNumCB;
+
     ComputeShader computeCenterCS;
     int playerShootKernel = -1;
     int updatePlayerBulletPositionKernel = -1;
@@ -337,6 +344,9 @@ public class ComputeCenter
 
         availablePositionData = new AvailablePositionDatum[1];
         availablePositionDataCB = new ComputeBuffer(1, availablePositionDatumSize);
+
+        deadEnemyNum = new Int32[1];
+        deadEnemyNumCB = new ComputeBuffer(1, sizeof(Int32));
 
         computeCenterCS = gameManager.computeCenterCS;
         playerShootKernel = computeCenterCS.FindKernel("PlayerShoot");
@@ -544,9 +554,6 @@ public class ComputeCenter
         computeCenterCS.SetFloat("planeZMax", 15.0f);
 
         // enemy movement
-        computeCenterCS.SetFloat("enemyAcceleration", 2.0f);
-        computeCenterCS.SetFloat("enemyMaxSpeed", 1.0f);
-        computeCenterCS.SetFloat("enemyFrictionalDeceleration", 2.0f);
         computeCenterCS.SetFloat("enemySpacingAcceleration", 0.2f);
         computeCenterCS.SetFloat("enemyCollisionVelocityRestitution", 0.5f);
 
@@ -669,7 +676,7 @@ public class ComputeCenter
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 10.0f,
+            bulletLifeSpan = 20.0f,
             bulletImpulse = 0.1f,
             virtualYRange = constantVirtualYRange,
         };
@@ -805,6 +812,13 @@ public class ComputeCenter
             Player2Skill1.availablePosition2 = availablePositionData[0].pos2;
             Player2Skill1.canTeleport = availablePositionData[0].num >= 2;
         });
+
+        AsyncGPUReadback.Request(deadEnemyNumCB, dataRequest =>
+        {
+            var deadEnemyNumData = dataRequest.GetData<Int32>();
+            GameManager.player1.exp += deadEnemyNumData[0];
+            GameManager.player2.exp += deadEnemyNumData[0];
+        });
     }
 
     public void SendDebugReadbackRequest()
@@ -937,12 +951,16 @@ public class ComputeCenter
 
     public void CullEnemy()
     {
+        deadEnemyNum[0] = 0;
+        deadEnemyNumCB.SetData(deadEnemyNum);
+
         int kernel = cullSphereEnemyKernel;
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "culledSphereEnemyData", targetSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "culledSphereEnemyNum", targetSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
+        computeCenterCS.SetBuffer(kernel, "deadEnemyNum", deadEnemyNumCB);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
@@ -1022,12 +1040,13 @@ public class ComputeCenter
         playerShootRequestNum++;
     }
 
-    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m)
+    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _maxHP, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m, float _acceleration, float _frictionalDeceleration, float maxSpeed)
     {
         createSphereEnemyRequestData[createSphereEnemyRequestNum] = new EnemyDatum()
         {
             pos = _pos,
             velocity = _velocity,
+            maxHP = _maxHP,
             hp = _hp,
             size = _size,
             radius = _radius,
@@ -1035,7 +1054,10 @@ public class ComputeCenter
             weapon = _weapon,
             lastShootTime = _lastShootTime,
             originalM = _originalM,
-            m = _m
+            m = _m,
+            acceleration = _acceleration,
+            frictionalDeceleration = _frictionalDeceleration,
+            maxSpeed = maxSpeed,
         };
         createSphereEnemyRequestNum++;
     }
