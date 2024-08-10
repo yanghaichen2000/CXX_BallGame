@@ -40,6 +40,7 @@ public class UIManager
     public Image image_player2HP;
 
     public PlayerSkillUI[,] playerSkillUI;
+    public GameObject image_aimingPoint;
 
     public TextMeshProUGUI text_nextWave;
     public TextMeshProUGUI text_currentWave;
@@ -73,6 +74,8 @@ public class UIManager
                 playerSkillUI[p, i] = new PlayerSkillUI(p, i);
             }
         }
+
+        image_aimingPoint = GameObject.Find("image_aimingPoint");
 
         fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();
         enemyNum = GameObject.Find("text_enemyNum").GetComponent<TextMeshProUGUI>();
@@ -156,6 +159,20 @@ public class UIManager
         {
             text_player2Level.text = string.Format("Lv.{0} ({1}/{2})", level, exp, nextLevelExp);
         }
+    }
+
+    public void PlaceAimingPointAtMouseLocation()
+    {
+        image_aimingPoint.SetActive(true);
+        Vector3 mousePixelPosition = Input.mousePosition;
+        float mousePositionX = mousePixelPosition.x / Screen.width - 0.5f;
+        float mousePositionY = mousePixelPosition.y / Screen.height - 0.5f;
+        image_aimingPoint.GetComponent<RectTransform>().localPosition = new Vector3(mousePositionX * 3840.0f, mousePositionY * 2160.0f, 0.0f);
+    }
+
+    public void RemoveAimingPoint()
+    {
+        image_aimingPoint.SetActive(false);
     }
 
     public void UpdateFPS(float value)

@@ -270,7 +270,7 @@ public class Player
     public float maxAcceleration = 10.0f;
     public float hitProtectionDuration = 3.0f;
     public float autoRestoreHPRate = 3.0f;
-    public Int32 initialMaxHP = 300;
+    public int initialMaxHP = 300;
     public Color initialBaseColor;
     public Material material;
 
@@ -278,8 +278,8 @@ public class Player
     public Weapon weapon;
     public int exp = 0;
     public int level = 0;
-    public Int32 hp = 300;
-    public Int32 maxHP = 300;
+    public int hp = 300;
+    public int maxHP = 300;
     public float m = 100.0f;
     public bool hittable = false;
     public float lastHitByEnemyTime = -10000.0f;

@@ -171,6 +171,8 @@ public class Weapon
         if (currentBulletIndex != lastBulletIndex) 
         {
             dir = dir.normalized;
+            uint packedColor = GUtils.SRGBColorToLinearUInt(playerIndex == 0 ? GameManager.instance.player1BulletColor : GameManager.instance.player2BulletColor);
+            bool affectedByPlayer1Skill1 = GameManager.playerSkillManager.skills["Player1Skill1"].GetState() == 2;
 
             for (int bulletIndex = lastBulletIndex + 1; bulletIndex <= currentBulletIndex; bulletIndex++)
             {
@@ -187,8 +189,7 @@ public class Weapon
                     Vector3 shootPosOfThisBullet = lerpCoeff * pos + (1.0f - lerpCoeff) * lastShootPos;
                     Vector3 currentPosOfThisBullet = shootPosOfThisBullet + (currentShootTime - shootTime) * datum.speed * dirOfThisBullet;
                     float virtualY = UnityEngine.Random.Range(datum.virtualYBase - datum.virtualYRange, datum.virtualYBase + datum.virtualYRange);
-                    UInt32 packedColor = GUtils.SRGBColorToLinearUInt32(playerIndex == 0 ? GameManager.instance.player1BulletColor : GameManager.instance.player2BulletColor);
-                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, playerIndex, datum.renderingBiasY, packedColor);
+                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, playerIndex, datum.renderingBiasY, packedColor, affectedByPlayer1Skill1);
                 }
             }
 

@@ -76,10 +76,10 @@ public class GameManager : MonoBehaviour
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(1, GameObject.Find("Player2"), new ControllerInputManager());
         allLevelPlayerData = new AllLevelPlayerData();
-        playerSkillManager = new PlayerSkillManager();
         allEnemyProperty = new AllEnemyProperty();
         enemyLegion = new EnemyLegion();
         uiManager = new UIManager();
+        playerSkillManager = new PlayerSkillManager();
         gameStartedTime = DateTime.Now;
         basicTransform = GameObject.Find("ball game").transform;
         cameraMotionManager = new CameraMotionManager();

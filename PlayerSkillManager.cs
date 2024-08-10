@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class PlayerSkillManager
@@ -10,6 +11,7 @@ public class PlayerSkillManager
     {
         skills = new Dictionary<string, Skill>();
         skills["Player1Skill0"] = new Player1Skill0();
+        skills["Player1Skill1"] = new Player1Skill1();
         skills["Player2Skill0"] = new Player2Skill0();
         skills["Player2Skill1"] = new Player2Skill1();
         skills["SharedSkill0"] = new SharedSkill0();
@@ -85,6 +87,85 @@ public class Player1Skill0 : Skill
     }
 }
 
+public class Player1Skill1 : Skill
+{
+    public float cd = 5.0f;
+    public float duration = 3.0f;
+
+    public Vector3 aimingPointPosition;
+    public float lastTriggeredTime = -99999.9f;
+    public int state = 0;
+
+    public Player1Skill1()
+    {
+        GameManager.uiManager.RemoveAimingPoint();
+    }
+
+    public void UpdateState()
+    {
+        if (state == 0) // 可使用
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, false);
+            if (Input.GetKey(KeyCode.Q))
+            {
+                GameManager.uiManager.PlaceAimingPointAtMouseLocation();
+                state = 1;
+            }
+        }
+        else if (state == 1) // 设置目标
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, false);
+            GameManager.uiManager.PlaceAimingPointAtMouseLocation();
+            if (Input.GetKey(KeyCode.Mouse0))
+            {
+                Vector3 mousePosition = Input.mousePosition;
+                Ray ray = Camera.main.ScreenPointToRay(mousePosition);
+                if (GameManager.gamePlane.Raycast(ray, out var enter))
+                {
+                    aimingPointPosition = ray.GetPoint(enter);
+                }
+                aimingPointPosition = GameManager.basicTransform.InverseTransformPoint(aimingPointPosition);
+
+                lastTriggeredTime = GameManager.gameTime;
+                state = 2;
+            }
+            else if (Input.GetKey(KeyCode.Mouse1))
+            {
+                GameManager.uiManager.RemoveAimingPoint();
+                state = 0;
+            }
+        }
+        if (state == 2) // 执行中
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, false, duration - (GameManager.gameTime - lastTriggeredTime));
+            if (GameManager.gameTime - lastTriggeredTime > duration)
+            {
+                GameManager.uiManager.RemoveAimingPoint();
+                state = 3;
+            }
+        }
+        if (state == 3)
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd - duration);
+            if (GameManager.gameTime - lastTriggeredTime > cd)
+            {
+                state = 0;
+            }
+        }
+    }
+
+    public void UpdateGPUDataAndBuffer()
+    {
+        GameManager.computeCenter.playerSkillData[0].player1Skill1 = state;
+        GameManager.computeCenter.playerSkillData[0].player1Skill1AimingPointPosition = aimingPointPosition;
+    }
+
+    public int GetState()
+    {
+        return state;
+    }
+}
+
 public class Player2Skill0 : Skill
 {
     public float cd = 10.0f;
@@ -114,7 +195,7 @@ public class Player2Skill0 : Skill
         }
         else if (state == 2) // 冷却中
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(1, 0, true, cd - duration - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.UpdatePlayerSkillUI(1, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd - duration);
             if (GameManager.gameTime - lastTriggeredTime >= cd)
             {
                 state = 0;

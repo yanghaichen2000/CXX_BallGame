@@ -256,7 +256,7 @@ void LitPassFragment(
     half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
     
     EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
-    float3 enemyColor = PackedUInt32ColorToFloat3(enemy.baseColor);
+    float3 enemyColor = PackeduintColorToFloat3(enemy.baseColor);
     float enemyHP = max(enemy.hp, 0.0f);
     float enemyCondition = 1.0f - enemyHP / enemy.maxHP;
     enemyCondition = pow(enemyCondition, 2.0f);

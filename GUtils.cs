@@ -71,13 +71,13 @@ public class GUtils
         return ret;
     }
 
-    public static UInt32 SRGBColorToLinearUInt32(Color color)
+    public static uint SRGBColorToLinearUInt(Color color)
     {
-        UInt32 ret = 0;
-        ret |= (UInt32)(Mathf.Floor(SRGBToLinear(color.r) * 255 + 0.0001f)) << 24;
-        ret |= (UInt32)(Mathf.Floor(SRGBToLinear(color.g) * 255 + 0.0001f)) << 16;
-        ret |= (UInt32)(Mathf.Floor(SRGBToLinear(color.b) * 255 + 0.0001f)) << 8;
-        ret |= (UInt32)(Mathf.Floor(color.a * 255 + 0.0001f));
+        uint ret = 0;
+        ret |= (uint)(Mathf.Floor(SRGBToLinear(color.r) * 255 + 0.0001f)) << 24;
+        ret |= (uint)(Mathf.Floor(SRGBToLinear(color.g) * 255 + 0.0001f)) << 16;
+        ret |= (uint)(Mathf.Floor(SRGBToLinear(color.b) * 255 + 0.0001f)) << 8;
+        ret |= (uint)(Mathf.Floor(color.a * 255 + 0.0001f));
         return ret;
     }
 

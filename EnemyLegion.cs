@@ -31,7 +31,7 @@ public class AllEnemyProperty
             acceleration = 0.7f,
             frictionalDeceleration = 0.5f,
             maxSpeed = 0.5f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorWeak),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorWeak),
         };
 
         enemyPropertyData[1] = new EnemyProperty()
@@ -42,7 +42,7 @@ public class AllEnemyProperty
             acceleration = 0.7f,
             frictionalDeceleration = 0.5f,
             maxSpeed = 0.5f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorWeak),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorWeak),
         };
 
         enemyPropertyData[2] = new EnemyProperty()
@@ -53,7 +53,7 @@ public class AllEnemyProperty
             acceleration = 1.0f,
             frictionalDeceleration = 1.0f,
             maxSpeed = 0.8f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorMedium),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorMedium),
         };
 
         enemyPropertyData[3] = new EnemyProperty()
@@ -64,7 +64,7 @@ public class AllEnemyProperty
             acceleration = 1.0f,
             frictionalDeceleration = 1.0f,
             maxSpeed = 0.8f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorMedium),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorMedium),
         };
 
         enemyPropertyData[4] = new EnemyProperty()
@@ -75,7 +75,7 @@ public class AllEnemyProperty
             acceleration = 1.0f,
             frictionalDeceleration = 1.5f,
             maxSpeed = 1.0f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorStrong),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorStrong),
         };
 
         enemyPropertyData[5] = new EnemyProperty()
@@ -86,7 +86,7 @@ public class AllEnemyProperty
             acceleration = 1.0f,
             frictionalDeceleration = 1.5f,
             maxSpeed = 1.0f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorStrong),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorStrong),
         };
 
         enemyPropertyData[6] = new EnemyProperty()
@@ -97,7 +97,7 @@ public class AllEnemyProperty
             acceleration = 1.0f,
             frictionalDeceleration = 1.5f,
             maxSpeed = 1.2f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorSuper),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorSuper),
         };
 
         enemyPropertyData[7] = new EnemyProperty()
@@ -108,7 +108,7 @@ public class AllEnemyProperty
             acceleration = 1.0f,
             frictionalDeceleration = 1.5f,
             maxSpeed = 1.2f,
-            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorSuper),
+            color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorSuper),
         };
     }
 }
@@ -148,7 +148,7 @@ public class EnemyLegion
             2.0f,
             2.0f,
             1.0f,
-            GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorWeak)
+            GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorWeak)
             );
     }
 

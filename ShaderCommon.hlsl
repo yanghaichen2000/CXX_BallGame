@@ -24,7 +24,7 @@ struct BulletDatum
     float expirationTime;
     float impulse;
     float virtualY;
-    int player;
+    uint packedInfo;
     float renderingBiasY;
     uint color;
 };
@@ -139,7 +139,7 @@ float3 HSVToRGB(float3 c)
     return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
-float3 PackedUInt32ColorToFloat3(uint color)
+float3 PackeduintColorToFloat3(uint color)
 {
     float3 ret;
     ret.r = (color >> 24 & 255) / 255.0f;

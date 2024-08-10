@@ -82,7 +82,9 @@ struct PlayerSkillDatum
     int sharedSkill0;
     int sharedSkill1;
     int player2Skill0HPRestoration;
-    int tmp2;
+    float3 player1Skill1AimingPointPosition;
+    float tmp1;
+    float tmp2;
 };
 
 struct BulletDatum
@@ -96,7 +98,7 @@ struct BulletDatum
     float expirationTime;
     float impulse;
     float virtualY;
-    int player;
+    uint packedInfo;
     float renderingBiasY;
     uint color;
 };
@@ -226,9 +228,25 @@ float3 bulletGridBottomLeftPos;
 float bulletGridSize;
 float bulletGridSizeInv;
 
+uint packedPlayer1BulletColor;
+uint packedPlayer2BulletColor;
+
 groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
 
+
+uint GetBit(uint packedInfo, int index)
+{
+    return (packedInfo >> index) & 1;
+}
+
+void SetBit(inout uint packedInfo, int index, int value)
+{
+    if (value == 0)
+        packedInfo &= ~(1 << index);
+    else
+        packedInfo |= 1 << index;
+}
 
 int GetBulletGridIndexFromId(int3 xyz)
 {
@@ -288,9 +306,27 @@ void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
 [numthreads(256, 1, 1)]
 void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= playerBulletNum[0]) return;
-    BulletDatum bullet = playerBulletData[id.x];
-    playerBulletData[id.x].pos = bullet.pos + bullet.speed * bullet.dir * deltaTime;
+    if (id.x < playerBulletNum[0])
+    {
+        BulletDatum bullet = playerBulletData[id.x];
+        
+        if (playerSkillData[0].player1Skill1 == 2 && GetBit(bullet.packedInfo, 1))
+        {
+            float3 bulletVelocity = bullet.dir * bullet.speed;
+            float3 aimingPointPos = playerSkillData[0].player1Skill1AimingPointPosition;
+            float3 aimingPointRelativePos = aimingPointPos - bullet.pos;
+            bullet.dir += normalize(aimingPointRelativePos) * 0.7f * bullet.speed * deltaTime;
+            bullet.dir = normalize(bullet.dir);
+            bullet.dir.y = 0.0f;
+            if (length(aimingPointRelativePos) < 0.2f)
+            {
+                SetBit(bullet.packedInfo, 1, 0);
+            }
+        }
+        
+        bullet.pos += bullet.speed * bullet.dir * deltaTime;
+        playerBulletData[id.x] = bullet;
+    }
 }
 
 
@@ -451,7 +487,8 @@ void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
                 {
                     InterlockedAdd(playerSkillData[0].player2Skill0HPRestoration, bullet.damage);
                     bullet.virtualY = 10.0f;
-                    bullet.player = 1;
+                    SetBit(bullet.packedInfo, 0, 1);
+                    bullet.color = packedPlayer2BulletColor;
                     int newIndex;
                     InterlockedAdd(playerBulletNum[0], 1, newIndex);
                     playerBulletData[newIndex] = bullet;
@@ -626,7 +663,7 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                 {
                     float3 dir = normalize(relativePos);
                     float3 dV = dir * 12.0f;
-                    dV.y = 12.0f;
+                    dV.y = 8.0f;
                     playerData[i].hitByEnemy = 1;
                     playerData[i].hitImpulse = 10000.0f * dV;
                     InterlockedAdd(playerData[i].hpChange, -30);
@@ -761,6 +798,7 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
 {
     int state = playerSkillData[0].sharedSkill0;
     float player1BulletRate = state == 3 ? 0.8f : 0.2f;
+    uint packedColor = state == 3 ? packedPlayer1BulletColor : packedPlayer2BulletColor;
     if (id.x < enemyBulletNum[0])
     {
         int index;
@@ -768,7 +806,8 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
         playerBulletData[index] = enemyBulletData[id.x];
         float r = Random3DTo1D(gameTime, id.x * 0.5f, index * 0.5f);
         playerBulletData[index].impulse = 3;
-        playerBulletData[index].player = r < player1BulletRate ? 0 : 1;
+        SetBit(playerBulletData[index].packedInfo, 0, r < player1BulletRate ? 0 : 1);
+        playerBulletData[index].color = packedColor;
     }
 }
 

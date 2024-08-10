@@ -115,7 +115,7 @@ void UnlitPassFragment(
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
     
     BulletDatum datum = enemyBulletData[input.customInstanceId];
-    float3 bulletColor = PackedUInt32ColorToFloat3(datum.color);
+    float3 bulletColor = PackeduintColorToFloat3(datum.color);
         
     half2 uv = input.uv;
     half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
