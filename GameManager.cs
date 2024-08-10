@@ -13,6 +13,8 @@ using UnityEngine.UIElements;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager instance;
+
     public static Transform basicTransform;
     public static DateTime gameStartedTime;
     public static DateTime lastTickTime;
@@ -54,11 +56,16 @@ public class GameManager : MonoBehaviour
 
     public Color player1BulletColor;
     public Color player2BulletColor;
-    public Color enemyBulletColor;
+    public Color enemyColorWeak;
+    public Color enemyColorMedium;
+    public Color enemyColorStrong;
+    public Color enemyColorSuper;
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
 
     void Awake()
     {
+        instance = this;
+
         //Screen.SetResolution(2560, 1440, true);
         Application.targetFrameRate = 240;
 

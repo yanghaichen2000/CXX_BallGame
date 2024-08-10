@@ -149,7 +149,7 @@ public class Player2Skill1 : Skill
         if (state == 0) // ø… π”√
         {
             GameManager.uiManager.UpdatePlayerSkillUI(1, 1, false);
-            if (Input.GetKey("joystick button 4") && canTeleport)
+            if ((Input.GetKey("joystick button 4") || Input.GetKey(KeyCode.T)) && canTeleport)
             {
                 state = 1;
                 lastTriggeredTime = GameManager.gameTime;

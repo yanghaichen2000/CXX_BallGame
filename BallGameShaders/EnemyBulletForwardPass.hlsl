@@ -113,10 +113,13 @@ void UnlitPassFragment(
 {
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-
+    
+    BulletDatum datum = enemyBulletData[input.customInstanceId];
+    float3 bulletColor = PackedUInt32ColorToFloat3(datum.color);
+        
     half2 uv = input.uv;
     half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
-    float3 baseColor = enemyBulletColor * texColor.rgb;
+    float3 baseColor = bulletColor * texColor.rgb;
     half alpha = texColor.a * 1.0f;
     
     half3 color = BulletBlinnPhongShading(baseColor, input.normalWS);

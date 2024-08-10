@@ -114,14 +114,10 @@ void UnlitPassFragment(
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
-    float3 bulletColor;
+    
         
     BulletDatum datum = playerBulletData[input.customInstanceId];
-    int player = datum.player;
-    if (player == 0)
-        bulletColor = player1BulletColor;
-    else
-        bulletColor = player2BulletColor;
+    float3 bulletColor = PackedUInt32ColorToFloat3(datum.color);
         
     half2 uv = input.uv;
     half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);

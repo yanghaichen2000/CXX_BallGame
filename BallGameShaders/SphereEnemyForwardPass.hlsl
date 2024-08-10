@@ -252,10 +252,19 @@ void LitPassFragment(
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
 
+    half2 uv = input.uv;
+    half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
+    
     EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
+    float3 enemyColor = PackedUInt32ColorToFloat3(enemy.baseColor);
     float enemyHP = max(enemy.hp, 0.0f);
     float enemyCondition = 1.0f - enemyHP / enemy.maxHP;
-    surfaceData.albedo = lerp(surfaceData.albedo, float3(0.5f, 0.5f, 0.5f), enemyCondition);
+    enemyCondition = pow(enemyCondition, 2.0f);
+    surfaceData.albedo = lerp(enemyColor, float3(0.5f, 0.5f, 0.5f), enemyCondition);
+    if (enemy.hp <= 0)
+    {
+        surfaceData.albedo = lerp(surfaceData.albedo, texColor, 0.4f);
+    }
     surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
     
     half4 color = UniversalFragmentPBR(inputData, surfaceData);

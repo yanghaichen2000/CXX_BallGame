@@ -54,7 +54,7 @@ public class ComputeCenter
         public float virtualY;
         public Int32 player;
         public float renderingBiasY;
-        public float tmp2;
+        public UInt32 color;
     }
     const int bulletDatumSize = 64;
 
@@ -74,8 +74,12 @@ public class ComputeCenter
         public float acceleration;
         public float frictionalDeceleration;
         public float maxSpeed;
+        public UInt32 baseColor;
+        public float tmp1;
+        public float tmp2;
+        public float tmp;
     }
-    const int enemyDatumSize = 80;
+    const int enemyDatumSize = 96;
 
     public struct EnemyWeaponDatum
     {
@@ -142,7 +146,7 @@ public class ComputeCenter
     const int maxEnemyBulletNum = 131072;
     const int maxNewBulletNum = 2048;
     const int maxEnemyNum = 1024;
-    const int maxNewEnemyNum = 128;
+    const int maxNewEnemyNum = 512;
     const int maxEnemyWeaponNum = 8;
 
     PlayerDatum[] playerData;
@@ -567,7 +571,6 @@ public class ComputeCenter
         // bullet color
         Shader.SetGlobalVector("player1BulletColor", gameManager.player1BulletColor);
         Shader.SetGlobalVector("player2BulletColor", gameManager.player2BulletColor);
-        Shader.SetGlobalVector("enemyBulletColor", gameManager.enemyBulletColor);
 
         // lighting
         Vector3 lightDir = GameObject.Find("Directional Light").GetComponent<Transform>().forward;
@@ -663,16 +666,16 @@ public class ComputeCenter
             shootInterval = -1.0f,
         };
 
-        // 随机方向慢速
+        // 精准慢速
         enemyWeaponData[1] = new EnemyWeaponDatum
         {
-            uniformRandomAngleBias = 20.0f,
-            individualRandomAngleBias = 5.0f,
-            shootInterval = 5.0f,
-            extraBulletsPerSide = 1,
+            uniformRandomAngleBias = 10.0f,
+            individualRandomAngleBias = 0.0f,
+            shootInterval = 3.0f,
+            extraBulletsPerSide = 0,
             angle = 90.0f,
             randomShootDelay = 5.0f,
-            bulletSpeed = 1.5f,
+            bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
@@ -681,74 +684,74 @@ public class ComputeCenter
             virtualYRange = constantVirtualYRange,
         };
 
-        // 快速
+        // 精准中速
         enemyWeaponData[2] = new EnemyWeaponDatum
         {
-            uniformRandomAngleBias = 1.0f,
+            uniformRandomAngleBias = 2.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.8f,
+            shootInterval = 0.6f,
             extraBulletsPerSide = 0,
             angle = 0.0f,
-            randomShootDelay = 0.0f,
+            randomShootDelay = 0.1f,
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 12.0f,
+            bulletLifeSpan = 20.0f,
             bulletImpulse = 0.1f,
             virtualYRange = constantVirtualYRange,
         };
 
-        // 一般散弹
+        // 中速散弹
         enemyWeaponData[3] = new EnemyWeaponDatum
         {
-            uniformRandomAngleBias = 1.0f,
+            uniformRandomAngleBias = 2.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.1f,
-            extraBulletsPerSide = 3,
-            angle = 10.0f,
-            randomShootDelay = 0.3f,
+            shootInterval = 0.8f,
+            extraBulletsPerSide = 2,
+            angle = 5.0f,
+            randomShootDelay = 0.1f,
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 12.0f,
+            bulletLifeSpan = 20.0f,
             bulletImpulse = 0.1f,
             virtualYRange = constantVirtualYRange,
         };
 
-        // 离谱散弹
+        // 精准高速
         enemyWeaponData[4] = new EnemyWeaponDatum
         {
-            uniformRandomAngleBias = 1.0f,
+            uniformRandomAngleBias = 4.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.1f,
-            extraBulletsPerSide = 10,
-            angle = 3.0f,
-            randomShootDelay = 0.0f,
+            shootInterval = 0.15f,
+            extraBulletsPerSide = 0,
+            angle = 0.0f,
+            randomShootDelay = 0.03f,
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 12.0f,
+            bulletLifeSpan = 20.0f,
             bulletImpulse = 0.1f,
             virtualYRange = constantVirtualYRange,
         };
 
-        // 全屏
+        // 高速散弹
         enemyWeaponData[5] = new EnemyWeaponDatum
         {
-            uniformRandomAngleBias = 1.0f,
+            uniformRandomAngleBias = 2.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.1f,
-            extraBulletsPerSide = 60,
-            angle = 3.0f,
-            randomShootDelay = 0.0f,
+            shootInterval = 0.13f,
+            extraBulletsPerSide = 3,
+            angle = 8.0f,
+            randomShootDelay = 0.03f,
             bulletSpeed = 6.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
-            bulletLifeSpan = 12.0f,
+            bulletLifeSpan = 20.0f,
             bulletImpulse = 0.1f,
             virtualYRange = constantVirtualYRange,
         };
@@ -1015,7 +1018,7 @@ public class ComputeCenter
         computeCenterCS.SetFloats("player2Pos", pPos.x, pPos.y, pPos.z);
     }
 
-    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse, float _virtualY, int _player, float renderingBiasY)
+    public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse, float _virtualY, int _player, float _renderingBiasY, UInt32 _color)
     {
         if (playerShootRequestNum >= maxNewBulletNum)
         {
@@ -1035,12 +1038,13 @@ public class ComputeCenter
             impulse = _impulse,
             virtualY = _virtualY,
             player = _player,
-            renderingBiasY = renderingBiasY,
+            renderingBiasY = _renderingBiasY,
+            color = _color,
         };
         playerShootRequestNum++;
     }
 
-    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _maxHP, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m, float _acceleration, float _frictionalDeceleration, float maxSpeed)
+    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _maxHP, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m, float _acceleration, float _frictionalDeceleration, float maxSpeed, uint _baseColor)
     {
         createSphereEnemyRequestData[createSphereEnemyRequestNum] = new EnemyDatum()
         {
@@ -1058,6 +1062,7 @@ public class ComputeCenter
             acceleration = _acceleration,
             frictionalDeceleration = _frictionalDeceleration,
             maxSpeed = maxSpeed,
+            baseColor = _baseColor,
         };
         createSphereEnemyRequestNum++;
     }

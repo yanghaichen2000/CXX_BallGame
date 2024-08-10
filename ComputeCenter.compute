@@ -97,8 +97,8 @@ struct BulletDatum
     float impulse;
     float virtualY;
     int player;
-    int tmp1;
-    float tmp2;
+    float renderingBiasY;
+    uint color;
 };
 
 struct EnemyDatum
@@ -117,6 +117,10 @@ struct EnemyDatum
     float acceleration;
     float frictionalDeceleration;
     float maxSpeed;
+    uint baseColor;
+    float tmp1;
+    float tmp2;
+    float tmp;
 };
 
 struct EnemyWeaponDatum
@@ -478,7 +482,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         EnemyDatum enemy = sphereEnemyData[id.x];
         enemy.velocity += (float3)enemy.hitImpulse * 0.0001 / enemy.m;
         enemy.hitImpulse = int3(0, 0, 0);
-        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.1f : enemy.originalM;
+        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.13f : enemy.originalM;
         sphereEnemyData[id.x] = enemy;
     }
     
@@ -671,6 +675,7 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
                 bullet.expirationTime = gameTime + weapon.bulletLifeSpan;
                 bullet.impulse = weapon.bulletImpulse;
                 bullet.virtualY = 0.5f + (r1 - 0.5) * weapon.virtualYRange * 2.0f;
+                bullet.color = enemy.baseColor;
                 enemyBulletData[bulletIndex] = bullet;
             }
         }

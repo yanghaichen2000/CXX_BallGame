@@ -42,6 +42,7 @@ public class UIManager
     public PlayerSkillUI[,] playerSkillUI;
 
     public TextMeshProUGUI text_nextWave;
+    public TextMeshProUGUI text_currentWave;
 
     public TextMeshProUGUI fps;
     public TextMeshProUGUI enemyNum;
@@ -62,6 +63,7 @@ public class UIManager
         image_player2HP = GameObject.Find("image_player2HP").GetComponent<Image>();
 
         text_nextWave = GameObject.Find("text_nextWave").GetComponent<TextMeshProUGUI>();
+        text_currentWave = GameObject.Find("text_currentWave").GetComponent<TextMeshProUGUI>();
 
         playerSkillUI = new PlayerSkillUI[2, 4];
         for (int p = 0; p < 2; p++)
@@ -132,9 +134,14 @@ public class UIManager
         }
     }
 
-    public void UpdateNextWave(float time)
+    public void UpdateNextWaveTime(float time)
     {
         text_nextWave.text = string.Format("Next Wave Arrives in: {0:F0}s", time);
+    }
+
+    public void UpdateCurrentWave(int wave)
+    {
+        text_currentWave.text = string.Format("Current Wave: {0}", wave);
     }
 
     public void UpdatePlayerLevel(int player, int exp)

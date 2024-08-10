@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 
@@ -11,6 +12,7 @@ public struct EnemyProperty
     public float acceleration;
     public float frictionalDeceleration;
     public float maxSpeed;
+    public uint color;
 }
 
 public class AllEnemyProperty
@@ -19,16 +21,17 @@ public class AllEnemyProperty
 
     public AllEnemyProperty()
     {
-        enemyPropertyData = new EnemyProperty[2];
+        enemyPropertyData = new EnemyProperty[20];
 
         enemyPropertyData[0] = new EnemyProperty()
         {
             hp = 50,
             weapon = 0,
             mass = 1.0f,
-            acceleration = 1.0f,
+            acceleration = 0.7f,
             frictionalDeceleration = 0.5f,
-            maxSpeed = 1.0f,
+            maxSpeed = 0.5f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorWeak),
         };
 
         enemyPropertyData[1] = new EnemyProperty()
@@ -36,9 +39,76 @@ public class AllEnemyProperty
             hp = 50,
             weapon = 1,
             mass = 1.0f,
-            acceleration = 1.0f,
+            acceleration = 0.7f,
             frictionalDeceleration = 0.5f,
+            maxSpeed = 0.5f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorWeak),
+        };
+
+        enemyPropertyData[2] = new EnemyProperty()
+        {
+            hp = 150,
+            weapon = 1,
+            mass = 2.5f,
+            acceleration = 1.0f,
+            frictionalDeceleration = 1.0f,
+            maxSpeed = 0.8f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorMedium),
+        };
+
+        enemyPropertyData[3] = new EnemyProperty()
+        {
+            hp = 150,
+            weapon = 2,
+            mass = 2.5f,
+            acceleration = 1.0f,
+            frictionalDeceleration = 1.0f,
+            maxSpeed = 0.8f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorMedium),
+        };
+
+        enemyPropertyData[4] = new EnemyProperty()
+        {
+            hp = 300,
+            weapon = 3,
+            mass = 3.0f,
+            acceleration = 1.0f,
+            frictionalDeceleration = 1.5f,
             maxSpeed = 1.0f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorStrong),
+        };
+
+        enemyPropertyData[5] = new EnemyProperty()
+        {
+            hp = 300,
+            weapon = 4,
+            mass = 3.0f,
+            acceleration = 1.0f,
+            frictionalDeceleration = 1.5f,
+            maxSpeed = 1.0f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorStrong),
+        };
+
+        enemyPropertyData[6] = new EnemyProperty()
+        {
+            hp = 600,
+            weapon = 4,
+            mass = 10.0f,
+            acceleration = 1.0f,
+            frictionalDeceleration = 1.5f,
+            maxSpeed = 1.2f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorSuper),
+        };
+
+        enemyPropertyData[7] = new EnemyProperty()
+        {
+            hp = 600,
+            weapon = 5,
+            mass = 10.0f,
+            acceleration = 1.0f,
+            frictionalDeceleration = 1.5f,
+            maxSpeed = 1.2f,
+            color = GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorSuper),
         };
     }
 }
@@ -52,6 +122,7 @@ public class EnemyLegion
     public int dir;
     public float lastSpawnEnemyTime;
     public float spawnEnemyInterval;
+    public EnemyProperty currentprop;
 
     public EnemyLegion()
     {
@@ -76,7 +147,8 @@ public class EnemyLegion
             10.0f,
             2.0f,
             2.0f,
-            1.0f
+            1.0f,
+            GUtils.SRGBColorToLinearUInt32(GameManager.instance.enemyColorWeak)
             );
     }
 
@@ -96,7 +168,8 @@ public class EnemyLegion
             prop.mass,
             prop.acceleration,
             prop.frictionalDeceleration,
-            prop.maxSpeed
+            prop.maxSpeed,
+            prop.color
             );
     }
 
@@ -105,12 +178,14 @@ public class EnemyLegion
         SpawnSphereEnemy(x, z, GameManager.allEnemyProperty.enemyPropertyData[propIndex]);
     }
 
-    public void CreateSpawnEnemyRequest(int num)
+    public void CreateSpawnEnemyRequest(int num, EnemyProperty prop)
     {
         x = -19.0f;
         z = 14.0f;
         remainingNum = num;
         dir = 0;
+        currentprop = prop;
+        lastSpawnEnemyTime = GameManager.gameTime;
     }
 
     public void Update()
@@ -120,7 +195,7 @@ public class EnemyLegion
         {
             lastSpawnEnemyTime = GameManager.gameTime;
             remainingNum--;
-            SpawnSphereEnemy(x, z);
+            SpawnSphereEnemy(x, z, currentprop);
             if (dir == 0)
             {
                 if (x > 18.9f)

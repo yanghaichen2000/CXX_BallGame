@@ -15,18 +15,18 @@ struct PlayerSkillDatum
 
 struct BulletDatum
 {
-	float3 pos;
-	float3 dir;
-	float speed;
-	float radius;
-	int damage;
-	uint bounces;
-	float expirationTime;
-	float impulse;
-	float virtualY;
-	int player;
+    float3 pos;
+    float3 dir;
+    float speed;
+    float radius;
+    int damage;
+    uint bounces;
+    float expirationTime;
+    float impulse;
+    float virtualY;
+    int player;
     float renderingBiasY;
-	float tmp2;
+    uint color;
 };
 
 struct EnemyDatum
@@ -45,6 +45,10 @@ struct EnemyDatum
     float acceleration;
     float frictionalDeceleration;
     float maxSpeed;
+    uint baseColor;
+    float tmp1;
+    float tmp2;
+    float tmp;
 };
 
 StructuredBuffer<EnemyDatum> sphereEnemyData;
@@ -64,7 +68,7 @@ float bulletLightIntensity;
 float gameTime;
 
 float sharedSkill0LastTriggeredTime;
-float sharedSkill0CdStartTime;;
+float sharedSkill0CdStartTime;
 
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
@@ -133,6 +137,16 @@ float3 HSVToRGB(float3 c)
     float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
     float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
     return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+float3 PackedUInt32ColorToFloat3(uint color)
+{
+    float3 ret;
+    ret.r = (color >> 24 & 255) / 255.0f;
+    ret.g = (color >> 16 & 255) / 255.0f;
+    ret.b = (color >> 8 & 255) / 255.0f;
+    
+    return ret;
 }
 
 #endif

@@ -49,5 +49,37 @@ public class GUtils
     {
         return new Vector3(x.x * y.x, x.y * y.y, x.z * y.z);
     }
+
+    private static float SRGBToLinear(float val)
+    {
+        if (val <= 0.04045f)
+        {
+            return val / 12.92f;
+        }
+        else
+        {
+            return Mathf.Pow((val + 0.055f) / 1.055f, 2.4f);
+        }
+    }
+
+    public static Vector3 SRGBColorToLinearVector3(Color color)
+    {
+        Vector3 ret = new Vector3();
+        ret.x = SRGBToLinear(color.r);
+        ret.y = SRGBToLinear(color.g);
+        ret.z = SRGBToLinear(color.b);
+        return ret;
+    }
+
+    public static UInt32 SRGBColorToLinearUInt32(Color color)
+    {
+        UInt32 ret = 0;
+        ret |= (UInt32)(Mathf.Floor(SRGBToLinear(color.r) * 255 + 0.0001f)) << 24;
+        ret |= (UInt32)(Mathf.Floor(SRGBToLinear(color.g) * 255 + 0.0001f)) << 16;
+        ret |= (UInt32)(Mathf.Floor(SRGBToLinear(color.b) * 255 + 0.0001f)) << 8;
+        ret |= (UInt32)(Mathf.Floor(color.a * 255 + 0.0001f));
+        return ret;
+    }
+
 }
 
