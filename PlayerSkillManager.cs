@@ -16,7 +16,6 @@ public class PlayerSkillManager
         skills["Player2Skill0"] = new Player2Skill0();
         skills["Player2Skill1"] = new Player2Skill1();
         skills["SharedSkill0"] = new SharedSkill0();
-
     }
 
     public void Update()
@@ -81,7 +80,7 @@ public class Player1Skill0 : Skill
             {
                 if (Mathf.FloorToInt(ramainingTime * 4.0f) % 2 == 1)
                 {
-                    player1mat.SetColor("_EmissionColor", player1Color * 1.5f);
+                    player1mat.SetColor("_EmissionColor", player1Color * 0.5f);
                 }
                 else
                 {
@@ -243,7 +242,7 @@ public class Player2Skill0 : Skill
             {
                 if (Mathf.FloorToInt(ramainingTime * 4.0f) % 2 == 1)
                 {
-                    player2mat.SetColor("_EmissionColor", player2Color * 1.5f);
+                    player2mat.SetColor("_EmissionColor", player2Color * 0.5f);
                 }
                 else
                 {

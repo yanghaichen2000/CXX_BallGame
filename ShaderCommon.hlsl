@@ -47,11 +47,12 @@ struct EnemyDatum
     float maxSpeed;
     uint baseColor;
     float lastHitByPlayer2Skill0Time;
-    float tmp2;
+    float createdTime;
     float tmp;
 };
 
 StructuredBuffer<EnemyDatum> sphereEnemyData;
+StructuredBuffer<EnemyDatum> deployingSphereEnemyData;
 
 StructuredBuffer<BulletDatum> playerBulletData;
 StructuredBuffer<BulletDatum> enemyBulletData;

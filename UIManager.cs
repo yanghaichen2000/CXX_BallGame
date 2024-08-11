@@ -140,7 +140,7 @@ public class UIManager
 
     public void UpdateNextWaveTime(float time)
     {
-        text_nextWave.text = string.Format("Next Wave Arrives in: {0:F0}s", time);
+        text_nextWave.text = string.Format("Next Wave Arrives in: {0}s", Mathf.FloorToInt(time));
     }
 
     public void UpdateCurrentWave(int wave)

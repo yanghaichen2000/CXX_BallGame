@@ -19,6 +19,7 @@
 #pragma kernel UpdateDrawEnemyArgs
 #pragma kernel SkillTransferBulletType
 #pragma kernel SkillGetAvailablePosition
+#pragma kernel UpdateDeployingEnemy
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -123,7 +124,7 @@ struct EnemyDatum
     float maxSpeed;
     uint baseColor;
     float lastHitByPlayer2Skill0Time;
-    float tmp2;
+    float createdTime;
     float tmp;
 };
 
@@ -185,6 +186,9 @@ RWStructuredBuffer<EnemyDatum> culledSphereEnemyData;
 RWStructuredBuffer<int> sphereEnemyNum;
 RWStructuredBuffer<int> culledSphereEnemyNum;
 
+RWStructuredBuffer<EnemyDatum> deployingSphereEnemyData;
+RWStructuredBuffer<int> deployingSphereEnemyNum;
+
 RWStructuredBuffer<EnemyDatum> createSphereEnemyRequestData;
 
 RWStructuredBuffer<BulletDatum> enemyBulletData;
@@ -197,6 +201,7 @@ RWStructuredBuffer<EnemyWeaponDatum> enemyWeaponData;
 RWStructuredBuffer<int> drawPlayerBulletArgs;
 RWStructuredBuffer<int> drawSphereEnemyArgs;
 RWStructuredBuffer<int> drawEnemyBulletArgs;
+RWStructuredBuffer<int> drawDeployingSphereEnemyArgs;
 
 RWStructuredBuffer<AvailablePositionDatum> availablePositionData;
 
@@ -300,9 +305,47 @@ void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
     if (id.x < createSphereEnemyRequestNum)
     {
         int index;
-        InterlockedAdd(sphereEnemyNum[0], 1, index);
-        sphereEnemyData[index] = createSphereEnemyRequestData[id.x];
+        InterlockedAdd(deployingSphereEnemyNum[0], 1, index);
+        deployingSphereEnemyData[index] = createSphereEnemyRequestData[id.x];
     }
+}
+
+
+[numthreads(512, 1, 1)]
+void UpdateDeployingEnemy(uint3 id : SV_DispatchThreadID)
+{
+    bool shouldDeploy = false;
+    bool shouldWork = id.x < deployingSphereEnemyNum[0];
+    EnemyDatum enemy;
+    if (shouldWork)
+    {
+        enemy = deployingSphereEnemyData[id.x];
+        if (enemy.createdTime <= gameTime)
+            shouldDeploy = true;
+    }
+     
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (id.x == 0) 
+        deployingSphereEnemyNum[0] = 0;
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (shouldWork)
+    {
+        int index;
+        if (shouldDeploy)
+        {
+            InterlockedAdd(sphereEnemyNum[0], 1, index);
+            sphereEnemyData[index] = enemy;
+        }
+        else
+        {
+            InterlockedAdd(deployingSphereEnemyNum[0], 1, index);
+            deployingSphereEnemyData[index] = enemy;
+        }
+    }
+
 }
 
 
@@ -429,6 +472,7 @@ void UpdateDrawEnemyBulletArgs(uint3 id : SV_DispatchThreadID)
 void UpdateDrawEnemyArgs(uint3 id : SV_DispatchThreadID)
 {
     drawSphereEnemyArgs[1] = sphereEnemyNum[0];
+    drawDeployingSphereEnemyArgs[1] = deployingSphereEnemyNum[0];
 }
 
 
@@ -678,9 +722,9 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                         // extra normal impulse
                         float3 playerVelocityNormal = normalize(float3(player.dir.z, 0.0f, -player.dir.x));
                         if (dot(playerVelocityNormal, -dir) > 0.0f)
-                            dV += playerVelocityNormal * 1.5f * enemy.m;
+                            dV += playerVelocityNormal * 2.5f * enemy.m;
                         else
-                            dV -= playerVelocityNormal * 1.5f * enemy.m;
+                            dV -= playerVelocityNormal * 2.5f * enemy.m;
                         
                         dV.y = 0.0f;
                         enemy.hitImpulse += 10000.0f * dV;
@@ -874,3 +918,6 @@ void SkillGetAvailablePosition(uint3 id : SV_DispatchThreadID)
         }
     }
 }
+
+
+
