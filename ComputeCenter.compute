@@ -83,7 +83,7 @@ struct PlayerSkillDatum
     int sharedSkill1;
     int player2Skill0HPRestoration;
     float3 player1Skill1AimingPointPosition;
-    float tmp1;
+    int player2Skill0HitEnemy;
     float tmp2;
 };
 
@@ -120,7 +120,7 @@ struct EnemyDatum
     float frictionalDeceleration;
     float maxSpeed;
     uint baseColor;
-    float tmp1;
+    float lastHitByPlayer2Skill0Time;
     float tmp2;
     float tmp;
 };
@@ -234,6 +234,7 @@ uint packedPlayer2BulletColor;
 groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
 
+float player2Skill0TMax;
 
 uint GetBit(uint packedInfo, int index)
 {
@@ -659,14 +660,31 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
             {
                 float3 relativePos = player.pos - enemy.pos;
                 float distance = length(relativePos);
-                if (player.hittable == 1 && distance < (player.size + enemy.size) * 0.5)
+                float minDistance = (player.size + enemy.size) * 0.5;
+                if (distance < minDistance)
                 {
-                    float3 dir = normalize(relativePos);
-                    float3 dV = dir * 12.0f;
-                    dV.y = 8.0f;
-                    playerData[i].hitByEnemy = 1;
-                    playerData[i].hitImpulse = 10000.0f * dV;
-                    InterlockedAdd(playerData[i].hpChange, -30);
+                    if (playerSkillData[0].player2Skill0 == 1)
+                    {
+                        InterlockedAdd(playerSkillData[0].player2Skill0HitEnemy, 1);
+                        float3 dir = normalize(relativePos);
+                        enemy.velocity = float3(0.0f, 0.0f, 0.0f);
+                        enemy.pos = player.pos - dir * minDistance;
+                        float3 dV = -dir * 2.0f * enemy.m;
+                        dV.y = 0.0f;
+                        enemy.hitImpulse += 10000.0f * dV;
+                        if (gameTime - enemy.lastHitByPlayer2Skill0Time >= player2Skill0TMax)
+                            enemy.lastHitByPlayer2Skill0Time = gameTime;
+                        sphereEnemyData[id.x] = enemy;
+                    }
+                    else if (player.hittable == 1)
+                    {
+                        float3 dir = normalize(relativePos);
+                        float3 dV = dir * 12.0f;
+                        dV.y = 8.0f;
+                        playerData[i].hitByEnemy = 1;
+                        playerData[i].hitImpulse = 10000.0f * dV;
+                        InterlockedAdd(playerData[i].hpChange, -30);
+                    }
                 }
             }
         }
@@ -804,7 +822,7 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
         int index;
         InterlockedAdd(playerBulletNum[0], 1, index);
         playerBulletData[index] = enemyBulletData[id.x];
-        float r = Random3DTo1D(gameTime, id.x * 0.5f, index * 0.5f);
+        float r = Random3DTo1D(gameTime * 100.0f, id.x * 0.5f, index * 0.5f);
         playerBulletData[index].impulse = 3;
         SetBit(playerBulletData[index].packedInfo, 0, r < player1BulletRate ? 0 : 1);
         playerBulletData[index].color = packedColor;

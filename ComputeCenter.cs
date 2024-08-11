@@ -38,7 +38,7 @@ public class ComputeCenter
         public int sharedSkill1;
         public int player2Skill0HPRestoration;
         public Vector3 player1Skill1AimingPointPosition;
-        public float tmp1;
+        public int player2Skill0HitEnemy;
         public float tmp2;
     }
     const int playerSkillDatumSize = 48;
@@ -80,7 +80,7 @@ public class ComputeCenter
         public float frictionalDeceleration;
         public float maxSpeed;
         public uint baseColor;
-        public float tmp1;
+        public float lastHitByPlayer2Skill0Time;
         public float tmp2;
         public float tmp;
     }
@@ -583,9 +583,16 @@ public class ComputeCenter
         Vector3 lightDir = GameObject.Find("Directional Light").GetComponent<Transform>().forward;
         Shader.SetGlobalVector("bulletLightDir", -lightDir);
         Shader.SetGlobalFloat("bulletLightIntensity", gameManager.bulletDirectionalLightIntensity);
-
+        
         // frustum culling
         SetFrustumCullingGlobalConstant();
+
+        // player 2 skill 0
+        float player2Skill0V0 = 2.5f;
+        float player2Skill0TMax = player2Skill0V0 * 0.2f;
+        computeCenterCS.SetFloat("player2Skill0TMax", player2Skill0TMax);
+        Shader.SetGlobalFloat("player2Skill0TMax", player2Skill0TMax);
+        Shader.SetGlobalFloat("player2Skill0V0", player2Skill0V0);
     }
 
     public void SetFrustumCullingGlobalConstant()
@@ -794,6 +801,7 @@ public class ComputeCenter
         // 技能状态数据已经在Skill.UpdateComputeBufferData()中更新
 
         playerSkillData[0].player2Skill0HPRestoration = 0;
+        playerSkillData[0].player2Skill0HitEnemy = 0;
         playerSkillDataCB.SetData(playerSkillData);
     }
 
@@ -813,6 +821,10 @@ public class ComputeCenter
             var readbackPlayerSkillData = dataRequest.GetData<PlayerSkillDatum>();
             GameManager.player1.OnProcessPlayerSkillReadbackData(readbackPlayerSkillData[0]);
             GameManager.player2.OnProcessPlayerSkillReadbackData(readbackPlayerSkillData[0]);
+            if (readbackPlayerSkillData[0].player2Skill0HitEnemy > 0)
+            {
+                GameManager.cameraMotionManager.ShakeByXYDisplacement();
+            }
         });
 
         AsyncGPUReadback.Request(availablePositionDataCB, dataRequest =>
@@ -1075,6 +1087,7 @@ public class ComputeCenter
             frictionalDeceleration = _frictionalDeceleration,
             maxSpeed = maxSpeed,
             baseColor = _baseColor,
+            lastHitByPlayer2Skill0Time = -99999.0f,
         };
         createSphereEnemyRequestNum++;
     }

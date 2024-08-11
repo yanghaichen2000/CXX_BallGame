@@ -46,7 +46,7 @@ struct EnemyDatum
     float frictionalDeceleration;
     float maxSpeed;
     uint baseColor;
-    float tmp1;
+    float lastHitByPlayer2Skill0Time;
     float tmp2;
     float tmp;
 };
@@ -69,6 +69,9 @@ float gameTime;
 
 float sharedSkill0LastTriggeredTime;
 float sharedSkill0CdStartTime;
+
+float player2Skill0TMax;
+float player2Skill0V0;
 
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)

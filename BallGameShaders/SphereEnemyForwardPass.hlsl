@@ -138,7 +138,14 @@ VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instance
     VertexPositionInputs input;
     EnemyDatum datum = sphereEnemyData[instanceID];
     input.positionWS = positionOS * datum.size + datum.pos;
-    input.positionVS = TransformWorldToView(input.positionWS);
+    
+    float t = gameTime - datum.lastHitByPlayer2Skill0Time; // timeSinceHitByPlayer2Skill0
+    if (t < player2Skill0TMax)
+    {
+        input.positionWS += player2Skill0V0 * t - 5.0f * t * t;
+    }
+    
+        input.positionVS = TransformWorldToView(input.positionWS);
     input.positionCS = TransformWorldToHClip(input.positionWS);
  
     float4 ndc = input.positionCS * 0.5f;
@@ -158,7 +165,7 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
     
     output.customInstanceId = instanceID;
-
+    
     VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz, instanceID);
 
     // normalWS and tangentWS already normalize.

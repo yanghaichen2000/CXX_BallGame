@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
+using static ComputeCenter;
 
 public class PlayerSkillManager
 {
@@ -60,7 +61,7 @@ public class Player1Skill0 : Skill
         }
         else if (state == 1) // 已触发
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, false, duration - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime >= duration)
             {
                 state = 2;
@@ -68,7 +69,7 @@ public class Player1Skill0 : Skill
         }
         else if (state == 2) // 冷却中
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd - duration);
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime >= cd)
             {
                 state = 0;
@@ -137,7 +138,7 @@ public class Player1Skill1 : Skill
         }
         if (state == 2) // 执行中
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, false, duration - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime > duration)
             {
                 GameManager.uiManager.RemoveAimingPoint();
@@ -146,7 +147,7 @@ public class Player1Skill1 : Skill
         }
         if (state == 3)
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd - duration);
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime > cd)
             {
                 state = 0;
@@ -174,6 +175,15 @@ public class Player2Skill0 : Skill
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
 
+    Material player2mat;
+    Color player2Color;
+
+    public Player2Skill0()
+    {
+        player2mat = GameManager.player2.obj.GetComponent<MeshRenderer>().material;
+        player2Color = player2mat.GetColor("_BaseColor");
+    }
+
     public void UpdateState()
     {
         if (state == 0) // 可使用
@@ -187,7 +197,28 @@ public class Player2Skill0 : Skill
         }
         else if (state == 1) // 已触发
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(1, 0, false, duration - (GameManager.gameTime - lastTriggeredTime));
+            GameManager.uiManager.UpdatePlayerSkillUI(1, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
+
+            GameManager.player2.maxSpeed = GameManager.player2.initialMaxSpeed * 2.5f;
+            GameManager.player2.maxAcceleration = GameManager.player2.initialMaxAcceleration * 2.0f;
+
+            float ramainingTime = lastTriggeredTime + duration - GameManager.gameTime;
+            if (ramainingTime > 2.0f)
+            {
+                player2mat.SetColor("_EmissionColor", player2Color * 3.0f);
+            }
+            else
+            {
+                if (Mathf.FloorToInt(ramainingTime * 4.0f) % 2 == 1)
+                {
+                    player2mat.SetColor("_EmissionColor", player2Color * 1.5f);
+                }
+                else
+                {
+                    player2mat.SetColor("_EmissionColor", player2Color * 3.0f);
+                }
+            }
+
             if (GameManager.gameTime - lastTriggeredTime >= duration)
             {
                 state = 2;
@@ -195,7 +226,13 @@ public class Player2Skill0 : Skill
         }
         else if (state == 2) // 冷却中
         {
-            GameManager.uiManager.UpdatePlayerSkillUI(1, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd - duration);
+            GameManager.uiManager.UpdatePlayerSkillUI(1, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
+
+            GameManager.player2.maxSpeed = GameManager.player2.initialMaxSpeed;
+            GameManager.player2.maxAcceleration = GameManager.player2.initialMaxAcceleration;
+
+            player2mat.SetColor("_EmissionColor", Color.black);
+
             if (GameManager.gameTime - lastTriggeredTime >= cd)
             {
                 state = 0;

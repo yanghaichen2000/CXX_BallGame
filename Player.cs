@@ -266,8 +266,8 @@ public class Player
     public GameObject obj;
     public Rigidbody body;
     public PlayerInputManager playerInputManager;
-    public float maxSpeed = 4.0f;
-    public float maxAcceleration = 10.0f;
+    public float initialMaxSpeed = 4.0f;
+    public float initialMaxAcceleration = 10.0f;
     public float hitProtectionDuration = 3.0f;
     public float autoRestoreHPRate = 3.0f;
     public int initialMaxHP = 300;
@@ -276,6 +276,8 @@ public class Player
 
     public Vector3 velocity;
     public Weapon weapon;
+    public float maxSpeed;
+    public float maxAcceleration;
     public int exp = 0;
     public int level = 0;
     public int hp = 300;
@@ -294,6 +296,9 @@ public class Player
         weapon = new Weapon(index);
         material = obj.GetComponent<Renderer>().material;
         initialBaseColor = material.color;
+
+        maxSpeed = initialMaxSpeed;
+        maxAcceleration = initialMaxAcceleration;
     }
 
     public void Update()

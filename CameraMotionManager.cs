@@ -20,6 +20,9 @@ public class CameraMotionManager
     Vector3 currentDisplacement;
     Vector3 currentDisplacementSpeed;
 
+    float shakeByXYDisplacementCD = 0.0f;
+    float lastShakeByXYDisplacementTime = -99999.0f;
+
     public CameraMotionManager()
     {
         originalPosition = Camera.main.transform.position;
@@ -70,7 +73,23 @@ public class CameraMotionManager
 
     public void ShakeByZDisplacement(float force = 1.0f)
     {
-        currentDisplacementSpeed = new Vector3(0.0f, 0.0f, 3.0f) * force;
-        currentDisplacement = new Vector3(0.0f, 0.0f, 0.2f) * force;
+        currentDisplacementSpeed.z = 3.0f * force;
+        currentDisplacement.z = 0.2f * force;
+    }
+
+    public void ShakeByXYDisplacement(float force = 1.0f, float cd = 0.2f)
+    {
+        if (GameManager.gameTime > lastShakeByXYDisplacementTime + shakeByXYDisplacementCD)
+        {
+            lastShakeByXYDisplacementTime = GameManager.gameTime;
+            shakeByXYDisplacementCD = cd;
+            float angle = UnityEngine.Random.Range(0.0f, Mathf.PI * 2.0f);
+            float x = Mathf.Cos(angle);
+            float y = Mathf.Sin(angle);
+            currentDisplacementSpeed.x = 0.3f * x * force;
+            currentDisplacement.x = 0.05f * x * force;
+            currentDisplacementSpeed.y = 0.3f * y * force;
+            currentDisplacement.y = 0.05f * y * force;
+        }
     }
 }

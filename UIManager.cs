@@ -119,7 +119,7 @@ public class UIManager
         if (isInCd)
         {
             ui.imageMask.fillAmount = remainingTime / totalTime;
-            ui.text.color = Color.red;
+            ui.text.color = Color.gray;
         }
         else
         {
@@ -129,7 +129,8 @@ public class UIManager
 
         if (remainingTime > 0)
         {
-            ui.text.text = string.Format("{0:F1}s", remainingTime);
+            //ui.text.text = string.Format("{0}", Mathf.FloorToInt(remainingTime));
+            ui.text.text = " ";
         }
         else
         {
