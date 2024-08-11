@@ -48,6 +48,15 @@ public class Player1Skill0 : Skill
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
 
+    Material player1mat;
+    Color player1Color;
+
+    public Player1Skill0()
+    {
+        player1mat = GameManager.player1.obj.GetComponent<MeshRenderer>().material;
+        player1Color = player1mat.GetColor("_BaseColor");
+    }
+
     public void UpdateState()
     {
         if (state == 0) // 可使用
@@ -62,6 +71,24 @@ public class Player1Skill0 : Skill
         else if (state == 1) // 已触发
         {
             GameManager.uiManager.UpdatePlayerSkillUI(0, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
+
+            float ramainingTime = lastTriggeredTime + duration - GameManager.gameTime;
+            if (ramainingTime > 2.0f)
+            {
+                player1mat.SetColor("_EmissionColor", player1Color * 3.0f);
+            }
+            else
+            {
+                if (Mathf.FloorToInt(ramainingTime * 4.0f) % 2 == 1)
+                {
+                    player1mat.SetColor("_EmissionColor", player1Color * 1.5f);
+                }
+                else
+                {
+                    player1mat.SetColor("_EmissionColor", player1Color * 3.0f);
+                }
+            }
+
             if (GameManager.gameTime - lastTriggeredTime >= duration)
             {
                 state = 2;
@@ -70,6 +97,7 @@ public class Player1Skill0 : Skill
         else if (state == 2) // 冷却中
         {
             GameManager.uiManager.UpdatePlayerSkillUI(0, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
+            player1mat.SetColor("_EmissionColor", Color.black);
             if (GameManager.gameTime - lastTriggeredTime >= cd)
             {
                 state = 0;
@@ -90,7 +118,7 @@ public class Player1Skill0 : Skill
 
 public class Player1Skill1 : Skill
 {
-    public float cd = 5.0f;
+    public float cd = 8.0f;
     public float duration = 3.0f;
 
     public Vector3 aimingPointPosition;
@@ -138,6 +166,8 @@ public class Player1Skill1 : Skill
         }
         if (state == 2) // 执行中
         {
+            GameManager.player1.weapon.shootIntervalCoeff = 0.5f;
+            GameManager.player2.weapon.shootIntervalCoeff = 0.5f;
             GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime > duration)
             {
@@ -145,8 +175,10 @@ public class Player1Skill1 : Skill
                 state = 3;
             }
         }
-        if (state == 3)
+        if (state == 3) // 冷却中
         {
+            GameManager.player1.weapon.shootIntervalCoeff = 1.0f;
+            GameManager.player2.weapon.shootIntervalCoeff = 1.0f;
             GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime > cd)
             {
@@ -199,8 +231,8 @@ public class Player2Skill0 : Skill
         {
             GameManager.uiManager.UpdatePlayerSkillUI(1, 0, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
 
-            GameManager.player2.maxSpeed = GameManager.player2.initialMaxSpeed * 2.5f;
-            GameManager.player2.maxAcceleration = GameManager.player2.initialMaxAcceleration * 2.0f;
+            GameManager.player2.maxSpeed = GameManager.player2.initialMaxSpeed * 3.5f;
+            GameManager.player2.maxAcceleration = GameManager.player2.initialMaxAcceleration * 10.0f;
 
             float ramainingTime = lastTriggeredTime + duration - GameManager.gameTime;
             if (ramainingTime > 2.0f)

@@ -22,11 +22,13 @@ public class ComputeCenter
         public int3 hitImpulse;
         public float size;
         public uint hittable;
-        public float tmp1;
         public int hitByEnemy;
+        public Vector3 dir;
+        public float tmp1;
+        public float tmp2;
         public float tmp3;
     }
-    const int playerDatumSize = 48;
+    const int playerDatumSize = 64;
 
     public struct PlayerSkillDatum
     {
@@ -476,7 +478,7 @@ public class ComputeCenter
         using (new GUtils.PFL("SwapBulletDataBuffer")) { SwapAndResetDataBuffer(); }
 
         using (new GUtils.PFL("SkillTransferBulletType")) { SkillTransferBulletType(); }
-        using (new GUtils.PFL("SkillTransferBulletType")) { SkillGetAvailablePosition(); }
+        using (new GUtils.PFL("SkillGetAvailablePosition")) { SkillGetAvailablePosition(); }
 
         using (new GUtils.PFL("UpdateGlobalBufferForRendering")) { UpdateGlobalBufferForRendering(); }
         using (new GUtils.PFL("DrawPlayerBullet")) { DrawPlayerBullet(); }
@@ -783,6 +785,7 @@ public class ComputeCenter
             size = 1.0f,
             hittable = GameManager.player1.hittable ? (uint)1 : 0,
             hitByEnemy = 0,
+            dir = GameManager.player1.body.velocity.normalized,
         };
         playerData[1] = new PlayerDatum
         {
@@ -791,7 +794,8 @@ public class ComputeCenter
             hitImpulse = new int3(0, 0, 0),
             size = 1.0f,
             hittable = GameManager.player2.hittable ? (uint)1 : 0,
-            hitByEnemy = 0
+            hitByEnemy = 0,
+            dir = GameManager.player2.body.velocity.normalized,
         };
         playerDataCB.SetData(playerData);
     }

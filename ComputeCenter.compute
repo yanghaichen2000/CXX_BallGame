@@ -67,8 +67,10 @@ struct PlayerDatum
     int3 hitImpulse;
     float size;
     uint hittable;
-    float tmp1;
     int hitByEnemy;
+    float3 dir;
+    float tmp1;
+    float tmp2;
     float tmp3;
 };
 
@@ -665,15 +667,24 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                 {
                     if (playerSkillData[0].player2Skill0 == 1)
                     {
+                        if (gameTime - enemy.lastHitByPlayer2Skill0Time >= player2Skill0TMax)
+                            enemy.lastHitByPlayer2Skill0Time = gameTime;
                         InterlockedAdd(playerSkillData[0].player2Skill0HitEnemy, 1);
                         float3 dir = normalize(relativePos);
                         enemy.velocity = float3(0.0f, 0.0f, 0.0f);
                         enemy.pos = player.pos - dir * minDistance;
                         float3 dV = -dir * 2.0f * enemy.m;
+                        
+                        // extra normal impulse
+                        float3 playerVelocityNormal = normalize(float3(player.dir.z, 0.0f, -player.dir.x));
+                        if (dot(playerVelocityNormal, -dir) > 0.0f)
+                            dV += playerVelocityNormal * 1.5f * enemy.m;
+                        else
+                            dV -= playerVelocityNormal * 1.5f * enemy.m;
+                        
                         dV.y = 0.0f;
                         enemy.hitImpulse += 10000.0f * dV;
-                        if (gameTime - enemy.lastHitByPlayer2Skill0Time >= player2Skill0TMax)
-                            enemy.lastHitByPlayer2Skill0Time = gameTime;
+                        
                         sphereEnemyData[id.x] = enemy;
                     }
                     else if (player.hittable == 1)

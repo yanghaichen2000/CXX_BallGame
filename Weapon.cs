@@ -133,6 +133,7 @@ public class Weapon
     public int playerIndex;
     PlayerWeaponDatum datum;
 
+    public float shootIntervalCoeff = 1.0f;
     public float lastShootTime;
     public Vector3 lastShootPos = new Vector3(0.0f, 0.0f, 0.0f);
     public Vector3 lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
@@ -165,8 +166,9 @@ public class Weapon
     public void Shoot(Vector3 pos, Vector3 dir)
     {
         float currentShootTime = GameManager.gameTime;
-        int currentBulletIndex = (int)Mathf.Floor(currentShootTime / datum.shootInterval);
-        int lastBulletIndex = (int)Mathf.Floor(lastShootTime / datum.shootInterval);
+        float currentShootInterval = datum.shootInterval * shootIntervalCoeff;
+        int currentBulletIndex = (int)Mathf.Floor(currentShootTime / currentShootInterval);
+        int lastBulletIndex = (int)Mathf.Floor(lastShootTime / currentShootInterval);
 
         if (currentBulletIndex != lastBulletIndex) 
         {
@@ -176,7 +178,7 @@ public class Weapon
 
             for (int bulletIndex = lastBulletIndex + 1; bulletIndex <= currentBulletIndex; bulletIndex++)
             {
-                float shootTime = datum.shootInterval * bulletIndex;
+                float shootTime = currentShootInterval * bulletIndex;
                 float lerpCoeff = (shootTime - lastShootTime) / (currentShootTime - lastShootTime);
                 float randomAngleBias = UnityEngine.Random.Range(-datum.angleBiasRange, datum.angleBiasRange);
                 
