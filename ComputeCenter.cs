@@ -590,12 +590,20 @@ public class ComputeCenter
 
     public void SetGlobalConstant()
     {
-        // common
+        // gravity
         computeCenterCS.SetFloat("gravity", 9.8f);
+
+        // plane
         computeCenterCS.SetFloat("planeXMin", -20.0f);
         computeCenterCS.SetFloat("planeXMax", 20.0f);
         computeCenterCS.SetFloat("planeZMin", -15.0f);
         computeCenterCS.SetFloat("planeZMax", 15.0f);
+
+        // screen
+        computeCenterCS.SetFloat("screenWidth", (float)Screen.width);
+        computeCenterCS.SetFloat("screenHeight", (float)Screen.height);
+        Shader.SetGlobalFloat("screenWidth", (float)Screen.width);
+        Shader.SetGlobalFloat("screenHeight", (float)Screen.height);
 
         // enemy movement
         computeCenterCS.SetFloat("enemySpacingAcceleration", 0.2f);
@@ -964,9 +972,6 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "drawDeployingSphereEnemyArgs", drawDeployingSphereEnemyArgsCB);
         computeCenterCS.Dispatch(kernel, 1, 1, 1);
 
-        drawDeployingSphereEnemyArgsCB.GetData(drawDeployingSphereEnemyArgs);
-        Debug.Log(drawDeployingSphereEnemyArgs[1]);
-
         Shader.SetGlobalBuffer("sphereEnemyData", sourceSphereEnemyDataCB);
         Shader.SetGlobalBuffer("deployingSphereEnemyData", deployingSphereEnemyDataCB);
 
@@ -1140,7 +1145,7 @@ public class ComputeCenter
             maxSpeed = maxSpeed,
             baseColor = _baseColor,
             lastHitByPlayer2Skill0Time = -99999.0f,
-            createdTime = GameManager.gameTime + 1.0f,
+            createdTime = GameManager.gameTime + 3.0f,
         };
         createSphereEnemyRequestNum++;
     }

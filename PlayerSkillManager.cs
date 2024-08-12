@@ -167,17 +167,21 @@ public class Player1Skill1 : Skill
         {
             GameManager.player1.weapon.shootIntervalCoeff = 0.5f;
             GameManager.player2.weapon.shootIntervalCoeff = 0.5f;
+            GameManager.player1.weapon.bulletSpeedCoeff = 2.5f;
+            GameManager.player2.weapon.bulletSpeedCoeff = 1.25f;
             GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime > duration)
             {
+                GameManager.player1.weapon.shootIntervalCoeff = 1.0f;
+                GameManager.player2.weapon.shootIntervalCoeff = 1.0f;
+                GameManager.player1.weapon.bulletSpeedCoeff = 1.0f;
+                GameManager.player2.weapon.bulletSpeedCoeff = 1.0f;
                 GameManager.uiManager.RemoveAimingPoint();
                 state = 3;
             }
         }
         if (state == 3) // ÀäÈ´ÖÐ
         {
-            GameManager.player1.weapon.shootIntervalCoeff = 1.0f;
-            GameManager.player2.weapon.shootIntervalCoeff = 1.0f;
             GameManager.uiManager.UpdatePlayerSkillUI(0, 1, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
             if (GameManager.gameTime - lastTriggeredTime > cd)
             {

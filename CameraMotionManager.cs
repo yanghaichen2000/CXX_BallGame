@@ -86,10 +86,10 @@ public class CameraMotionManager
             float angle = UnityEngine.Random.Range(0.0f, Mathf.PI * 2.0f);
             float x = Mathf.Cos(angle);
             float y = Mathf.Sin(angle);
-            currentDisplacementSpeed.x = 0.3f * x * force;
-            currentDisplacement.x = 0.05f * x * force;
-            currentDisplacementSpeed.y = 0.3f * y * force;
-            currentDisplacement.y = 0.05f * y * force;
+            currentDisplacementSpeed.x = 0.4f * x * force;
+            currentDisplacement.x = 0.1f * x * force;
+            currentDisplacementSpeed.y = 0.4f * y * force;
+            currentDisplacement.y = 0.1f * y * force;
         }
     }
 }

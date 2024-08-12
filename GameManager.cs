@@ -28,7 +28,6 @@ public class GameManager : MonoBehaviour
     float averageFPS;
 
     public static ComputeCenter computeCenter;
-    public static float bulletLifeSpan = 12.0f;
 
     public static Player player1;
     public static Player player2;
@@ -47,13 +46,11 @@ public class GameManager : MonoBehaviour
 
     public ComputeShader computeCenterCS;
 
-    public static float enemyAndBulletIntersectionBias = 0.05f;
-    public static float enemyAndEnemyIntersectionBias = 0.5f;
-    public static Vector3 bulletPoolRecyclePosition = new Vector3(-15.0f, 10.0f, 5.0f);
-    public static Vector3 enemyPoolRecyclePosition = new Vector3(15.0f, 10.0f, 5.0f);
 
+    // const
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
 
+    // inspector
     public Color player1BulletColor;
     public Color player2BulletColor;
     public Color enemyColorWeak;
@@ -61,6 +58,7 @@ public class GameManager : MonoBehaviour
     public Color enemyColorStrong;
     public Color enemyColorSuper;
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
+
 
     void Awake()
     {

@@ -361,7 +361,7 @@ void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
             float3 bulletVelocity = bullet.dir * bullet.speed;
             float3 aimingPointPos = playerSkillData[0].player1Skill1AimingPointPosition;
             float3 aimingPointRelativePos = aimingPointPos - bullet.pos;
-            bullet.dir += normalize(aimingPointRelativePos) * 0.7f * bullet.speed * deltaTime;
+            bullet.dir += normalize(aimingPointRelativePos) * 0.5f * bullet.speed * deltaTime;
             bullet.dir = normalize(bullet.dir);
             bullet.dir.y = 0.0f;
             if (length(aimingPointRelativePos) < 0.2f)

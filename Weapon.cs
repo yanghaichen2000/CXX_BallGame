@@ -134,6 +134,7 @@ public class Weapon
     PlayerWeaponDatum datum;
 
     public float shootIntervalCoeff = 1.0f;
+    public float bulletSpeedCoeff = 1.0f;
     public float lastShootTime;
     public Vector3 lastShootPos = new Vector3(0.0f, 0.0f, 0.0f);
     public Vector3 lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
@@ -191,7 +192,7 @@ public class Weapon
                     Vector3 shootPosOfThisBullet = lerpCoeff * pos + (1.0f - lerpCoeff) * lastShootPos;
                     Vector3 currentPosOfThisBullet = shootPosOfThisBullet + (currentShootTime - shootTime) * datum.speed * dirOfThisBullet;
                     float virtualY = UnityEngine.Random.Range(datum.virtualYBase - datum.virtualYRange, datum.virtualYBase + datum.virtualYRange);
-                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, playerIndex, datum.renderingBiasY, packedColor, affectedByPlayer1Skill1);
+                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed * bulletSpeedCoeff, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, playerIndex, datum.renderingBiasY, packedColor, affectedByPlayer1Skill1);
                 }
             }
 
