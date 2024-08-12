@@ -149,13 +149,13 @@ public class ComputeCenter
     const float bulletGridSize = 0.2f;
     const float bulletGridSizeInv = 1.0f / bulletGridSize;
 
-    const int maxPlayerBulletNum = 131072;
-    const int maxEnemyBulletNum = 131072;
-    const int maxNewBulletNum = 2048;
-    const int maxEnemyNum = 1024;
-    const int maxDeployingEnemyNum = 512; // 单线程组运行，扩容时注意
-    const int maxNewEnemyNum = 512;
-    const int maxEnemyWeaponNum = 8;
+    public const int maxPlayerBulletNum = 131072;
+    public const int maxEnemyBulletNum = 131072;
+    public const int maxNewBulletNum = 2048;
+    public const int maxEnemyNum = 1024;
+    public const int maxDeployingEnemyNum = 512; // 单线程组运行，扩容时注意
+    public const int maxNewEnemyNum = 512;
+    public const int maxEnemyWeaponNum = 8;
 
     PlayerDatum[] playerData;
     ComputeBuffer playerDataCB;
@@ -204,10 +204,14 @@ public class ComputeCenter
     ComputeBuffer targetSphereEnemyNumCB;
 
     EnemyDatum[] deployingSphereEnemyData;
-    ComputeBuffer deployingSphereEnemyDataCB;
+    ComputeBuffer[] deployingSphereEnemyDataCB;
+    ComputeBuffer sourceDeployingSphereEnemyDataCB;
+    ComputeBuffer targetDeployingSphereEnemyDataCB;
 
     int[] deployingSphereEnemyNum;
-    ComputeBuffer deployingSphereEnemyNumCB;
+    ComputeBuffer[] deployingSphereEnemyNumCB;
+    ComputeBuffer sourceDeployingSphereEnemyNumCB;
+    ComputeBuffer targetDeployingSphereEnemyNumCB;
 
     EnemyDatum[] cubeEnemyData;
     ComputeBuffer cubeEnemyDataCB;
@@ -341,10 +345,18 @@ public class ComputeCenter
         targetSphereEnemyNumCB = sphereEnemyNumCB[1];
 
         deployingSphereEnemyData = new EnemyDatum[maxDeployingEnemyNum];
-        deployingSphereEnemyDataCB = new ComputeBuffer(maxDeployingEnemyNum, enemyDatumSize);
+        deployingSphereEnemyDataCB = new ComputeBuffer[2];
+        deployingSphereEnemyDataCB[0] = new ComputeBuffer(maxDeployingEnemyNum, enemyDatumSize);
+        deployingSphereEnemyDataCB[1] = new ComputeBuffer(maxDeployingEnemyNum, enemyDatumSize);
+        sourceDeployingSphereEnemyDataCB = deployingSphereEnemyDataCB[0];
+        targetDeployingSphereEnemyDataCB = deployingSphereEnemyDataCB[1];
 
         deployingSphereEnemyNum = new int[1];
-        deployingSphereEnemyNumCB = new ComputeBuffer(1, sizeof(int));
+        deployingSphereEnemyNumCB = new ComputeBuffer[2];
+        deployingSphereEnemyNumCB[0] = new ComputeBuffer(1, sizeof(int));
+        deployingSphereEnemyNumCB[1] = new ComputeBuffer(1, sizeof(int));
+        sourceDeployingSphereEnemyNumCB = deployingSphereEnemyNumCB[0];
+        targetDeployingSphereEnemyNumCB = deployingSphereEnemyNumCB[1];
 
         createSphereEnemyRequestData = new EnemyDatum[maxNewEnemyNum];
         createSphereEnemyRequestDataCB = new ComputeBuffer(maxNewEnemyNum, enemyDatumSize);
@@ -474,7 +486,8 @@ public class ComputeCenter
         cubeEnemyNumCB.SetData(cubeEnemyNum);
 
         deployingSphereEnemyNum[0] = 0;
-        deployingSphereEnemyNumCB.SetData(deployingSphereEnemyNum);
+        deployingSphereEnemyNumCB[0].SetData(deployingSphereEnemyNum);
+        deployingSphereEnemyNumCB[1].SetData(deployingSphereEnemyNum);
 
         InitializeEnemyWeapon();
     }
@@ -655,7 +668,6 @@ public class ComputeCenter
             Ray ray = camera.ScreenPointToRay(screenCorners[i]);
             plane.Raycast(ray, out float enter);
             intersectionList[i] = ray.GetPoint(enter);
-            Debug.Log(intersectionList[i]);
         }
 
         float zMin = intersectionList[0].z;
@@ -967,13 +979,13 @@ public class ComputeCenter
     {
         int kernel = updateDrawEnemyArgsKernel;
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", deployingSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
         computeCenterCS.SetBuffer(kernel, "drawDeployingSphereEnemyArgs", drawDeployingSphereEnemyArgsCB);
         computeCenterCS.Dispatch(kernel, 1, 1, 1);
 
         Shader.SetGlobalBuffer("sphereEnemyData", sourceSphereEnemyDataCB);
-        Shader.SetGlobalBuffer("deployingSphereEnemyData", deployingSphereEnemyDataCB);
+        Shader.SetGlobalBuffer("deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
 
         Graphics.DrawMeshInstancedIndirect(
             sphereEnemyMesh,
@@ -1125,7 +1137,7 @@ public class ComputeCenter
         playerShootRequestNum++;
     }
 
-    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _maxHP, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m, float _acceleration, float _frictionalDeceleration, float maxSpeed, uint _baseColor)
+    public void AppendCreateSphereEnemyRequest(Vector3 _pos, Vector3 _velocity, int _maxHP, int _hp, float _size, float _radius, int3 _hitImpulse, int _weapon, float _lastShootTime, float _originalM, float _m, float _acceleration, float _frictionalDeceleration, float maxSpeed, uint _baseColor, float extraDelay)
     {
         createSphereEnemyRequestData[createSphereEnemyRequestNum] = new EnemyDatum()
         {
@@ -1145,7 +1157,7 @@ public class ComputeCenter
             maxSpeed = maxSpeed,
             baseColor = _baseColor,
             lastHitByPlayer2Skill0Time = -99999.0f,
-            createdTime = GameManager.gameTime + 3.0f,
+            createdTime = GameManager.gameTime + 3.0f + extraDelay,
         };
         createSphereEnemyRequestNum++;
     }
@@ -1173,8 +1185,8 @@ public class ComputeCenter
             createSphereEnemyRequestDataCB.SetData(createSphereEnemyRequestData);
 
             int kernel = createSphereEnemyKernel;
-            computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyData", deployingSphereEnemyDataCB);
-            computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", deployingSphereEnemyNumCB);
+            computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
+            computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
             computeCenterCS.SetBuffer(kernel, "createSphereEnemyRequestData", createSphereEnemyRequestDataCB);
             computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(createSphereEnemyRequestNum, 128), 1, 1);
         }
@@ -1183,11 +1195,23 @@ public class ComputeCenter
     public void UpdateDeployingEnemy()
     {
         int kernel = updateDeployingEnemyKernel;
-        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyData", deployingSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", deployingSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "culledDeployingSphereEnemyData", targetDeployingSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "culledDeployingSphereEnemyNum", targetDeployingSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxDeployingEnemyNum, 512), 1, 1);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxDeployingEnemyNum, 128), 1, 1);
+
+        ComputeBuffer tmp = sourceDeployingSphereEnemyDataCB;
+        sourceDeployingSphereEnemyDataCB = targetDeployingSphereEnemyDataCB;
+        targetDeployingSphereEnemyDataCB = tmp;
+        tmp = sourceDeployingSphereEnemyNumCB;
+        sourceDeployingSphereEnemyNumCB = targetDeployingSphereEnemyNumCB;
+        targetDeployingSphereEnemyNumCB = tmp;
+
+        deployingSphereEnemyNum[0] = 0;
+        targetDeployingSphereEnemyNumCB.SetData(deployingSphereEnemyNum);
     }
 
     public void ClearPlayerShootRequest()

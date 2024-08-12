@@ -187,7 +187,9 @@ RWStructuredBuffer<int> sphereEnemyNum;
 RWStructuredBuffer<int> culledSphereEnemyNum;
 
 RWStructuredBuffer<EnemyDatum> deployingSphereEnemyData;
+RWStructuredBuffer<EnemyDatum> culledDeployingSphereEnemyData;
 RWStructuredBuffer<int> deployingSphereEnemyNum;
+RWStructuredBuffer<int> culledDeployingSphereEnemyNum;
 
 RWStructuredBuffer<EnemyDatum> createSphereEnemyRequestData;
 
@@ -311,41 +313,24 @@ void CreateSphereEnemy(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(512, 1, 1)]
+[numthreads(128, 1, 1)]
 void UpdateDeployingEnemy(uint3 id : SV_DispatchThreadID)
 {
-    bool shouldDeploy = false;
-    bool shouldWork = id.x < deployingSphereEnemyNum[0];
-    EnemyDatum enemy;
-    if (shouldWork)
+    if (id.x < deployingSphereEnemyNum[0])
     {
-        enemy = deployingSphereEnemyData[id.x];
-        if (enemy.createdTime <= gameTime)
-            shouldDeploy = true;
-    }
-     
-    GroupMemoryBarrierWithGroupSync();
-    
-    if (id.x == 0) 
-        deployingSphereEnemyNum[0] = 0;
-    
-    GroupMemoryBarrierWithGroupSync();
-    
-    if (shouldWork)
-    {
+        EnemyDatum enemy = deployingSphereEnemyData[id.x];
         int index;
-        if (shouldDeploy)
+        if (enemy.createdTime > gameTime)
+        {
+            InterlockedAdd(culledDeployingSphereEnemyNum[0], 1, index);
+            culledDeployingSphereEnemyData[index] = enemy;
+        }
+        else
         {
             InterlockedAdd(sphereEnemyNum[0], 1, index);
             sphereEnemyData[index] = enemy;
         }
-        else
-        {
-            InterlockedAdd(deployingSphereEnemyNum[0], 1, index);
-            deployingSphereEnemyData[index] = enemy;
-        }
     }
-
 }
 
 
@@ -361,7 +346,7 @@ void UpdatePlayerBulletPosition(uint3 id : SV_DispatchThreadID)
             float3 bulletVelocity = bullet.dir * bullet.speed;
             float3 aimingPointPos = playerSkillData[0].player1Skill1AimingPointPosition;
             float3 aimingPointRelativePos = aimingPointPos - bullet.pos;
-            bullet.dir += normalize(aimingPointRelativePos) * 0.5f * bullet.speed * deltaTime;
+            bullet.dir += normalize(aimingPointRelativePos) * 0.7f * bullet.speed * deltaTime;
             bullet.dir = normalize(bullet.dir);
             bullet.dir.y = 0.0f;
             if (length(aimingPointRelativePos) < 0.2f)
@@ -501,6 +486,7 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
                 bullet.dir.y = 0.0f;
                 bullet.dir = normalize(bullet.dir);
                 bullet.bounces -= 1;
+                SetBit(bullet.packedInfo, 1, 0);
                 playerBulletData[id.x] = bullet;
                 return;
             }

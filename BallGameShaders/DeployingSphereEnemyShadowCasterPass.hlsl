@@ -81,11 +81,19 @@ half4 ShadowPassFragment(Varyings input) : SV_TARGET
     UNITY_SETUP_INSTANCE_ID(input);
 
     EnemyDatum enemy = deployingSphereEnemyData[input.customInstanceId];
-    float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
-    float dither = GetDither8x8(uv);
-    float desiredAlpha = lerp(1.0f, 0.0f, (enemy.createdTime - gameTime) * 0.33333f);
-    if (dither > desiredAlpha) discard;
     
+    if (enemy.createdTime - gameTime >= 3.0f)
+    {
+        discard;
+    }
+    else
+    {
+        float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
+        float dither = GetDither8x8(uv);
+        float desiredAlpha = lerp(1.0f, 0.0f, (enemy.createdTime - gameTime) * 0.33333f);
+        if (dither > desiredAlpha) discard;
+    }
+
     #if defined(_ALPHATEST_ON)
         Alpha(SampleAlbedoAlpha(input.uv, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap)).a, _BaseColor, _Cutoff);
     #endif

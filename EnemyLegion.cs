@@ -148,11 +148,12 @@ public class EnemyLegion
             2.0f,
             2.0f,
             1.0f,
-            GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorWeak)
+            GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorWeak),
+            0.0f
             );
     }
 
-    public void SpawnSphereEnemy(float x, float z, EnemyProperty prop)
+    public void SpawnSphereEnemy(float x, float z, EnemyProperty prop, float extraDelay = 0.0f)
     {
         GameManager.computeCenter.AppendCreateSphereEnemyRequest(
             new Vector3(x, 0.5f, z),
@@ -169,13 +170,29 @@ public class EnemyLegion
             prop.acceleration,
             prop.frictionalDeceleration,
             prop.maxSpeed,
-            prop.color
+            prop.color,
+            extraDelay
             );
     }
 
-    public void SpawnSphereEnemy(float x, float z, int propIndex)
+    public void SpawnSphereEnemy(float x, float z, int propIndex, float extraDelay = 0.0f)
     {
-        SpawnSphereEnemy(x, z, GameManager.allEnemyProperty.enemyPropertyData[propIndex]);
+        SpawnSphereEnemy(x, z, GameManager.allEnemyProperty.enemyPropertyData[propIndex], extraDelay);
+    }
+
+    public void SpawnSphereEnemy(float xStart, float zStart, int xLength, int zLength, int propIndex, float stepSizeX = 1.6f, float stepSizeZ = 1.6f, float extraDelay = 0.0f)
+    {
+        Debug.Assert(xLength * zLength <= ComputeCenter.maxDeployingEnemyNum);
+        for (int i = 0; i < xLength; i++)
+        {
+            for (int j = 0; j < zLength; j++)
+            {
+                float x = xStart + i * stepSizeX;
+                float z = zStart + j * stepSizeZ;
+                SpawnSphereEnemy(x, z, GameManager.allEnemyProperty.enemyPropertyData[propIndex], extraDelay);
+            }
+        }
+        
     }
 
     public void CreateSpawnEnemyRequest(int num, EnemyProperty prop)
