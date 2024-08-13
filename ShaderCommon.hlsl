@@ -51,11 +51,35 @@ struct EnemyDatum
     float tmp;
 };
 
+#define BULLET_GRID_CAPACITY 28
+struct BulletGridDatum
+{
+    int size;
+    float tmp1;
+    float tmp2;
+    float tmp3;
+    int bulletIndexList[BULLET_GRID_CAPACITY];
+};
+
+struct BulletRenderingGridDatum
+{
+    int size;
+    float3 pos[4];
+    float3 color[4];
+};
+
 StructuredBuffer<EnemyDatum> sphereEnemyData;
 StructuredBuffer<EnemyDatum> deployingSphereEnemyData;
 
 StructuredBuffer<BulletDatum> playerBulletData;
 StructuredBuffer<BulletDatum> enemyBulletData;
+
+StructuredBuffer<BulletGridDatum> playerBulletGridData;
+StructuredBuffer<BulletGridDatum> enemyBulletGridData;
+
+StructuredBuffer<BulletRenderingGridDatum> bulletRenderingGridData1x1;
+StructuredBuffer<BulletRenderingGridDatum> bulletRenderingGridData2x2;
+StructuredBuffer<BulletRenderingGridDatum> bulletRenderingGridData4x4;
 
 StructuredBuffer<PlayerSkillDatum> playerSkillData;
 
@@ -77,6 +101,31 @@ float player2Skill0V0;
 float screenWidth;
 float screenHeight;
 
+int bulletGridLengthX;
+int bulletGridLengthZ;
+float3 bulletGridBottomLeftPos;
+float bulletGridSize;
+float bulletGridSizeInv;
+
+int GetBulletGridIndexFromPos(float3 pos)
+{
+    int3 xyz = floor((pos - bulletGridBottomLeftPos + 0.00001f) * bulletGridSizeInv);
+    xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
+    return xyz.z * bulletGridLengthX + xyz.x;
+}
+
+void GetBulletGridXZFromPos(float3 pos, inout int x, inout int z)
+{
+    int3 xyz = floor((pos - bulletGridBottomLeftPos + 0.00001f) * bulletGridSizeInv);
+    xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
+    x = xyz.x;
+    z = xyz.z;
+}
+
+int GetBulletGridIndexFromXZ(int x, int z)
+{
+    return z * bulletGridLengthX + x;
+}
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
@@ -97,6 +146,13 @@ float4 GetPlayerBulletVertexPositionCS(float3 positionOS, uint instanceID)
 {
     BulletDatum datum = playerBulletData[instanceID];
     float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
+    return TransformWorldToHClip(positionWS);
+}
+
+float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
+{
+    EnemyDatum datum = sphereEnemyData[instanceID];
+    float3 positionWS = positionOS * datum.size + datum.pos;
     return TransformWorldToHClip(positionWS);
 }
 

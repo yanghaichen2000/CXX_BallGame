@@ -13,14 +13,14 @@ public class AllLevelPlayerData
 
     public AllLevelPlayerData()
     {
-        levelExpList = new int[18] { 2, 5, 10, 20, 35, 60, 100, 150, 210, 300, 420, 560, 700, 900, 1180, 1500, 1900, 2400};
+        levelExpList = new int[20] { 2, 5, 9, 14, 25, 50, 85, 140, 200, 280, 400, 540, 680, 890, 1150, 1450, 1800, 2200, 2700, 3300};
         InitializePlayer1WeaponData();
         InitializePlayer2WeaponData();
     }
 
     public void InitializePlayer1WeaponData()
     {
-        player1WeaponData = new PlayerWeaponDatum[19];
+        player1WeaponData = new PlayerWeaponDatum[21];
 
         player1WeaponData[0] = new PlayerWeaponDatum()
         {
@@ -67,16 +67,17 @@ public class AllLevelPlayerData
         player1WeaponData[7].speed = 9.5f;
 
         player1WeaponData[8] = player1WeaponData[7];
-        player1WeaponData[8].extraBulletsPerSide = 14;
+        player1WeaponData[8].extraBulletsPerSide = 16;
         player1WeaponData[8].angle = 3.0f;
 
         player1WeaponData[9] = player1WeaponData[8];
-        player1WeaponData[9].shootInterval = 0.12f;
+        player1WeaponData[9].shootInterval = 0.10f;
         player1WeaponData[9].speed = 10.0f;
 
         player1WeaponData[10] = player1WeaponData[9];
-        player1WeaponData[10].extraBulletsPerSide = 25;
+        player1WeaponData[10].extraBulletsPerSide = 28;
         player1WeaponData[10].angle = 1.8f;
+        player1WeaponData[10].impulse = 0.3f;
 
         player1WeaponData[11] = player1WeaponData[10];
         player1WeaponData[11].shootInterval = 0.08f;
@@ -95,6 +96,7 @@ public class AllLevelPlayerData
         player1WeaponData[14].shootInterval = 0.065f;
         player1WeaponData[14].extraBulletsPerSide = 80;
         player1WeaponData[14].angle = 0.7f;
+        player1WeaponData[14].impulse = 0.2f;
 
         player1WeaponData[15] = player1WeaponData[14];
         player1WeaponData[15].extraBulletsPerSide = 100;
@@ -103,23 +105,36 @@ public class AllLevelPlayerData
 
         player1WeaponData[16] = player1WeaponData[15];
         player1WeaponData[16].extraBulletsPerSide = 120;
-        player1WeaponData[16].shootInterval = 0.055f;
+        player1WeaponData[16].shootInterval = 0.054f;
         player1WeaponData[16].angle = 0.5f;
 
         player1WeaponData[17] = player1WeaponData[16];
-        player1WeaponData[17].extraBulletsPerSide = 150;
-        player1WeaponData[17].shootInterval = 0.05f;
-        player1WeaponData[17].angle = 0.4f;
+        player1WeaponData[17].extraBulletsPerSide = 160;
+        player1WeaponData[17].shootInterval = 0.048f;
+        player1WeaponData[17].angle = 0.45f;
+        player1WeaponData[17].impulse = 0.1f;
 
         player1WeaponData[18] = player1WeaponData[17];
         player1WeaponData[18].extraBulletsPerSide = 200;
-        player1WeaponData[18].shootInterval = 0.045f;
-        player1WeaponData[18].angle = 0.3f;
+        player1WeaponData[18].shootInterval = 0.042f;
+        player1WeaponData[18].angle = 0.4f;
+        player1WeaponData[18].impulse = 0.13f;
+
+        player1WeaponData[19] = player1WeaponData[18];
+        player1WeaponData[19].extraBulletsPerSide = 240;
+        player1WeaponData[19].shootInterval = 0.038f;
+        player1WeaponData[19].angle = 0.35f;
+
+        player1WeaponData[20] = player1WeaponData[19];
+        player1WeaponData[20].extraBulletsPerSide = 300;
+        player1WeaponData[20].shootInterval = 0.034f;
+        player1WeaponData[20].angle = 0.34f;
+        player1WeaponData[20].impulse = 0.1f;
     }
 
     public void InitializePlayer2WeaponData()
     {
-        player2WeaponData = new PlayerWeaponDatum[19];
+        player2WeaponData = new PlayerWeaponDatum[21];
 
         player2WeaponData[0] = new PlayerWeaponDatum()
         {
@@ -176,6 +191,7 @@ public class AllLevelPlayerData
 
         player2WeaponData[9] = player2WeaponData[8];
         player2WeaponData[9].extraBulletsPerSide = 3;
+        player2WeaponData[9].shootInterval = 0.10f;
         player2WeaponData[9].angle = 1.5f;
         player2WeaponData[9].speed = 13.0f;
 
@@ -204,25 +220,35 @@ public class AllLevelPlayerData
         player2WeaponData[14].speed = 18.0f;
 
         player2WeaponData[15] = player2WeaponData[14];
-        player2WeaponData[15].shootInterval = 0.036f;
+        player2WeaponData[15].shootInterval = 0.04f;
         player2WeaponData[15].extraBulletsPerSide = 7;
         player2WeaponData[15].speed = 19.0f;
 
         player2WeaponData[16] = player2WeaponData[15];
-        player2WeaponData[16].shootInterval = 0.034f;
+        player2WeaponData[16].shootInterval = 0.037f;
         player2WeaponData[16].extraBulletsPerSide = 8;
         player2WeaponData[16].speed = 20.0f;
         player2WeaponData[16].impulse = 4.0f;
 
         player2WeaponData[17] = player2WeaponData[16];
-        player2WeaponData[17].shootInterval = 0.032f;
-        player2WeaponData[17].extraBulletsPerSide = 9;
+        player2WeaponData[17].shootInterval = 0.034f;
+        player2WeaponData[17].extraBulletsPerSide = 10;
         player2WeaponData[17].speed = 22.0f;
 
         player2WeaponData[18] = player2WeaponData[17];
-        player2WeaponData[18].shootInterval = 0.03f;
+        player2WeaponData[18].shootInterval = 0.01f;
+        player2WeaponData[18].extraBulletsPerSide = 12;
         player2WeaponData[18].speed = 24.0f;
         player2WeaponData[18].impulse = 4.5f;
+
+        player2WeaponData[19] = player2WeaponData[18];
+        player2WeaponData[19].shootInterval = 0.028f;
+        player2WeaponData[19].extraBulletsPerSide = 14;
+
+        player2WeaponData[20] = player2WeaponData[19];
+        player2WeaponData[20].shootInterval = 0.025f;
+        player2WeaponData[20].extraBulletsPerSide = 16;
+        player2WeaponData[20].impulse = 5.0f;
     }
 
     public Weapon GetWeapon(int player, int level)

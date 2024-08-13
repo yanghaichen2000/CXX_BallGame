@@ -89,7 +89,7 @@ public class PlayerWeaponDatumSample
         damage = 1,
         bounces = 2,
         lifeSpan = 12.0f,
-        impulse = 5.0f,
+        impulse = 20.0f,
         renderingBiasY = 0.1f,
     };
 
@@ -131,7 +131,7 @@ public class PlayerWeaponDatumSample
 public class Weapon
 {
     public int playerIndex;
-    PlayerWeaponDatum datum;
+    public PlayerWeaponDatum datum;
 
     public float shootIntervalCoeff = 1.0f;
     public float bulletSpeedCoeff = 1.0f;

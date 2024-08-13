@@ -24,7 +24,7 @@ public class GUtils
 
     public static int GetComputeGroupNum(int threadNum, int groupSize)
     {
-        return (threadNum + groupSize) / groupSize;
+        return (threadNum + groupSize - 1) / groupSize;
     }
 
     public class PFL : IDisposable

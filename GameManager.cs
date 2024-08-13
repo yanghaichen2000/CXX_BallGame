@@ -57,8 +57,11 @@ public class GameManager : MonoBehaviour
     public Color enemyColorMedium;
     public Color enemyColorStrong;
     public Color enemyColorSuper;
+    public Color enemyColorUltra;
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
 
+    // game
+    bool gameOver = false;
 
     void Awake()
     {
@@ -93,15 +96,51 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        UpdateTime();
+        if (!gameOver)
+        {
+            UpdateTime();
+            using (new GUtils.PFL("GameLevel.Update")) { level.Update(); }
+            using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
+            using (new GUtils.PFL("EnemyLegion.Update")) { enemyLegion.Update(); }
+            using (new GUtils.PFL("player1.Update")) { player1.Update(); }
+            using (new GUtils.PFL("player2.Update")) { player2.Update(); }
+            using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
+            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
 
-        using (new GUtils.PFL("GameLevel.Update")) { level.Update(); }
-        using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
-        using (new GUtils.PFL("EnemyLegion.Update")) { enemyLegion.Update(); }
-        using (new GUtils.PFL("player1.Update")) { player1.Update(); }
-        using (new GUtils.PFL("player2.Update")) { player2.Update(); }
-        using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
-        using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
+            if (Input.GetKeyDown(KeyCode.U))
+            {
+                level.nextWave = level.Wave17;
+                level.currentWave = 16;
+                player1.exp = 88888;
+                player2.exp = 88888;
+                player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
+                player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
+            }
+
+            if (player1.obj.transform.localPosition.y < -20.0f && player2.obj.transform.localPosition.y < -20.0f)
+            {
+                gameOver = true;
+                uiManager.text_gameOver.text = "YOU LOSE";
+                uiManager.text_gameOver.color = Color.red;
+            }
+            else if (level.currentWave == 19 && level.currentEnemyNum == 0 && gameTime > level.currentWaveStartTime + 45.0f)
+            {
+                gameOver = true;
+                uiManager.text_gameOver.text = "YOU WIN";
+                uiManager.text_gameOver.color = Color.green;
+            }
+        }
+        else
+        {
+            UpdateTime();
+            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
+        }
+
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
     }
 
     void FixedUpdate()

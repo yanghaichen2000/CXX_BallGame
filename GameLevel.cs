@@ -12,14 +12,17 @@ public class GameLevel
     public Func<int> nextWave;
 
     public int currentEnemyNum;
+    public float currentWaveStartTime;
+    public bool canAutoSkipThisWave;
 
     public void StartLevel()
     {
         levelStartTime = GameManager.gameTime;
         currentWave = 0;
+        canAutoSkipThisWave = false;
 
         nextWaveTime = GameManager.gameTime + 3.0f;
-        nextWave = Wave15;
+        nextWave = Wave1;
 
         GameManager.player1.weapon = GameManager.allLevelPlayerData.GetWeapon(0, 0);
         GameManager.player2.weapon = GameManager.allLevelPlayerData.GetWeapon(1, 0);
@@ -30,11 +33,18 @@ public class GameLevel
         if (GameManager.gameTime >= nextWaveTime && nextWave != null)
         {
             nextWave();
+            canAutoSkipThisWave = true;
+            currentWaveStartTime = GameManager.gameTime;
         }
 
         if (Input.GetKey(KeyCode.Space))
         {
             nextWaveTime = GameManager.gameTime + 0.25f;
+        }
+        else if (currentEnemyNum == 0 && canAutoSkipThisWave && GameManager.gameTime - currentWaveStartTime > 5.0f)
+        {
+            nextWaveTime = GameManager.gameTime + 2.0f;
+            canAutoSkipThisWave = false;
         }
 
         GameManager.uiManager.UpdateCurrentWave(currentWave);
@@ -223,8 +233,8 @@ public class GameLevel
 
     public int Wave13()
     {
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 11.0f, 20, 5, 6, 2.0f, 2.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -11.0f, 20, 5, 6, 2.0f, 2.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 10.0f, 20, 4, 6, 2.0f, 1.4f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -10.0f, 20, 4, 6, 2.0f, 1.4f);
 
         currentWave++;
         nextWaveTime = GameManager.gameTime + 40.0f;
@@ -234,8 +244,8 @@ public class GameLevel
 
     public int Wave14()
     {
-        GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, 9.0f, 21, 4, 7, 1.6f, 1.6f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, -13.8f, 21, 4, 7, 1.6f, 1.6f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, 9.0f, 21, 3, 7, 1.6f, 1.6f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, -13.8f, 21, 3, 7, 1.6f, 1.6f);
 
         currentWave++;
         nextWaveTime = GameManager.gameTime + 40.0f;
@@ -246,13 +256,109 @@ public class GameLevel
     public int Wave15()
     {
         GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 10, 10, 1, 1.4f, 1.4f, 0.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 14.0f, 10, 10, 3, 1.4f, -1.4f, 3.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, 14.0f, 10, 10, 5, -1.4f, -1.4f, 6.0f);
-        //GameManager.enemyLegion.SpawnSphereEnemy(19.0f, -14.0f, 10, 10, 7, -1.4f, 1.4f, 9.0f);
-        //GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 10, 10, 7, 1.4f, 1.4f, 9.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 14.0f, 10, 10, 3, 1.4f, -1.4f, 5.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, 14.0f, 10, 10, 5, -1.4f, -1.4f, 10.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, -14.0f, 10, 10, 7, -1.4f, 1.4f, 15.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 10, 10, 7, 1.4f, 1.4f, 20.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 14.0f, 10, 10, 7, 1.4f, -1.4f, 25.0f);
+
+        currentWave++;
+        nextWaveTime = GameManager.gameTime + 45.0f;
+        nextWave = Wave16;
+        return 0;
+    }
+
+    public int Wave16()
+    {
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 5.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 10.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 15.0f);
+
+        for (int i = 0; i < 3; i++)
+        {
+            GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, 13.0f, 19, 1, 7, 2.0f, 2.0f, 20.0f + i * 5.0f);
+            GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -13.0f, 19, 1, 7, 2.0f, 2.0f, 20.0f + i * 5.0f);
+            GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -11.0f, 1, 12, 7, 2.0f, 2.0f, 20.0f + i * 5.0f);
+            GameManager.enemyLegion.SpawnSphereEnemy(18.0f, -11.0f, 1, 12, 7, 2.0f, 2.0f, 20.0f + i * 5.0f);
+        }
+
+        currentWave++;
+        nextWaveTime = GameManager.gameTime + 45.0f;
+        nextWave = Wave17;
+        return 0;
+    }
+
+    public int Wave17()
+    {
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, 13.0f, 19, 1, 8, 2.0f, 2.0f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -13.0f, 19, 1, 8, 2.0f, 2.0f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -11.0f, 1, 12, 8, 2.0f, 2.0f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(18.0f, -11.0f, 1, 12, 8, 2.0f, 2.0f, 0.0f);
+
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, 13.0f, 19, 1, 7, 2.0f, 2.0f, 3.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -13.0f, 19, 1, 7, 2.0f, 2.0f, 3.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -11.0f, 1, 12, 7, 2.0f, 2.0f, 3.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(18.0f, -11.0f, 1, 12, 7, 2.0f, 2.0f, 3.0f);
+
+        GameManager.enemyLegion.SpawnSphereEnemy(-14.0f, -14.0f, 21, 2, 5, 1.4f, 1.4f, 8.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-14.0f, 14.0f, 21, 2, 5, 1.4f, -1.4f, 8.0f);
+
+        GameManager.enemyLegion.SpawnSphereEnemy(-14.0f, -14.0f, 21, 2, 6, 1.4f, 1.4f, 13.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-14.0f, 14.0f, 21, 2, 6, 1.4f, -1.4f, 13.0f);
+
+        GameManager.enemyLegion.SpawnSphereEnemy(-14.0f, -14.0f, 21, 2, 8, 1.4f, 1.4f, 18.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-14.0f, 14.0f, 21, 2, 8, 1.4f, -1.4f, 18.0f);
+
+        currentWave++;
+        nextWaveTime = GameManager.gameTime + 45.0f;
+        nextWave = Wave18;
+        return 0;
+    }
+
+    public int Wave18()
+    {
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 10, 10, 8, 1.2f, 1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 14.0f, 10, 10, 8, 1.2f, -1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, 14.0f, 10, 10, 8, -1.2f, -1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, -14.0f, 10, 10, 8, -1.2f, 1.2f, 0.0f);
+
+        for (int i = 0; i < 5; i++)
+        {
+            GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, 13.0f, 19, 1, 6, 2.0f, 2.0f, 10.0f + i * 6.0f);
+            GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -13.0f, 19, 1, 5, 2.0f, 2.0f, 10.0f + i * 6.0f);
+            GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -11.0f, 1, 12, 5, 2.0f, 2.0f, 10.0f + i * 6.0f);
+            GameManager.enemyLegion.SpawnSphereEnemy(18.0f, -11.0f, 1, 12, 6, 2.0f, 2.0f, 10.0f + i * 6.0f);
+        }
+
+        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 8, 2.0f, 2.0f, 13.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 5, 2.0f, 2.0f, 19.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 7, 2.0f, 2.0f, 25.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 4, 2.0f, 2.0f, 31.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 8, 2.0f, 2.0f, 37.0f);
 
         currentWave++;
         nextWaveTime = GameManager.gameTime + 50.0f;
+        nextWave = Wave19;
+        return 0;
+    }
+
+    public int Wave19()
+    {
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 1, 3.0f, 3.0f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 2, 3.0f, 3.0f, 3.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 3, 3.0f, 3.0f, 6.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 4, 3.0f, 3.0f, 9.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 5, 3.0f, 3.0f, 12.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 6, 3.0f, 3.0f, 15.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 20.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 25.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 30.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 36.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 42.0f);
+
+        currentWave++;
+        nextWaveTime = GameManager.gameTime + 60.0f;
         nextWave = null;
         return 0;
     }

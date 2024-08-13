@@ -158,7 +158,7 @@ VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instance
 // Used in Standard (Physically Based) shader
 Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
 {
-    Varyings output = (Varyings)0;
+    Varyings output = (Varyings) 0;
 
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_TRANSFER_INSTANCE_ID(input, output);
@@ -176,9 +176,9 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
 
     half fogFactor = 0;
-    #if !defined(_FOG_FRAGMENT)
-        fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
-    #endif
+#if !defined(_FOG_FRAGMENT)
+    fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
+#endif
 
     output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
 
@@ -222,6 +222,14 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     return output;
 }
 
+/*
+struct InputData 
+{
+    float3 positionWS;
+    float3 normalWS;
+}
+*/
+
 // Used in Standard (Physically Based) shader
 void LitPassFragment(
     Varyings input
@@ -259,25 +267,112 @@ void LitPassFragment(
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
 
-    half2 uv = input.uv;
-    half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
     
     EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
+    
+    // surface data
     float3 enemyColor = PackeduintColorToFloat3(enemy.baseColor);
     float enemyHP = max(enemy.hp, 0.0f);
     float enemyCondition = 1.0f - enemyHP / enemy.maxHP;
     enemyCondition = pow(enemyCondition, 2.0f);
-    surfaceData.albedo = lerp(enemyColor, float3(0.5f, 0.5f, 0.5f), enemyCondition);
+    surfaceData.albedo = lerp(enemyColor, float3(0.4f, 0.4f, 0.4f), enemyCondition);
     if (enemy.hp <= 0)
     {
+        half2 uv = input.uv;
+        half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
         surfaceData.albedo = lerp(surfaceData.albedo, texColor, 0.4f);
     }
     surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
     
+    // basic
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
+    
+    // bullet
+    float3 inputRadiance = float3(0.0f, 0.0f, 0.0f);
+    int anchorX;
+    int anchorZ;
+    GetBulletGridXZFromPos(enemy.pos - float3(0.1f, 0.0f, 0.1f), anchorX, anchorZ);
+    
+    // 1x1 cell
+    for (int x = anchorX - 3; x <= anchorX + 4; x++)
+    {
+        for (int z = anchorZ - 3; z <= anchorZ + 4; z++)
+        {
+            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ) continue;
+            if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2) continue;
+            
+            BulletRenderingGridDatum datum = bulletRenderingGridData1x1[z * bulletGridLengthX + x];
+            for (int i = 0; i < datum.size; i++)
+            {
+                float3 dir = datum.pos[i] - inputData.positionWS;
+                float distance = length(dir);
+                dir = normalize(dir);
+                float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
+                float distanceFade = 1.0f / (1.0f + distance);
+                distanceFade = distanceFade * distanceFade;
+                float3 bulletColor = datum.color[0];
+                inputRadiance += bulletColor * distanceFade * cosine;
+            }
+        }
+    }
+    
+    
+    // 2x2 cell
+    for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
+    {
+        for (int z = anchorZ - 7; z <= anchorZ + 7; z += 2)
+        {
+            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
+                continue;
+            if (x >= anchorX - 3 && x <= anchorX + 4 && z >= anchorZ - 3 && z <= anchorZ + 4)
+                continue;
+            
+            BulletRenderingGridDatum datum = bulletRenderingGridData2x2[z * bulletGridLengthX + x];
+            for (int i = 0; i < datum.size; i++)
+            {
+                float3 dir = datum.pos[i] - inputData.positionWS;
+                float distance = length(dir);
+                dir = normalize(dir);
+                float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
+                float distanceFade = 1.0f / (1.0f + distance);
+                distanceFade = distanceFade * distanceFade;
+                float3 bulletColor = datum.color[0];
+                inputRadiance += bulletColor * distanceFade * cosine;
+            }
+        }
+    }
+    
+    // 4x4 cell
+    for (int x = anchorX - 11; x <= anchorX + 9; x += 4)
+    {
+        for (int z = anchorZ - 11; z <= anchorZ + 9; z += 4)
+        {
+            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
+                continue;
+            if (x >= anchorX - 7 && x <= anchorX + 8 && z >= anchorZ - 7 && z <= anchorZ + 8)
+                continue;
+            
+            BulletRenderingGridDatum datum = bulletRenderingGridData4x4[z * bulletGridLengthX + x];
+            for (int i = 0; i < datum.size; i++)
+            {
+                float3 dir = datum.pos[i] - inputData.positionWS;
+                float distance = length(dir);
+                dir = normalize(dir);
+                float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
+                float distanceFade = 1.0f / (1.0f + distance);
+                distanceFade = distanceFade * distanceFade;
+                float3 bulletColor = datum.color[0];
+                inputRadiance += bulletColor * distanceFade * cosine;
+            }
+        }
+    }
+    
+    // diffuse lighting from bullets
+    color.rgb += inputRadiance * surfaceData.albedo;
+    
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
-
+    
     outColor = color;
 
 #ifdef _WRITE_RENDERING_LAYERS

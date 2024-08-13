@@ -140,6 +140,20 @@ public class ComputeCenter
     }
     const int bulletGridDatumSIze = 128;
 
+    public struct BulletRenderingGridDatum
+    {
+        public int size;
+        public Vector3 pos1;
+        public Vector3 pos2;
+        public Vector3 pos3;
+        public Vector3 pos4;
+        public Vector3 color1;
+        public Vector3 color2;
+        public Vector3 color3;
+        public Vector3 color4;
+    }
+    const int bulletRenderingGridDatumSize = 100;
+
     // 目前grid覆盖范围：[-32.0, 32.0] x [-16.0, 16.0]
     // 每个grid大小为0.2，要求子弹半径不能大于0.1
     const int bulletGridLengthX = 320;
@@ -152,9 +166,9 @@ public class ComputeCenter
     public const int maxPlayerBulletNum = 131072;
     public const int maxEnemyBulletNum = 131072;
     public const int maxNewBulletNum = 2048;
-    public const int maxEnemyNum = 1024;
-    public const int maxDeployingEnemyNum = 512; // 单线程组运行，扩容时注意
-    public const int maxNewEnemyNum = 512;
+    public const int maxEnemyNum = 4096;
+    public const int maxDeployingEnemyNum = 2048;
+    public const int maxNewEnemyNum = 2048;
     public const int maxEnemyWeaponNum = 8;
 
     PlayerDatum[] playerData;
@@ -192,6 +206,9 @@ public class ComputeCenter
     BulletGridDatum[] bulletGridData;
     ComputeBuffer playerBulletGridDataCB;
     ComputeBuffer enemyBulletGridDataCB;
+
+    BulletRenderingGridDatum[] bulletRenderingGridData;
+    ComputeBuffer[] bulletRenderingGridDataCB;
 
     EnemyDatum[] sphereEnemyData;
     ComputeBuffer[] sphereEnemyDataCB;
@@ -271,6 +288,11 @@ public class ComputeCenter
     int skillGetAvailablePositionKernel = -1;
     int updateDeployingEnemyKernel = -1;
 
+    int resetBulletRenderingGridKernel = -1;
+    int resolveBulletRenderingGrid1x1Kernel = -1;
+    int resolveBulletRenderingGrid2x2Kernel = -1;
+    int resolveBulletRenderingGrid4x4Kernel = -1;
+
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
 
@@ -329,6 +351,12 @@ public class ComputeCenter
         bulletGridData = new BulletGridDatum[bulletGridLengthX * bulletGridLengthZ];
         playerBulletGridDataCB = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletGridDatumSIze);
         enemyBulletGridDataCB = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletGridDatumSIze);
+
+        bulletRenderingGridData = new BulletRenderingGridDatum[bulletGridLengthX * bulletGridLengthZ];
+        bulletRenderingGridDataCB = new ComputeBuffer[3];
+        bulletRenderingGridDataCB[0] = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletRenderingGridDatumSize);
+        bulletRenderingGridDataCB[1] = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletRenderingGridDatumSize);
+        bulletRenderingGridDataCB[2] = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletRenderingGridDatumSize);
 
         sphereEnemyData = new EnemyDatum[maxEnemyNum];
         sphereEnemyDataCB = new ComputeBuffer[2];
@@ -415,6 +443,11 @@ public class ComputeCenter
         skillTransferBulletTypeKernel = computeCenterCS.FindKernel("SkillTransferBulletType");
         skillGetAvailablePositionKernel = computeCenterCS.FindKernel("SkillGetAvailablePosition");
         updateDeployingEnemyKernel = computeCenterCS.FindKernel("UpdateDeployingEnemy");
+        resetBulletRenderingGridKernel = computeCenterCS.FindKernel("ResetBulletRenderingGrid");
+        resolveBulletRenderingGrid1x1Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid1x1");
+        resolveBulletRenderingGrid2x2Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid2x2");
+        resolveBulletRenderingGrid4x4Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid4x4");
+
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -443,6 +476,7 @@ public class ComputeCenter
         playerSkillData[0].player2Skill1 = 0;
         playerSkillData[0].sharedSkill0 = 0;
         playerSkillData[0].sharedSkill1 = 0;
+        playerSkillDataCB.SetData(playerSkillData);
 
         enemyBulletDataCB[0].SetData(enemyBulletData);
         enemyBulletDataCB[1].SetData(enemyBulletData);
@@ -503,7 +537,7 @@ public class ComputeCenter
         using (new GUtils.PFL("UpdateDeployingEnemy")) { UpdateDeployingEnemy(); }
         using (new GUtils.PFL("EnemyShoot")) { EnemyShoot(); }
 
-        using (new GUtils.PFL("BuildBulletGrid")) { BuildBulletGrid(); }
+        using (new GUtils.PFL("BuildBulletCollisionGrid")) { BuildBulletCollisionGrid(); }
 
         using (new GUtils.PFL("ProcessPlayerBulletCollision")) { ProcessPlayerBulletCollision(); }
         using (new GUtils.PFL("ProcessEnemyBulletCollision")) { ProcessEnemyBulletCollision(); }
@@ -525,6 +559,8 @@ public class ComputeCenter
 
         using (new GUtils.PFL("SkillTransferBulletType")) { SkillTransferBulletType(); }
         using (new GUtils.PFL("SkillGetAvailablePosition")) { SkillGetAvailablePosition(); }
+
+        using (new GUtils.PFL("BuildBulletRenderingGrid")) { BuildBulletRenderingGrid(); }
 
         using (new GUtils.PFL("UpdateGlobalBufferForRendering")) { UpdateGlobalBufferForRendering(); }
         using (new GUtils.PFL("DrawPlayerBullet")) { DrawPlayerBullet(); }
@@ -581,7 +617,7 @@ public class ComputeCenter
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
     }
 
-    public void BuildBulletGrid()
+    public void BuildBulletCollisionGrid()
     {
         int kernel = resetBulletGridKernel;
         computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
@@ -599,6 +635,50 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
         computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+    }
+
+    public void BuildBulletRenderingGrid()
+    {
+        int kernel = resetBulletGridKernel;
+        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX * bulletGridLengthZ, 256), 1, 1);
+
+        kernel = buildPlayerBulletGridKernel;
+        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+
+        kernel = buildEnemyBulletGridKernel;
+        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+
+        kernel = resetBulletRenderingGridKernel;
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX * bulletGridLengthZ, 256), 1, 1);
+
+        kernel = resolveBulletRenderingGrid1x1Kernel;
+        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
+
+        kernel = resolveBulletRenderingGrid2x2Kernel;
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
+
+        kernel = resolveBulletRenderingGrid4x4Kernel;
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
+        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
     }
 
     public void SetGlobalConstant()
@@ -628,6 +708,11 @@ public class ComputeCenter
         computeCenterCS.SetVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
         computeCenterCS.SetFloat("bulletGridSize", bulletGridSize);
         computeCenterCS.SetFloat("bulletGridSizeInv", bulletGridSizeInv);
+        Shader.SetGlobalInt("bulletGridLengthX", bulletGridLengthX);
+        Shader.SetGlobalInt("bulletGridLengthZ", bulletGridLengthZ);
+        Shader.SetGlobalVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
+        Shader.SetGlobalFloat("bulletGridSize", bulletGridSize);
+        Shader.SetGlobalFloat("bulletGridSizeInv", bulletGridSizeInv);
 
         // bullet color
         Shader.SetGlobalVector("player1BulletColor", gameManager.player1BulletColor);
@@ -812,11 +897,29 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 2.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.13f,
+            shootInterval = 0.17f,
             extraBulletsPerSide = 3,
             angle = 8.0f,
             randomShootDelay = 0.03f,
             bulletSpeed = 6.0f,
+            bulletRadius = 0.07f,
+            bulletDamage = 1,
+            bulletBounces = 2,
+            bulletLifeSpan = 20.0f,
+            bulletImpulse = 0.1f,
+            virtualYRange = constantVirtualYRange,
+        };
+
+        // 可怕散弹
+        enemyWeaponData[6] = new EnemyWeaponDatum
+        {
+            uniformRandomAngleBias = 2.0f,
+            individualRandomAngleBias = 0.0f,
+            shootInterval = 0.14f,
+            extraBulletsPerSide = 4,
+            angle = 8.0f,
+            randomShootDelay = 0.03f,
+            bulletSpeed = 8.0f,
             bulletRadius = 0.07f,
             bulletDamage = 1,
             bulletBounces = 2,
@@ -898,6 +1001,12 @@ public class ComputeCenter
             GameManager.player1.exp += deadEnemyNumData[0];
             GameManager.player2.exp += deadEnemyNumData[0];
         });
+
+        AsyncGPUReadback.Request(sourceSphereEnemyNumCB, dataRequest =>
+        {
+            var sphereEnemyNum = dataRequest.GetData<int>();
+            GameManager.level.currentEnemyNum = sphereEnemyNum[0];
+        });
     }
 
     public void SendDebugReadbackRequest()
@@ -953,6 +1062,13 @@ public class ComputeCenter
         Shader.SetGlobalBuffer("playerBulletData", sourcePlayerBulletDataCB);
         Shader.SetGlobalBuffer("enemyBulletData", sourceEnemyBulletDataCB);
         Shader.SetGlobalBuffer("playerSkillData", playerSkillDataCB);
+        
+        Shader.SetGlobalBuffer("playerBulletGridData", playerBulletGridDataCB);
+        Shader.SetGlobalBuffer("enemyBulletGridData", enemyBulletGridDataCB);
+
+        Shader.SetGlobalBuffer("bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        Shader.SetGlobalBuffer("bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
+        Shader.SetGlobalBuffer("bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
 
         Shader.SetGlobalFloat("gameTime", GameManager.gameTime);
     }
