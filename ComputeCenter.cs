@@ -88,6 +88,13 @@ public class ComputeCenter
     }
     const int enemyDatumSize = 96;
 
+    public struct EnemyCollisionCacheDatum
+    {
+        public Vector3 deltaPos;
+        public Vector3 deltaVelocity;
+    }
+    const int enemyCollisionCacheDatumSize = 24;
+
     public struct EnemyWeaponDatum
     {
         public float uniformRandomAngleBias;
@@ -215,6 +222,8 @@ public class ComputeCenter
     ComputeBuffer sourceSphereEnemyDataCB;
     ComputeBuffer targetSphereEnemyDataCB;
 
+    ComputeBuffer enemyCollisionCacheDataCB;
+
     uint[] sphereEnemyNum;
     ComputeBuffer[] sphereEnemyNumCB;
     ComputeBuffer sourceSphereEnemyNumCB;
@@ -287,11 +296,13 @@ public class ComputeCenter
     int skillTransferBulletTypeKernel = -1;
     int skillGetAvailablePositionKernel = -1;
     int updateDeployingEnemyKernel = -1;
-
     int resetBulletRenderingGridKernel = -1;
     int resolveBulletRenderingGrid1x1Kernel = -1;
     int resolveBulletRenderingGrid2x2Kernel = -1;
     int resolveBulletRenderingGrid4x4Kernel = -1;
+    int resolveEnemyCollision1Kernel = -1;
+    int resolveEnemyCollision2Kernel = -1;
+    int applyEnemyGravityKernel = -1;
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -372,6 +383,8 @@ public class ComputeCenter
         sourceSphereEnemyNumCB = sphereEnemyNumCB[0];
         targetSphereEnemyNumCB = sphereEnemyNumCB[1];
 
+        enemyCollisionCacheDataCB = new ComputeBuffer(maxEnemyNum, enemyCollisionCacheDatumSize);
+
         deployingSphereEnemyData = new EnemyDatum[maxDeployingEnemyNum];
         deployingSphereEnemyDataCB = new ComputeBuffer[2];
         deployingSphereEnemyDataCB[0] = new ComputeBuffer(maxDeployingEnemyNum, enemyDatumSize);
@@ -447,7 +460,9 @@ public class ComputeCenter
         resolveBulletRenderingGrid1x1Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid1x1");
         resolveBulletRenderingGrid2x2Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid2x2");
         resolveBulletRenderingGrid4x4Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid4x4");
-
+        resolveEnemyCollision1Kernel = computeCenterCS.FindKernel("ResolveEnemyCollision1");
+        resolveEnemyCollision2Kernel = computeCenterCS.FindKernel("ResolveEnemyCollision2");
+        applyEnemyGravityKernel = computeCenterCS.FindKernel("ApplyEnemyGravity");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -1204,6 +1219,26 @@ public class ComputeCenter
     public void UpdateEnemyVelocityAndPosition()
     {
         int kernel = updateEnemyVelocityAndPositionKernel;
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+
+        computeCenterCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(resolveEnemyCollision1Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
+        computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
+        for (int i = 0; i < 5; i++)
+        {
+            if (i == 0) computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 1.0f);
+            else computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.0f);
+            computeCenterCS.Dispatch(resolveEnemyCollision1Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+            computeCenterCS.Dispatch(resolveEnemyCollision2Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        }
+        
+        kernel = applyEnemyGravityKernel;
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);

@@ -109,8 +109,8 @@ public class GameManager : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.U))
             {
-                level.nextWave = level.Wave17;
-                level.currentWave = 16;
+                level.nextWave = level.Wave18;
+                level.currentWave = 17;
                 player1.exp = 88888;
                 player2.exp = 88888;
                 player1.weapon = allLevelPlayerData.GetWeapon(0, 20);

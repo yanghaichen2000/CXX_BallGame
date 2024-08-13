@@ -24,6 +24,9 @@
 #pragma kernel ResolveBulletRenderingGrid1x1
 #pragma kernel ResolveBulletRenderingGrid2x2
 #pragma kernel ResolveBulletRenderingGrid4x4
+#pragma kernel ResolveEnemyCollision1
+#pragma kernel ResolveEnemyCollision2
+#pragma kernel ApplyEnemyGravity
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -132,6 +135,12 @@ struct EnemyDatum
     float tmp;
 };
 
+struct EnemyCollisionCacheDatum
+{
+    float3 deltaPos;
+    float3 deltaVelocity;
+};
+
 struct EnemyWeaponDatum
 {
     float uniformRandomAngleBias;
@@ -199,6 +208,8 @@ RWStructuredBuffer<EnemyDatum> sphereEnemyData;
 RWStructuredBuffer<EnemyDatum> culledSphereEnemyData;
 RWStructuredBuffer<int> sphereEnemyNum;
 RWStructuredBuffer<int> culledSphereEnemyNum;
+
+RWStructuredBuffer<EnemyCollisionCacheDatum> enemyCollisionCacheData;
 
 RWStructuredBuffer<EnemyDatum> deployingSphereEnemyData;
 RWStructuredBuffer<EnemyDatum> culledDeployingSphereEnemyData;
@@ -583,13 +594,13 @@ void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
 
 [numthreads(128, 1, 1)]
 void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
-{    
+{
     // apply and clear impulse
-    float enemy_m = 0.0f; /////////////////// do this
     if (id.x < sphereEnemyNum[0])
     {
         EnemyDatum enemy = sphereEnemyData[id.x];
-        enemy.velocity += (float3)enemy.hitImpulse * 0.0001 / enemy.m;
+        float3 dV = (float3) enemy.hitImpulse * 0.0001 / enemy.m;
+        enemy.velocity += dV;
         enemy.hitImpulse = int3(0, 0, 0);
         enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.13f : enemy.originalM;
         sphereEnemyData[id.x] = enemy;
@@ -650,47 +661,56 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         enemy.pos += enemy.velocity * deltaTime * float3(1.0f, 0.0f, 1.0f);
         sphereEnemyData[id.x] = enemy;
     }
-    
-    GroupMemoryBarrierWithGroupSync();
-    
-    // deal with collisions
-    for (int itr = 0; itr < 4; itr++)
+}
+
+
+[numthreads(128, 1, 1)]
+void ResolveEnemyCollision1(uint3 id : SV_DispatchThreadID)
+{   
+    float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
+    float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
+    if (id.x < sphereEnemyNum[0])
     {
-        float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
-        float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
-        if (id.x < sphereEnemyNum[0])
+        EnemyDatum enemy = sphereEnemyData[id.x];
+        for (int i = 0; i < sphereEnemyNum[0]; i++)
         {
-            enemy = sphereEnemyData[id.x];
-            for (int i = 0; i < sphereEnemyNum[0]; i++)
+            if (i == id.x)
+                continue;
+            EnemyDatum another = sphereEnemyData[i];
+            float3 relativePos = another.pos - enemy.pos;
+            float collisionDistance = length(relativePos) - 0.5f * (enemy.size + another.size);
+            float3 normal = normalize(relativePos);
+            if (collisionDistance < 0.0f)
             {
-                if (i == id.x) continue;
-                EnemyDatum another = sphereEnemyData[i];
-                float3 relativePos = another.pos - enemy.pos;
-                float collisionDistance = length(relativePos) - 0.5f * (enemy.size + another.size);
-                float3 normal = normalize(relativePos);
-                if (collisionDistance < 0.0f)
-                {
-                    float pushDistance = collisionDistance * (-0.5f) + 0.001f;
-                    deltaPos += -normal * pushDistance;
-                    
-                    float impulseValue = (1.0f + enemyCollisionVelocityRestitution) * dot(enemy.velocity - another.velocity, normal) / (1.0f / enemy.m + 1.0f / another.m);
-                    deltaVelocity += -normal * abs(impulseValue) / enemy.m;
-                }
+                float pushDistance = collisionDistance * (-0.5f) + 0.001f;
+                deltaPos += -normal * pushDistance;
+                float impulseValue = (1.0f + enemyCollisionVelocityRestitution) * dot(enemy.velocity - another.velocity, normal) / (1.0f / enemy.m + 1.0f / another.m);
+                deltaVelocity += -normal * abs(impulseValue) / enemy.m;
             }
         }
         
-        GroupMemoryBarrierWithGroupSync();
-        
-        if (id.x < sphereEnemyNum[0])
-        {
-            sphereEnemyData[id.x].pos += deltaPos;
-            sphereEnemyData[id.x].velocity += deltaVelocity;
-        }
-        
-        GroupMemoryBarrierWithGroupSync();
+        enemyCollisionCacheData[id.x].deltaPos = deltaPos;
+        enemyCollisionCacheData[id.x].deltaVelocity = deltaVelocity;
     }
+}
+        
+
+float resolveEnemyCollision2VelocityCoeff;
+[numthreads(128, 1, 1)]
+void ResolveEnemyCollision2(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < sphereEnemyNum[0])
+    {
+        sphereEnemyData[id.x].pos += enemyCollisionCacheData[id.x].deltaPos;
+        sphereEnemyData[id.x].velocity += enemyCollisionCacheData[id.x].deltaVelocity * resolveEnemyCollision2VelocityCoeff;
+    }
+}
+        
+[numthreads(128, 1, 1)]
+void ApplyEnemyGravity(uint3 id : SV_DispatchThreadID)
+{
+    EnemyDatum enemy;
     
-    // apply gravity
     if (id.x < sphereEnemyNum[0])
     {
         enemy = sphereEnemyData[id.x];

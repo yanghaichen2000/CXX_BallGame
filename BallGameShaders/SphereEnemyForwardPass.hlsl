@@ -293,6 +293,7 @@ void LitPassFragment(
     int anchorZ;
     GetBulletGridXZFromPos(enemy.pos - float3(0.1f, 0.0f, 0.1f), anchorX, anchorZ);
     
+    
     // 1x1 cell
     for (int x = anchorX - 3; x <= anchorX + 4; x++)
     {
@@ -315,7 +316,6 @@ void LitPassFragment(
             }
         }
     }
-    
     
     // 2x2 cell
     for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
@@ -369,6 +369,7 @@ void LitPassFragment(
     
     // diffuse lighting from bullets
     color.rgb += inputRadiance * surfaceData.albedo;
+    
     
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
