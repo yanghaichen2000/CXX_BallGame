@@ -602,7 +602,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         float3 dV = (float3) enemy.hitImpulse * 0.0001 / enemy.m;
         enemy.velocity += dV;
         enemy.hitImpulse = int3(0, 0, 0);
-        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.13f : enemy.originalM;
+        enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.18f : enemy.originalM;
         sphereEnemyData[id.x] = enemy;
     }
     
@@ -702,7 +702,16 @@ void ResolveEnemyCollision2(uint3 id : SV_DispatchThreadID)
     if (id.x < sphereEnemyNum[0])
     {
         sphereEnemyData[id.x].pos += enemyCollisionCacheData[id.x].deltaPos;
-        sphereEnemyData[id.x].velocity += enemyCollisionCacheData[id.x].deltaVelocity * resolveEnemyCollision2VelocityCoeff;
+        float3 newVelocity = sphereEnemyData[id.x].velocity + enemyCollisionCacheData[id.x].deltaVelocity * resolveEnemyCollision2VelocityCoeff;
+        if (length(newVelocity) > 0.00001f)
+        {
+            newVelocity = normalize(newVelocity) * clamp(length(newVelocity), 0.0f, 20.0f);
+        }
+        else
+        {
+            sphereEnemyData[id.x].velocity = newVelocity;
+        }
+
     }
 }
         

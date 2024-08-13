@@ -116,9 +116,9 @@ public class AllEnemyProperty
             hp = 600,
             weapon = 6,
             mass = 15.0f,
-            acceleration = 3.0f,
+            acceleration = 2.0f,
             frictionalDeceleration = 1.5f,
-            maxSpeed = 2.0f,
+            maxSpeed = 1.8f,
             color = GUtils.SRGBColorToLinearUInt(GameManager.instance.enemyColorUltra),
         };
     }

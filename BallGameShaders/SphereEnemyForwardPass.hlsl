@@ -302,6 +302,10 @@ void LitPassFragment(
             if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ) continue;
             if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2) continue;
             
+            float3 cellRelativePos = float3(float(x - anchorX), 0.0f, float(z - anchorZ));
+            if (dot(cellRelativePos, inputData.normalWS) < -0.05)
+                continue;
+            
             BulletRenderingGridDatum datum = bulletRenderingGridData1x1[z * bulletGridLengthX + x];
             for (int i = 0; i < datum.size; i++)
             {
@@ -317,6 +321,7 @@ void LitPassFragment(
         }
     }
     
+    
     // 2x2 cell
     for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
     {
@@ -325,6 +330,10 @@ void LitPassFragment(
             if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
                 continue;
             if (x >= anchorX - 3 && x <= anchorX + 4 && z >= anchorZ - 3 && z <= anchorZ + 4)
+                continue;
+            
+            float3 cellRelativePos = float3(float(x - anchorX), 0.0f, float(z - anchorZ));
+            if (dot(cellRelativePos, inputData.normalWS) < -0.05)
                 continue;
             
             BulletRenderingGridDatum datum = bulletRenderingGridData2x2[z * bulletGridLengthX + x];
@@ -342,6 +351,7 @@ void LitPassFragment(
         }
     }
     
+    /*
     // 4x4 cell
     for (int x = anchorX - 11; x <= anchorX + 9; x += 4)
     {
@@ -366,6 +376,7 @@ void LitPassFragment(
             }
         }
     }
+    */
     
     // diffuse lighting from bullets
     color.rgb += inputRadiance * surfaceData.albedo;
