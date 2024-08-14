@@ -342,7 +342,7 @@ Shader "Ball Game/Sphere Enemy"
             // -------------------------------------
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
+            #include "Assets/Scripts/BallGameShaders/SphereEnemyDepthOnlyPass.hlsl"
             ENDHLSL
         }
 

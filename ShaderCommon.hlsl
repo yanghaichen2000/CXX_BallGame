@@ -167,6 +167,13 @@ float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
     return TransformWorldToHClip(positionWS);
 }
 
+float4 GetDeployingEnemyVertexPositionCS(float3 positionOS, uint instanceID)
+{
+    EnemyDatum datum = deployingSphereEnemyData[instanceID];
+    float3 positionWS = positionOS * datum.size + datum.pos;
+    return TransformWorldToHClip(positionWS);
+}
+
 VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;
