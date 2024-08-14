@@ -63,8 +63,6 @@ struct Varyings
     float4 positionCS               : SV_POSITION;
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
-
-    uint customInstanceId : TEXCOORD10;
 };
 
 void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData)
@@ -131,42 +129,16 @@ void InitializeInputData(Varyings input, half3 normalTS, out InputData inputData
 //                  Vertex and Fragment functions                            //
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "Assets/Scripts/ShaderCommon.hlsl"
-
-VertexPositionInputs GetVertexPositionInputsNew(float3 positionOS, uint instanceID)
-{
-    VertexPositionInputs input;
-    EnemyDatum datum = sphereEnemyData[instanceID];
-    input.positionWS = positionOS * datum.size + datum.pos;
-    
-    float t = gameTime - datum.lastHitByPlayer2Skill0Time; // timeSinceHitByPlayer2Skill0
-    if (t < player2Skill0TMax)
-    {
-        input.positionWS += player2Skill0V0 * t - 5.0f * t * t;
-    }
-    
-        input.positionVS = TransformWorldToView(input.positionWS);
-    input.positionCS = TransformWorldToHClip(input.positionWS);
- 
-    float4 ndc = input.positionCS * 0.5f;
-    input.positionNDC.xy = float2(ndc.x, ndc.y * _ProjectionParams.x) + ndc.w;
-    input.positionNDC.zw = input.positionCS.zw;
- 
-    return input;
-}
-
 // Used in Standard (Physically Based) shader
-Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
+Varyings LitPassVertex(Attributes input)
 {
-    Varyings output = (Varyings) 0;
+    Varyings output = (Varyings)0;
 
     UNITY_SETUP_INSTANCE_ID(input);
     UNITY_TRANSFER_INSTANCE_ID(input, output);
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-    
-    output.customInstanceId = instanceID;
-    
-    VertexPositionInputs vertexInput = GetVertexPositionInputsNew(input.positionOS.xyz, instanceID);
+
+    VertexPositionInputs vertexInput = GetVertexPositionInputs(input.positionOS.xyz);
 
     // normalWS and tangentWS already normalize.
     // this is required to avoid skewing the direction during interpolation
@@ -176,9 +148,9 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     half3 vertexLight = VertexLighting(vertexInput.positionWS, normalInput.normalWS);
 
     half fogFactor = 0;
-#if !defined(_FOG_FRAGMENT)
-    fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
-#endif
+    #if !defined(_FOG_FRAGMENT)
+        fogFactor = ComputeFogFactor(vertexInput.positionCS.z);
+    #endif
 
     output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
 
@@ -222,13 +194,7 @@ Varyings LitPassVertex(Attributes input, uint instanceID : SV_InstanceID)
     return output;
 }
 
-/*
-struct InputData 
-{
-    float3 positionWS;
-    float3 normalWS;
-}
-*/
+#include "Assets/Scripts/ShaderCommon.hlsl"
 
 // Used in Standard (Physically Based) shader
 void LitPassFragment(
@@ -266,117 +232,12 @@ void LitPassFragment(
 #ifdef _DBUFFER
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
-    
-    inputData.normalWS = normalize(inputData.normalWS);
-    EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
-    
-    // surface data
-    float3 enemyColor = PackeduintColorToFloat3(enemy.baseColor);
-    float enemyHP = max(enemy.hp, 0.0f);
-    float enemyCondition = 1.0f - enemyHP / enemy.maxHP;
-    enemyCondition = pow(enemyCondition, 2.0f);
-    surfaceData.albedo = lerp(enemyColor, float3(0.4f, 0.4f, 0.4f), enemyCondition);
-    if (enemy.hp <= 0)
-    {
-        half2 uv = input.uv;
-        half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
-        surfaceData.albedo = lerp(surfaceData.albedo, texColor, 0.4f);
-    }
-    surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
-    
-    // basic lighting
+
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
-    
-    // bullet
-    float3 inputRadiance = float3(0.0f, 0.0f, 0.0f);
-    int anchorX;
-    int anchorZ;
-    GetBulletGridXZFromPos(enemy.pos - 0.5f * float3(bulletGridSize, 0.0f, bulletGridSize), anchorX, anchorZ);
-    
-    
-    // 1x1 cell
-    int possible1x1IndexList[20];
-    int possible1x1XZNum = 0;
-    for (int x = anchorX - 3; x <= anchorX + 4; x++)
-    {
-        for (int z = anchorZ - 3; z <= anchorZ + 4; z++)
-        {
-            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
-                continue;
-            if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2)
-                continue;
-            
-            float3 cellPos = GetCellPosFromXZ(x, z);
-            float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
-            if (possible1x1XZNum < 20 && distanceInNormalDir > -bulletGridSize * 0.707f)
-            {
-                possible1x1IndexList[possible1x1XZNum] = z * bulletGridLengthX + x;
-                possible1x1XZNum++;
-            }
-        }
-    }
-    
-    for (int i = 0; i < possible1x1XZNum; i++)
-    {
-        BulletRenderingGridDatum datum = bulletRenderingGridData1x1[possible1x1IndexList[i]];
-        for (int j = 0; j < datum.size; j++)
-        {
-            float3 dir = datum.pos[j] - inputData.positionWS;
-            float distance = length(dir);
-            dir = normalize(dir);
-            float cosine = saturate(dot(dir, inputData.normalWS));
-            float distanceFade = 1.0f / (1.0f + distance);
-            distanceFade = distanceFade * distanceFade;
-            float3 bulletColor = datum.color[j];
-            inputRadiance += bulletColor * distanceFade * cosine * bulletLightingOnEnemyIntensity;
-        }
-    }
-    
-    int possible2x2IndexList[20];
-    int possible2x2XZNum = 0;
-    // 2x2 cell
-    for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
-    {
-        for (int z = anchorZ - 7; z <= anchorZ + 7; z += 2)
-        {
-            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
-                continue;
-            if (x >= anchorX - 3 && x <= anchorX + 4 && z >= anchorZ - 3 && z <= anchorZ + 4)
-                continue;
-            
-            float3 cellPos = GetCellPosFromXZ(x, z) + bulletGridSize * 0.5;
-            
-            float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
-            if (possible2x2XZNum < 20 && distanceInNormalDir > -bulletGridSize * 1.414f)
-            {
-                possible2x2IndexList[possible2x2XZNum] = z * bulletGridLengthX + x;
-                possible2x2XZNum++;
-            }
-        }
-    }
-            
-    for (int i = 0; i < possible2x2XZNum; i++)
-    {
-        BulletRenderingGridDatum datum = bulletRenderingGridData2x2[possible2x2IndexList[i]];
-        for (int j = 0; j < datum.size; j++)
-        {
-            float3 dir = datum.pos[j] - inputData.positionWS;
-            float distance = length(dir);
-            dir = normalize(dir);
-            float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
-            float distanceFade = 1.0f / (1.0f + distance);
-            distanceFade = distanceFade * distanceFade;
-            float3 bulletColor = datum.color[j];
-            inputRadiance += bulletColor * distanceFade * cosine * bulletLightingOnEnemyIntensity;
-        }
-    }
-    
-    // diffuse lighting from bullets
-    color.rgb += inputRadiance * surfaceData.albedo;
-    
-    
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
+    
+    color.rgb += tex2D(planeLightingTexture, float2(1.0f, 1.0f) - input.uv) * planeLightingTextureIntensity;
     
     outColor = color;
 

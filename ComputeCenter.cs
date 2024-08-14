@@ -171,7 +171,7 @@ public class ComputeCenter
     const float bulletGridSizeInv = 1.0f / bulletGridSize;
 
     public const int maxPlayerBulletNum = 131072;
-    public const int maxEnemyBulletNum = 131072;
+    public const int maxEnemyBulletNum = 131072; // 两种子弹的最大数量必须相等，适配GeneratePlaneLightingTexture
     public const int maxNewBulletNum = 2048;
     public const int maxEnemyNum = 4096;
     public const int maxDeployingEnemyNum = 2048;
@@ -303,6 +303,12 @@ public class ComputeCenter
     int resolveEnemyCollision1Kernel = -1;
     int resolveEnemyCollision2Kernel = -1;
     int applyEnemyGravityKernel = -1;
+    int resetPlaneLightingTextureKernel = -1;
+    int generatePlaneLightingTextureKernel = -1;
+    int resolvePlaneLightingTextureKernel = -1;
+    int gaussianBlurUKernel = -1;
+    int gaussianBlurVKernel = -1;
+
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -313,6 +319,11 @@ public class ComputeCenter
     Mesh sphereEnemyMesh;
     Material sphereEnemyMaterial;
     Material deployingSphereEnemyMaterial;
+
+    const int planeLightingTextureWidth = 512;
+    const int planeLightingTextureHeight = 384;
+    RenderTexture planeLightingTexture;
+    RenderTexture planeLightingTextureTmp;
 
 
     public ComputeCenter(GameManager _gameManager) 
@@ -463,6 +474,11 @@ public class ComputeCenter
         resolveEnemyCollision1Kernel = computeCenterCS.FindKernel("ResolveEnemyCollision1");
         resolveEnemyCollision2Kernel = computeCenterCS.FindKernel("ResolveEnemyCollision2");
         applyEnemyGravityKernel = computeCenterCS.FindKernel("ApplyEnemyGravity");
+        resetPlaneLightingTextureKernel = computeCenterCS.FindKernel("ResetPlaneLightingTexture");
+        generatePlaneLightingTextureKernel = computeCenterCS.FindKernel("GeneratePlaneLightingTexture");
+        resolvePlaneLightingTextureKernel = computeCenterCS.FindKernel("ResolvePlaneLightingTexture");
+        gaussianBlurUKernel = computeCenterCS.FindKernel("GaussianBlurU");
+        gaussianBlurVKernel = computeCenterCS.FindKernel("GaussianBlurV");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -475,6 +491,14 @@ public class ComputeCenter
         sphereEnemyMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         sphereEnemyMaterial = Resources.Load<Material>("Enemy");
         deployingSphereEnemyMaterial = Resources.Load<Material>("DeployingEnemy");
+
+        planeLightingTexture = new RenderTexture(planeLightingTextureWidth, planeLightingTextureHeight, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTexture.enableRandomWrite = true;
+        planeLightingTexture.Create();
+
+        planeLightingTextureTmp = new RenderTexture(planeLightingTextureWidth, planeLightingTextureHeight, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureTmp.enableRandomWrite = true;
+        planeLightingTextureTmp.Create();
 
         InitializeComputeBuffers();
         SetGlobalConstant();
@@ -576,6 +600,7 @@ public class ComputeCenter
         using (new GUtils.PFL("SkillGetAvailablePosition")) { SkillGetAvailablePosition(); }
 
         using (new GUtils.PFL("BuildBulletRenderingGrid")) { BuildBulletRenderingGrid(); }
+        using (new GUtils.PFL("GeneratePlaneLightingTexture")) { GeneratePlaneLightingTexture(); }
 
         using (new GUtils.PFL("UpdateGlobalBufferForRendering")) { UpdateGlobalBufferForRendering(); }
         using (new GUtils.PFL("DrawPlayerBullet")) { DrawPlayerBullet(); }
@@ -696,6 +721,37 @@ public class ComputeCenter
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
     }
 
+    public void GeneratePlaneLightingTexture()
+    {
+        int kernel = resetPlaneLightingTextureKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32));
+
+        kernel = generatePlaneLightingTextureKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+
+        kernel = resolvePlaneLightingTextureKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 16), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 16));
+
+        computeCenterCS.SetTexture(gaussianBlurUKernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.SetTexture(gaussianBlurUKernel, "planeLightingTextureTmp", planeLightingTextureTmp);
+        
+        computeCenterCS.SetTexture(gaussianBlurVKernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.SetTexture(gaussianBlurVKernel, "planeLightingTextureTmp", planeLightingTextureTmp);
+
+        for (int i = 0; i < 10; i++)
+        {
+            computeCenterCS.Dispatch(gaussianBlurUKernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 160), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 1), 1);
+            computeCenterCS.Dispatch(gaussianBlurVKernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 1), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 150), 1);
+        }
+    }
+
     public void SetGlobalConstant()
     {
         // gravity
@@ -706,6 +762,28 @@ public class ComputeCenter
         computeCenterCS.SetFloat("planeXMax", 20.0f);
         computeCenterCS.SetFloat("planeZMin", -15.0f);
         computeCenterCS.SetFloat("planeZMax", 15.0f);
+
+        // plane lighting
+        computeCenterCS.SetFloat("planeLightingTextureWidth", planeLightingTextureWidth);
+        computeCenterCS.SetFloat("planeLightingTextureHeight", planeLightingTextureHeight);
+        computeCenterCS.SetFloats("planeSizeInv", 1.0f / 40.0f, 1.0f, 1.0f / 30.0f);
+        Shader.SetGlobalFloat("planeLightingTextureIntensity", 0.0f);
+
+        // plane lighting gaussian blur precomputed weights
+        float k = gameManager.planeLightingGaussianBlurCoeff;
+        float[] weights = new float[7 * 4];
+        float weightSum = 0.0f;
+        for (int i = 0; i < 7; i++)
+        {
+            float weight = Mathf.Exp(-k * (i - 3) * (i - 3));
+            weights[i * 4] = weight;
+            weightSum += weight;
+        }
+        for (int i = 0; i < 7; i++)
+        {
+            weights[i * 4] /= weightSum;
+        }
+        computeCenterCS.SetFloats("planeLightingGaussianBlurWeight", weights);
 
         // screen
         computeCenterCS.SetFloat("screenWidth", (float)Screen.width);
@@ -1097,6 +1175,10 @@ public class ComputeCenter
 
         Shader.SetGlobalFloat("bulletLightIntensity", gameManager.bulletDirectionalLightIntensity);
         Shader.SetGlobalFloat("bulletEmissionIntensity", gameManager.bulletEmissionIntensity);
+        Shader.SetGlobalFloat("bulletLightingOnEnemyIntensity", gameManager.bulletLightingOnEnemyIntensity);
+
+        Shader.SetGlobalTexture("planeLightingTexture", planeLightingTexture);
+        Shader.SetGlobalFloat("planeLightingTextureIntensity", gameManager.planeLightingTextureIntensity);
     }
 
     public void DrawEnemyBullet()

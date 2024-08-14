@@ -27,6 +27,12 @@
 #pragma kernel ResolveEnemyCollision1
 #pragma kernel ResolveEnemyCollision2
 #pragma kernel ApplyEnemyGravity
+#pragma kernel ResetPlaneLightingTexture
+#pragma kernel GeneratePlaneLightingTexture
+#pragma kernel ResolvePlaneLightingTexture
+#pragma kernel GaussianBlurU
+#pragma kernel GaussianBlurV
+
 
 #define DEG2RAD_V 0.01745329252f
 
@@ -233,6 +239,14 @@ RWStructuredBuffer<int> drawDeployingSphereEnemyArgs;
 RWStructuredBuffer<AvailablePositionDatum> availablePositionData;
 
 RWStructuredBuffer<int> deadEnemyNum;
+
+RWTexture2D<float4> planeLightingTexture;
+RWTexture2D<float4> planeLightingTextureTmp;
+
+float planeLightingTextureWidth;
+float planeLightingTextureHeight;
+float3 planeSizeInv;
+float4 planeLightingGaussianBlurWeight[7];
 
 int playerShootRequestNum;
 int createSphereEnemyRequestNum;
@@ -599,7 +613,10 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
     if (id.x < sphereEnemyNum[0])
     {
         EnemyDatum enemy = sphereEnemyData[id.x];
+        
         float3 dV = (float3) enemy.hitImpulse * 0.0001 / enemy.m;
+        if (length(dV) > 0.001f)
+            dV = normalize(dV) * clamp(length(dV), 0.0f, 1.0f);
         enemy.velocity += dV;
         enemy.hitImpulse = int3(0, 0, 0);
         enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.18f : enemy.originalM;
@@ -805,9 +822,9 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                         // extra normal impulse
                         float3 playerVelocityNormal = normalize(float3(player.dir.z, 0.0f, -player.dir.x));
                         if (dot(playerVelocityNormal, -dir) > 0.0f)
-                            dV += playerVelocityNormal * 2.5f;
+                            dV += playerVelocityNormal * 4.5f;
                         else
-                            dV -= playerVelocityNormal * 2.5f;
+                            dV -= playerVelocityNormal * 4.5f;
                         
                         dV.y = 0.0f;
                         enemy.velocity += dV;
@@ -988,7 +1005,7 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
         int createdByPlayer1 = r < player1BulletRate;
         BulletDatum bullet = enemyBulletData[id.x];
         bullet.damage = createdByPlayer1 ? 1.0f : 0.3f;
-        bullet.impulse = createdByPlayer1 ? 0.1f : 1.0f;
+        bullet.impulse = createdByPlayer1 ? 0.5f : 1.0f;
         bullet.renderingBiasY = createdByPlayer1 ? 0.0f : 1.0f;
         SetBit(bullet.packedInfo, 0, createdByPlayer1 ? 0 : 1);
         uint packedColor = createdByPlayer1 ? packedPlayer1BulletColor : packedPlayer2BulletColor;
@@ -1096,34 +1113,35 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
 [numthreads(8, 1, 8)]
 void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID)
 {
-    int bulletNum = 0;
-    float3 colorSum = float3(0.0f, 0.0f, 0.0f);
-    float3 posSum = float3(0.0f, 0.0f, 0.0f);
+    int index = GetBulletGridIndexFromId(id);
     for (int x = id.x; x <= id.x + 1; x++)
     {
         for (int z = id.z; z <= id.z + 1; z++)
         {
+            int bulletNum = 0;
+            float3 colorSum = float3(0.0f, 0.0f, 0.0f);
+            float3 posSum = float3(0.0f, 0.0f, 0.0f);
             int cellIndex = GetBulletGridIndexFromXZ(x, z);
             for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
             {
-                bulletNum += 1;
+                bulletNum++;
                 colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
                 posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
             }
+            
+            if (bulletNum != 0)
+            {
+                float bulletNumInv = 1.0f / (float) bulletNum;
+                bulletRenderingGridData2x2[index].color[0] = colorSum;
+                bulletRenderingGridData2x2[index].pos[0] = posSum * bulletNumInv;
+                bulletRenderingGridData2x2[index].size++;
+            }
         }
-    }
-
-    int index = GetBulletGridIndexFromId(id);
-    if (bulletNum != 0)
-    {
-        float bulletNumInv = 1.0f / (float)bulletNum;
-        bulletRenderingGridData2x2[index].color[0] = colorSum;
-        bulletRenderingGridData2x2[index].pos[0] = posSum * bulletNumInv;
-        bulletRenderingGridData2x2[index].size = 1;
     }
 }
 
 
+// old
 [numthreads(8, 1, 8)]
 void ResolveBulletRenderingGrid4x4(uint3 id : SV_DispatchThreadID)
 {
@@ -1152,4 +1170,73 @@ void ResolveBulletRenderingGrid4x4(uint3 id : SV_DispatchThreadID)
         bulletRenderingGridData4x4[index].pos[0] = posSum * bulletNumInv;
         bulletRenderingGridData4x4[index].size = 1;
     }
+}
+
+
+[numthreads(32, 1, 32)]
+void ResetPlaneLightingTexture(uint3 id : SV_DispatchThreadID)
+{
+    planeLightingTexture[id.xz] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+
+[numthreads(256, 1, 1)]
+void GeneratePlaneLightingTexture(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < playerBulletNum[0])
+    {
+        float3 pos = playerBulletData[id.x].pos;
+        float3 color = PackedUIntColorToFloat3(playerBulletData[id.x].color);
+
+        if (pos.y >= 0.0f && pos.y <= 0.6f)
+        {
+            int3 texIndex = floor((pos - float3(planeXMin, 0.5f, planeZMin)) * planeSizeInv *
+                float3(planeLightingTextureWidth, 0.0f, planeLightingTextureHeight));
+            planeLightingTexture[texIndex.xz] += float4(color, 1.0f);
+        }
+    }
+    
+    if (id.x < enemyBulletNum[0])
+    {
+        float3 pos = enemyBulletData[id.x].pos;
+        float3 color = PackedUIntColorToFloat3(enemyBulletData[id.x].color);
+
+        if (pos.y >= 0.0f && pos.y <= 0.6f)
+        {
+            int3 texIndex = floor((pos - float3(planeXMin, 0.5f, planeZMin)) * planeSizeInv *
+                float3(planeLightingTextureWidth, 0.0f, planeLightingTextureHeight));
+            planeLightingTexture[texIndex.xz] += float4(color, 1.0f);
+        }
+    }
+}
+
+[numthreads(16, 16, 1)]
+void ResolvePlaneLightingTexture(uint3 id : SV_DispatchThreadID)
+{
+    float4 data = planeLightingTexture[id.xy];
+    float weight = pow(data.a, 0.1f);
+    planeLightingTexture[id.xy] = float4(data.rgb * weight, 1.0f);
+}
+
+
+[numthreads(160, 1, 1)]
+void GaussianBlurU(uint3 id : SV_DispatchThreadID)
+{
+    float3 result = float3(0.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 7; i++)
+    {
+        result += planeLightingGaussianBlurWeight[i].x * planeLightingTexture[id.xy + int2(i - 3, 0)];
+    }
+    planeLightingTextureTmp[id.xy] = float4(result, 1.0f);
+}
+
+[numthreads(1, 150, 1)]
+void GaussianBlurV(uint3 id : SV_DispatchThreadID)
+{
+    float3 result = float3(0.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 7; i++)
+    {
+        result += planeLightingGaussianBlurWeight[i].x * planeLightingTextureTmp[id.xy + int2(0, i - 3)];
+    }
+    planeLightingTexture[id.xy] = float4(result, 1.0f);
 }

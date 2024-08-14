@@ -48,6 +48,7 @@ public class UIManager
     public TextMeshProUGUI text_gameOver;
 
     public TextMeshProUGUI fps;
+    public TextMeshProUGUI resolution;
     public TextMeshProUGUI enemyNum;
     public TextMeshProUGUI enemyBulletNum;
     public TextMeshProUGUI playerBulletNum;
@@ -81,6 +82,7 @@ public class UIManager
         image_aimingPoint = GameObject.Find("image_aimingPoint");
 
         fps = GameObject.Find("text_fps").GetComponent<TextMeshProUGUI>();
+        resolution = GameObject.Find("text_resolution").GetComponent<TextMeshProUGUI>();
         enemyNum = GameObject.Find("text_enemyNum").GetComponent<TextMeshProUGUI>();
         enemyBulletNum = GameObject.Find("text_enemyBulletNum").GetComponent<TextMeshProUGUI>();
         playerBulletNum = GameObject.Find("text_playerBulletNum").GetComponent<TextMeshProUGUI>();
@@ -179,9 +181,10 @@ public class UIManager
         image_aimingPoint.SetActive(false);
     }
 
-    public void UpdateFPS(float value)
+    public void UpdateFPSAndOtherDebugData(float value)
     {
         fps.text = string.Format("FPS =  {0}", (int)value);
+        resolution.text = string.Format("resolution = {0}x{1}", Screen.width, Screen.height);
     }
 
 }

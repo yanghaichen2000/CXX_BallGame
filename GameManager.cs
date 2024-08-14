@@ -60,6 +60,9 @@ public class GameManager : MonoBehaviour
     public Color enemyColorUltra;
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
     [Range(0.0f, 3.0f)] public float bulletEmissionIntensity;
+    [Range(0.0f, 3.0f)] public float planeLightingGaussianBlurCoeff;
+    [Range(0.0f, 3.0f)] public float planeLightingTextureIntensity;
+    [Range(0.0f, 3.0f)] public float bulletLightingOnEnemyIntensity;
 
     // game
     bool gameOver = false;
@@ -162,6 +165,6 @@ public class GameManager : MonoBehaviour
         deltaTimeQueue.Enqueue(deltaTime);
         timeSum += deltaTime;
         averageFPS = deltaTimeQueue.Count > 0 ? (1.0f / (timeSum / deltaTimeQueue.Count)) : 1;
-        uiManager.UpdateFPS(averageFPS);
+        uiManager.UpdateFPSAndOtherDebugData(averageFPS);
     }
 }

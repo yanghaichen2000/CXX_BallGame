@@ -90,6 +90,7 @@ float3 enemyBulletColor;
 float3 bulletLightDir;
 float bulletLightIntensity;
 float bulletEmissionIntensity;
+float bulletLightingOnEnemyIntensity;
 
 float gameTime;
 
@@ -108,6 +109,9 @@ float3 bulletGridBottomLeftPos;
 float bulletGridSize;
 float bulletGridSizeInv;
 float3 bulletGridBottomLeftCellCenterPos;
+
+float planeLightingTextureIntensity;
+sampler2D planeLightingTexture;
 
 inline int GetBulletGridIndexFromPos(float3 pos)
 {
