@@ -1026,7 +1026,7 @@ public class ComputeCenter
         AsyncGPUReadback.Request(sourceDeployingSphereEnemyNumCB, dataRequest =>
         {
             var deployingSphereEnemyNum = dataRequest.GetData<int>();
-            GameManager.level.currentEnemyNum = deployingSphereEnemyNum[0];
+            GameManager.level.currentDeployingEnemyNum = deployingSphereEnemyNum[0];
         });
     }
 
@@ -1236,10 +1236,10 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 20; i++)
         {
             if (i == 0) computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 1.0f);
-            else computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.0f);
+            else computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.05f);
             computeCenterCS.Dispatch(resolveEnemyCollision1Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
             computeCenterCS.Dispatch(resolveEnemyCollision2Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
         }

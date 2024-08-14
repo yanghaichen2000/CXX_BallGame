@@ -800,17 +800,17 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                         float3 dir = normalize(relativePos);
                         enemy.velocity = float3(0.0f, 0.0f, 0.0f);
                         enemy.pos = player.pos - dir * minDistance;
-                        float3 dV = -dir * 2.0f * enemy.m;
+                        float3 dV = -dir * 2.0f;
                         
                         // extra normal impulse
                         float3 playerVelocityNormal = normalize(float3(player.dir.z, 0.0f, -player.dir.x));
                         if (dot(playerVelocityNormal, -dir) > 0.0f)
-                            dV += playerVelocityNormal * 2.5f * enemy.m;
+                            dV += playerVelocityNormal * 2.5f;
                         else
-                            dV -= playerVelocityNormal * 2.5f * enemy.m;
+                            dV -= playerVelocityNormal * 2.5f;
                         
                         dV.y = 0.0f;
-                        enemy.hitImpulse += 10000.0f * dV;
+                        enemy.velocity += dV;
                         
                         sphereEnemyData[id.x] = enemy;
                     }
@@ -1117,7 +1117,7 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID)
     if (bulletNum != 0)
     {
         float bulletNumInv = 1.0f / (float)bulletNum;
-        bulletRenderingGridData2x2[index].color[0] = colorSum * bulletNumInv;
+        bulletRenderingGridData2x2[index].color[0] = colorSum;
         bulletRenderingGridData2x2[index].pos[0] = posSum * bulletNumInv;
         bulletRenderingGridData2x2[index].size = 1;
     }

@@ -267,6 +267,8 @@ void LitPassFragment(
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
 
+    int2 possibleXZList[30];
+    int possibleXZNum = 0;
     
     EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
     
@@ -315,13 +317,13 @@ void LitPassFragment(
                 float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
                 float distanceFade = 1.0f / (1.0f + distance);
                 distanceFade = distanceFade * distanceFade;
-                float3 bulletColor = datum.color[0];
-                inputRadiance += bulletColor * distanceFade * cosine;
+                float3 bulletColor = datum.color[i];
+                inputRadiance += bulletColor * distanceFade * cosine * 2.0f;
             }
         }
     }
     
-    
+    /*
     // 2x2 cell
     for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
     {
@@ -345,13 +347,13 @@ void LitPassFragment(
                 float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
                 float distanceFade = 1.0f / (1.0f + distance);
                 distanceFade = distanceFade * distanceFade;
-                float3 bulletColor = datum.color[0];
-                inputRadiance += bulletColor * distanceFade * cosine;
+                float3 bulletColor = datum.color[i];
+                inputRadiance += bulletColor * distanceFade * cosine * 2.0f;
             }
         }
     }
     
-    /*
+    
     // 4x4 cell
     for (int x = anchorX - 11; x <= anchorX + 9; x += 4)
     {
