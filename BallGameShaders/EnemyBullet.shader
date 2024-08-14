@@ -172,7 +172,7 @@ Shader "Ball Game/Enemy Bullet New"
             // -------------------------------------
             // Includes
             #include "Packages/com.unity.render-pipelines.universal/Shaders/UnlitInput.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/Shaders/DepthOnlyPass.hlsl"
+            #include "Assets/Scripts/BallGameShaders/EnemyBulletDepthOnlyPass.hlsl"
             ENDHLSL
         }
 

@@ -160,6 +160,13 @@ float4 GetPlayerBulletVertexPositionCS(float3 positionOS, uint instanceID)
     return TransformWorldToHClip(positionWS);
 }
 
+float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
+{
+    BulletDatum datum = enemyBulletData[instanceID];
+    float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
+    return TransformWorldToHClip(positionWS);
+}
+
 float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
 {
     EnemyDatum datum = sphereEnemyData[instanceID];
@@ -187,13 +194,6 @@ VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint 
     input.positionNDC.zw = input.positionCS.zw;
  
     return input;
-}
-
-float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
-{
-    BulletDatum datum = enemyBulletData[instanceID];
-    float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
-    return TransformWorldToHClip(positionWS);
 }
 
 float3 BulletDiffuseShading(float3 baseColor, float3 normal)

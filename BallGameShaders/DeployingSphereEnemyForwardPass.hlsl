@@ -259,6 +259,7 @@ void LitPassFragment(
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
     
+    
     EnemyDatum enemy = deployingSphereEnemyData[input.customInstanceId];
     float3 enemyColor = PackeduintColorToFloat3(enemy.baseColor);
     surfaceData.albedo = enemyColor;
@@ -267,6 +268,8 @@ void LitPassFragment(
     {
         discard;
     }
+    // this process is not required when we use depth prepass
+    /*
     else
     {
         float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
@@ -274,6 +277,7 @@ void LitPassFragment(
         float desiredAlpha = lerp(1.0f, 0.0f, (enemy.createdTime - gameTime) * 0.33333f);
         if (dither > desiredAlpha) discard;
     }
+    */
     
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
     color.rgb = MixFog(color.rgb, inputData.fogCoord);

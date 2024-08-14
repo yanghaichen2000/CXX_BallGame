@@ -19,8 +19,6 @@ struct Varyings
         float2 uv       : TEXCOORD0;
     #endif
     float4 positionCS   : SV_POSITION;
-    
-    uint customInstanceId : TEXCOORD10;
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -36,8 +34,7 @@ Varyings DepthOnlyVertex(Attributes input, uint instanceID : SV_InstanceID)
     #if defined(_ALPHATEST_ON)
         output.uv = TRANSFORM_TEX(input.texcoord, _BaseMap);
     #endif
-    output.positionCS = GetDeployingEnemyVertexPositionCS(input.position.xyz, instanceID);
-    output.customInstanceId = instanceID;
+        output.positionCS = GetPlayerBulletVertexPositionCS(input.position.xyz, instanceID);
     return output;
 }
 
@@ -52,22 +49,7 @@ half DepthOnlyFragment(Varyings input) : SV_TARGET
     #if defined(LOD_FADE_CROSSFADE)
         LODFadeCrossFade(input.positionCS);
     #endif
-    
-    EnemyDatum enemy = deployingSphereEnemyData[input.customInstanceId];
-    
-    if (enemy.createdTime - gameTime >= 3.0f)
-    {
-        discard;
-    }
-    else
-    {
-        float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
-        float dither = GetDither8x8(uv);
-        float desiredAlpha = lerp(1.0f, 0.0f, (enemy.createdTime - gameTime) * 0.33333f);
-        if (dither > desiredAlpha)
-            discard;
-    }
-        
+
     return input.positionCS.z;
 }
 #endif
