@@ -561,7 +561,7 @@ public class ComputeCenter
 
         using (new GUtils.PFL("UpdatePlayerBulletPosition")) { UpdatePlayerBulletPosition(); }
         using (new GUtils.PFL("UpdateEnemyBulletVelocityAndPosition")) { UpdateEnemyBulletVelocityAndPosition(); }
-        using (new GUtils.PFL("UpdateEnemyVelocityAndPosition")) { UpdateEnemyVelocityAndPosition(); } // 线程同步还没做好，可能出问题
+        using (new GUtils.PFL("UpdateEnemyVelocityAndPosition")) { UpdateEnemyVelocityAndPosition(); }
 
         using (new GUtils.PFL("CullPlayerBullet")) { CullPlayerBullet(); }
         using (new GUtils.PFL("CullEnemyBullet")) { CullEnemyBullet(); }
@@ -728,6 +728,7 @@ public class ComputeCenter
         Shader.SetGlobalVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
         Shader.SetGlobalFloat("bulletGridSize", bulletGridSize);
         Shader.SetGlobalFloat("bulletGridSizeInv", bulletGridSizeInv);
+        Shader.SetGlobalVector("bulletGridBottomLeftCellCenterPos", new Vector3(-32.0f + 0.5f * bulletGridSize, 0.5f, -16.0f + 0.5f * bulletGridSize));
 
         // bullet color
         Shader.SetGlobalVector("player1BulletColor", gameManager.player1BulletColor);
@@ -739,7 +740,8 @@ public class ComputeCenter
         Vector3 lightDir = GameObject.Find("Directional Light").GetComponent<Transform>().forward;
         Shader.SetGlobalVector("bulletLightDir", -lightDir);
         Shader.SetGlobalFloat("bulletLightIntensity", gameManager.bulletDirectionalLightIntensity);
-        
+        Shader.SetGlobalFloat("bulletEmissionIntensity", gameManager.bulletEmissionIntensity);
+
         // frustum culling
         SetFrustumCullingGlobalConstant();
 
@@ -1092,6 +1094,9 @@ public class ComputeCenter
         Shader.SetGlobalBuffer("bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
 
         Shader.SetGlobalFloat("gameTime", GameManager.gameTime);
+
+        Shader.SetGlobalFloat("bulletLightIntensity", gameManager.bulletDirectionalLightIntensity);
+        Shader.SetGlobalFloat("bulletEmissionIntensity", gameManager.bulletEmissionIntensity);
     }
 
     public void DrawEnemyBullet()
@@ -1236,10 +1241,10 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 8; i++)
         {
             if (i == 0) computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 1.0f);
-            else computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.05f);
+            else computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.1f);
             computeCenterCS.Dispatch(resolveEnemyCollision1Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
             computeCenterCS.Dispatch(resolveEnemyCollision2Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
         }

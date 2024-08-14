@@ -59,6 +59,7 @@ public class GameManager : MonoBehaviour
     public Color enemyColorSuper;
     public Color enemyColorUltra;
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
+    [Range(0.0f, 3.0f)] public float bulletEmissionIntensity;
 
     // game
     bool gameOver = false;

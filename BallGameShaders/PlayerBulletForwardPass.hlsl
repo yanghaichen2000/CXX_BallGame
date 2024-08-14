@@ -122,7 +122,7 @@ void UnlitPassFragment(
     half2 uv = input.uv;
     half4 texColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
     float3 baseColor = bulletColor * texColor.rgb;
-    half3 color = BulletBlinnPhongShading(baseColor, input.normalWS);
+    half3 color = BulletDiffuseShading(baseColor, input.normalWS);
     half alpha = texColor.a * 1.0f;
 
     alpha = AlphaDiscard(alpha, _Cutoff);

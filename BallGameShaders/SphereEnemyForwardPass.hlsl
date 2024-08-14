@@ -266,10 +266,8 @@ void LitPassFragment(
 #ifdef _DBUFFER
     ApplyDecalToSurfaceData(input.positionCS, surfaceData, inputData);
 #endif
-
-    int2 possibleXZList[30];
-    int possibleXZNum = 0;
     
+    inputData.normalWS = normalize(inputData.normalWS);
     EnemyDatum enemy = sphereEnemyData[input.customInstanceId];
     
     // surface data
@@ -286,40 +284,50 @@ void LitPassFragment(
     }
     surfaceData.smoothness = lerp(surfaceData.smoothness, 0.0f, enemyCondition);
     
-    // basic
+    // basic lighting
     half4 color = UniversalFragmentPBR(inputData, surfaceData);
     
     // bullet
     float3 inputRadiance = float3(0.0f, 0.0f, 0.0f);
     int anchorX;
     int anchorZ;
-    GetBulletGridXZFromPos(enemy.pos - float3(0.1f, 0.0f, 0.1f), anchorX, anchorZ);
+    GetBulletGridXZFromPos(enemy.pos - 0.5f * float3(bulletGridSize, 0.0f, bulletGridSize), anchorX, anchorZ);
     
-    
-    // 1x1 cell
-    for (int x = anchorX - 3; x <= anchorX + 4; x++)
+    int possible1x1IndexList[30];
+    int possible1x1XZNum = 0;
+    for (int x = anchorX - 4; x <= anchorX + 5; x++)
     {
-        for (int z = anchorZ - 3; z <= anchorZ + 4; z++)
+        for (int z = anchorZ - 4; z <= anchorZ + 5; z++)
         {
-            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ) continue;
-            if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2) continue;
-            
-            float3 cellRelativePos = float3(float(x - anchorX), 0.0f, float(z - anchorZ));
-            if (dot(cellRelativePos, inputData.normalWS) < -0.05)
+            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
+                continue;
+            if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2)
                 continue;
             
-            BulletRenderingGridDatum datum = bulletRenderingGridData1x1[z * bulletGridLengthX + x];
-            for (int i = 0; i < datum.size; i++)
+            float3 cellPos = GetCellPosFromXZ(x, z);
+            float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
+            if (possible1x1XZNum < 20 && distanceInNormalDir > -bulletGridSize * 0.6f)
             {
-                float3 dir = datum.pos[i] - inputData.positionWS;
-                float distance = length(dir);
-                dir = normalize(dir);
-                float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
-                float distanceFade = 1.0f / (1.0f + distance);
-                distanceFade = distanceFade * distanceFade;
-                float3 bulletColor = datum.color[i];
-                inputRadiance += bulletColor * distanceFade * cosine * 2.0f;
+                possible1x1IndexList[possible1x1XZNum] = z * bulletGridLengthX + x;
+                possible1x1XZNum++;
             }
+        }
+    }
+    
+    // 1x1 cell
+    for (int i = 0; i < possible1x1XZNum; i++)
+    {
+        BulletRenderingGridDatum datum = bulletRenderingGridData1x1[possible1x1IndexList[i]];
+        for (int j = 0; j < datum.size; j++)
+        {
+            float3 dir = datum.pos[j] - inputData.positionWS;
+            float distance = length(dir);
+            dir = normalize(dir);
+            float cosine = saturate(dot(dir, inputData.normalWS));
+            float distanceFade = 1.0f / (1.0f + distance);
+            distanceFade = distanceFade * distanceFade;
+            float3 bulletColor = datum.color[j];
+            inputRadiance += bulletColor * distanceFade * cosine * 2.0f;
         }
     }
     

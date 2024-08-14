@@ -89,6 +89,7 @@ float3 enemyBulletColor;
 
 float3 bulletLightDir;
 float bulletLightIntensity;
+float bulletEmissionIntensity;
 
 float gameTime;
 
@@ -106,15 +107,16 @@ int bulletGridLengthZ;
 float3 bulletGridBottomLeftPos;
 float bulletGridSize;
 float bulletGridSizeInv;
+float3 bulletGridBottomLeftCellCenterPos;
 
-int GetBulletGridIndexFromPos(float3 pos)
+inline int GetBulletGridIndexFromPos(float3 pos)
 {
     int3 xyz = floor((pos - bulletGridBottomLeftPos + 0.00001f) * bulletGridSizeInv);
     xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
     return xyz.z * bulletGridLengthX + xyz.x;
 }
 
-void GetBulletGridXZFromPos(float3 pos, inout int x, inout int z)
+inline void GetBulletGridXZFromPos(float3 pos, inout int x, inout int z)
 {
     int3 xyz = floor((pos - bulletGridBottomLeftPos + 0.00001f) * bulletGridSizeInv);
     xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
@@ -122,9 +124,14 @@ void GetBulletGridXZFromPos(float3 pos, inout int x, inout int z)
     z = xyz.z;
 }
 
-int GetBulletGridIndexFromXZ(int x, int z)
+inline int GetBulletGridIndexFromXZ(int x, int z)
 {
     return z * bulletGridLengthX + x;
+}
+
+inline float3 GetCellPosFromXZ(int x, int z)
+{
+    return bulletGridBottomLeftCellCenterPos + float3(x, 0.0f, z) * bulletGridSize;
 }
 
 VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
@@ -180,7 +187,8 @@ float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
 
 float3 BulletDiffuseShading(float3 baseColor, float3 normal)
 {
-    return baseColor * bulletLightIntensity * saturate(dot(bulletLightDir, normal));
+    return baseColor * bulletLightIntensity * saturate(dot(bulletLightDir, normal)) +
+            bulletEmissionIntensity * baseColor;
 }
 
 float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)

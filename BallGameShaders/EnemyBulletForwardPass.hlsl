@@ -122,7 +122,7 @@ void UnlitPassFragment(
     float3 baseColor = bulletColor * texColor.rgb;
     half alpha = texColor.a * 1.0f;
     
-    half3 color = BulletBlinnPhongShading(baseColor, input.normalWS);
+    half3 color = BulletDiffuseShading(baseColor, input.normalWS);
     if (playerSkillData[0].sharedSkill0 == 1 || playerSkillData[0].sharedSkill0 == 2)
     {
         float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
