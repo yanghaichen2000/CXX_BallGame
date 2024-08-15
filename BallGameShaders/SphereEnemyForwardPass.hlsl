@@ -293,87 +293,87 @@ void LitPassFragment(
     int anchorZ;
     GetBulletGridXZFromPos(enemy.pos - 0.5f * float3(bulletGridSize, 0.0f, bulletGridSize), anchorX, anchorZ);
     
-    
-    // 1x1 cell
-    int possible1x1IndexList[20];
-    int possible1x1XZNum = 0;
-    for (int x = anchorX - 3; x <= anchorX + 4; x++)
+    // lighting from bullets
+    if (inputData.positionWS.y > 0.2f && enemy.hp < 0)
     {
-        for (int z = anchorZ - 3; z <= anchorZ + 4; z++)
+        // 1x1 cell
+        int possible1x1IndexList[20];
+        int possible1x1XZNum = 0;
+        for (int x = anchorX - 3; x <= anchorX + 4; x++)
         {
-            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
-                continue;
-            if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2)
-                continue;
-            
-            float3 cellPos = GetCellPosFromXZ(x, z);
-            float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
-            if (possible1x1XZNum < 20 && distanceInNormalDir > -bulletGridSize * 0.707f)
+            for (int z = anchorZ - 3; z <= anchorZ + 4; z++)
             {
-                possible1x1IndexList[possible1x1XZNum] = z * bulletGridLengthX + x;
-                possible1x1XZNum++;
+                if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
+                    continue;
+                if (x >= anchorX - 1 && x <= anchorX + 2 && z >= anchorZ - 1 && z <= anchorZ + 2)
+                    continue;
+            
+                float3 cellPos = GetCellPosFromXZ(x, z);
+                float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
+                if (possible1x1XZNum < 20 && distanceInNormalDir > -bulletGridSize * 0.707f)
+                {
+                    possible1x1IndexList[possible1x1XZNum] = z * bulletGridLengthX + x;
+                    possible1x1XZNum++;
+                }
             }
         }
-    }
-    
-    for (int i = 0; i < possible1x1XZNum; i++)
-    {
-        BulletRenderingGridDatum datum = bulletRenderingGridData1x1[possible1x1IndexList[i]];
-        for (int j = 0; j < datum.size; j++)
+        
+        
+        for (int i = 0; i < possible1x1XZNum; i++)
         {
-            float3 dir = datum.pos[j] - inputData.positionWS;
-            float distance = length(dir);
-            dir = normalize(dir);
-            float cosine = saturate(dot(dir, inputData.normalWS));
-            float distanceFade = 1.0f / (1.0f + distance);
-            distanceFade = distanceFade * distanceFade;
-            float3 bulletColor = datum.color[j];
-            inputRadiance += bulletColor * distanceFade * cosine * bulletLightingOnEnemyIntensity;
-        }
-    }
-    
-    int possible2x2IndexList[20];
-    int possible2x2XZNum = 0;
-    // 2x2 cell
-    for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
-    {
-        for (int z = anchorZ - 7; z <= anchorZ + 7; z += 2)
-        {
-            if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
-                continue;
-            if (x >= anchorX - 3 && x <= anchorX + 4 && z >= anchorZ - 3 && z <= anchorZ + 4)
-                continue;
-            
-            float3 cellPos = GetCellPosFromXZ(x, z) + bulletGridSize * 0.5;
-            
-            float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
-            if (possible2x2XZNum < 20 && distanceInNormalDir > -bulletGridSize * 1.414f)
+            BulletRenderingGridDatum datum = bulletRenderingGridData1x1[possible1x1IndexList[i]];
+            for (int j = 0; j < 4; j++)
             {
-                possible2x2IndexList[possible2x2XZNum] = z * bulletGridLengthX + x;
-                possible2x2XZNum++;
+                if (j == datum.size) break;
+                float3 dir = normalize(datum.pos[j] - inputData.positionWS);
+                float cosine = saturate(dot(dir, inputData.normalWS));
+                float distanceFade = 1.0f / (1.0f + dot(dir, dir));
+                float3 bulletColor = datum.color[j];
+                inputRadiance += bulletColor * distanceFade * cosine;
             }
         }
-    }
-            
-    for (int i = 0; i < possible2x2XZNum; i++)
-    {
-        BulletRenderingGridDatum datum = bulletRenderingGridData2x2[possible2x2IndexList[i]];
-        for (int j = 0; j < datum.size; j++)
+        
+        
+        // 2x2 cell
+        int possible2x2IndexList[20];
+        int possible2x2XZNum = 0;
+        for (int x = anchorX - 7; x <= anchorX + 7; x += 2)
         {
-            float3 dir = datum.pos[j] - inputData.positionWS;
-            float distance = length(dir);
-            dir = normalize(dir);
-            float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
-            float distanceFade = 1.0f / (1.0f + distance);
-            distanceFade = distanceFade * distanceFade;
-            float3 bulletColor = datum.color[j];
-            inputRadiance += bulletColor * distanceFade * cosine * bulletLightingOnEnemyIntensity;
+            for (int z = anchorZ - 7; z <= anchorZ + 7; z += 2)
+            {
+                if (x < 0 || x >= bulletGridLengthX || z < 0 || z >= bulletGridLengthZ)
+                    continue;
+                if (x >= anchorX - 3 && x <= anchorX + 4 && z >= anchorZ - 3 && z <= anchorZ + 4)
+                    continue;
+            
+                float3 cellPos = GetCellPosFromXZ(x, z) + bulletGridSize * 0.5;
+            
+                float distanceInNormalDir = dot(inputData.normalWS, cellPos - inputData.positionWS);
+                if (possible2x2XZNum < 20 && distanceInNormalDir > -bulletGridSize * 1.414f)
+                {
+                    possible2x2IndexList[possible2x2XZNum] = z * bulletGridLengthX + x;
+                    possible2x2XZNum++;
+                }
+            }
         }
+            
+        for (int i = 0; i < possible2x2XZNum; i++)
+        {
+            BulletRenderingGridDatum datum = bulletRenderingGridData2x2[possible2x2IndexList[i]];
+            for (int j = 0; j < 4; j++)
+            {
+                if (j == datum.size) break;
+                float3 dir = normalize(datum.pos[j] - inputData.positionWS);
+                float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
+                float distanceFade = 1.0f / (1.0f + dot(dir, dir));
+                float3 bulletColor = datum.color[j];
+                inputRadiance += bulletColor * distanceFade * cosine;
+            }
+        }
+    
+        // diffuse lighting from bullets
+        color.rgb += inputRadiance * surfaceData.albedo * bulletLightingOnEnemyIntensity;
     }
-    
-    // diffuse lighting from bullets
-    color.rgb += inputRadiance * surfaceData.albedo;
-    
     
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));

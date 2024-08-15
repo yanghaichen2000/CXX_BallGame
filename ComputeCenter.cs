@@ -565,6 +565,13 @@ public class ComputeCenter
         InitializeEnemyWeapon();
     }
 
+    public void Release()
+    {
+        planeLightingTexture.Release();
+        planeLightingTextureTmp.Release();
+    }
+
+
     public void UpdateGPU()
     {
         using (new GUtils.PFL("UpdateComputeGlobalConstant")) { UpdateComputeGlobalConstant(); }

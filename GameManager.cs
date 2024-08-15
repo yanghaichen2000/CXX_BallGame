@@ -114,7 +114,7 @@ public class GameManager : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.U))
             {
                 level.nextWave = level.Wave17;
-                level.currentWave = 17;
+                level.currentWave = 16;
                 player1.exp = 88888;
                 player2.exp = 88888;
                 player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
@@ -151,6 +151,11 @@ public class GameManager : MonoBehaviour
     {
         player1.FixedUpdate();
         player2.FixedUpdate();
+    }
+
+    private void OnDestroy()
+    {
+        computeCenter.Release();
     }
 
     public void UpdateTime()

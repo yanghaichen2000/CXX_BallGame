@@ -170,7 +170,15 @@ float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
 float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
 {
     EnemyDatum datum = sphereEnemyData[instanceID];
+    
     float3 positionWS = positionOS * datum.size + datum.pos;
+    
+    float t = gameTime - datum.lastHitByPlayer2Skill0Time; // timeSinceHitByPlayer2Skill0
+    if (t < player2Skill0TMax)
+    {
+        positionWS += player2Skill0V0 * t - 5.0f * t * t;
+    }
+    
     return TransformWorldToHClip(positionWS);
 }
 

@@ -328,10 +328,10 @@ public class GameLevel
 
     public int Wave18()
     {
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 9, 9, 8, 1.2f, 1.2f, 0.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 14.0f, 9, 9, 8, 1.2f, -1.2f, 0.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, 14.0f, 9, 9, 8, -1.2f, -1.2f, 0.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, -14.0f, 9, 9, 8, -1.2f, 1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 8, 8, 8, 1.2f, 1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, 14.0f, 8, 8, 8, 1.2f, -1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, 14.0f, 8, 8, 8, -1.2f, -1.2f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(19.0f, -14.0f, 8, 8, 8, -1.2f, 1.2f, 0.0f);
 
         for (int i = 0; i < 5; i++)
         {
@@ -341,11 +341,11 @@ public class GameLevel
             GameManager.enemyLegion.SpawnSphereEnemy(18.0f, -11.0f, 1, 12, 6, 2.0f, 2.0f, 10.0f + i * 6.0f);
         }
 
-        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 8, 2.0f, 2.0f, 13.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 5, 2.0f, 2.0f, 19.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 7, 2.0f, 2.0f, 25.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 4, 2.0f, 2.0f, 31.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-10.0f, -10.0f, 11, 11, 8, 2.0f, 2.0f, 37.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-8.0f, -8.0f, 9, 9, 8, 2.0f, 2.0f, 13.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-8.0f, -8.0f, 9, 9, 5, 2.0f, 2.0f, 19.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-8.0f, -8.0f, 9, 9, 7, 2.0f, 2.0f, 25.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-8.0f, -8.0f, 9, 9, 4, 2.0f, 2.0f, 31.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-8.0f, -8.0f, 9, 9, 8, 2.0f, 2.0f, 37.0f);
 
         currentWave++;
         nextWaveTime = GameManager.gameTime + 50.0f;

@@ -616,7 +616,7 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         
         float3 dV = (float3) enemy.hitImpulse * 0.0001 / enemy.m;
         if (length(dV) > 0.001f)
-            dV = normalize(dV) * clamp(length(dV), 0.0f, 1.0f);
+            dV = normalize(dV) * clamp(length(dV), 0.0f, 5.0f);
         enemy.velocity += dV;
         enemy.hitImpulse = int3(0, 0, 0);
         enemy.m = enemy.hp <= 0 ? enemy.originalM * 0.18f : enemy.originalM;
@@ -1086,7 +1086,7 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
         }
     }
     
-    for (int i = 0; i < min(enemyBulletGridData[index].size > 0, 2);i++)
+    for (int i = 0; i < min(enemyBulletGridData[index].size, 2); i++)
     {
         BulletDatum bullet = enemyBulletData[enemyBulletGridData[index].bulletIndexList[i]];
         bool valid = true;
@@ -1108,6 +1108,7 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
         }
     }
 }
+
 
 
 [numthreads(8, 1, 8)]
@@ -1210,6 +1211,7 @@ void GeneratePlaneLightingTexture(uint3 id : SV_DispatchThreadID)
     }
 }
 
+
 [numthreads(16, 16, 1)]
 void ResolvePlaneLightingTexture(uint3 id : SV_DispatchThreadID)
 {
@@ -1229,6 +1231,7 @@ void GaussianBlurU(uint3 id : SV_DispatchThreadID)
     }
     planeLightingTextureTmp[id.xy] = float4(result, 1.0f);
 }
+
 
 [numthreads(1, 150, 1)]
 void GaussianBlurV(uint3 id : SV_DispatchThreadID)
