@@ -41,6 +41,7 @@ public class GameManager : MonoBehaviour
     public static UIManager uiManager;
 
     public static GameLevel level;
+    public static Boss boss;
 
     public static CameraMotionManager cameraMotionManager;
 
@@ -53,11 +54,13 @@ public class GameManager : MonoBehaviour
     // inspector
     public Color player1BulletColor;
     public Color player2BulletColor;
+    public Color bossBulletColor;
     public Color enemyColorWeak;
     public Color enemyColorMedium;
     public Color enemyColorStrong;
     public Color enemyColorSuper;
     public Color enemyColorUltra;
+    public Color enemyColorLittleBoss;
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
     [Range(0.0f, 3.0f)] public float bulletEmissionIntensity;
     [Range(0.0f, 3.0f)] public float planeLightingGaussianBlurCoeff;
@@ -89,13 +92,19 @@ public class GameManager : MonoBehaviour
         basicTransform = GameObject.Find("ball game").transform;
         cameraMotionManager = new CameraMotionManager();
         level = new GameLevel();
+        boss = new Boss();
     }
 
     void Start()
     {
         lastTickTime = DateTime.Now;
 
-        level.StartLevel();
+        player1.exp = 88888;
+        player2.exp = 88888;
+        player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
+        player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
+
+        //level.StartLevel();
     }
 
     void Update()
@@ -109,6 +118,7 @@ public class GameManager : MonoBehaviour
             using (new GUtils.PFL("player1.Update")) { player1.Update(); }
             using (new GUtils.PFL("player2.Update")) { player2.Update(); }
             using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
+            using (new GUtils.PFL("Boss.Update")) { boss.Update(); }
             using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
 
             if (Input.GetKeyDown(KeyCode.U))
@@ -151,6 +161,7 @@ public class GameManager : MonoBehaviour
     {
         player1.FixedUpdate();
         player2.FixedUpdate();
+        boss.FixedUpdate();
     }
 
     private void OnDestroy()

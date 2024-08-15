@@ -7,8 +7,8 @@ using UnityEngine;
 
 public class AllLevelPlayerData
 {
-    public PlayerWeaponDatum[] player1WeaponData;
-    public PlayerWeaponDatum[] player2WeaponData;
+    public WeaponDatum[] player1WeaponData;
+    public WeaponDatum[] player2WeaponData;
     public int[] levelExpList;
 
     public AllLevelPlayerData()
@@ -20,9 +20,9 @@ public class AllLevelPlayerData
 
     public void InitializePlayer1WeaponData()
     {
-        player1WeaponData = new PlayerWeaponDatum[21];
+        player1WeaponData = new WeaponDatum[21];
 
-        player1WeaponData[0] = new PlayerWeaponDatum()
+        player1WeaponData[0] = new WeaponDatum()
         {
             shootInterval = 0.6f,
             virtualYRange = 0.2f,
@@ -134,9 +134,9 @@ public class AllLevelPlayerData
 
     public void InitializePlayer2WeaponData()
     {
-        player2WeaponData = new PlayerWeaponDatum[21];
+        player2WeaponData = new WeaponDatum[21];
 
-        player2WeaponData[0] = new PlayerWeaponDatum()
+        player2WeaponData[0] = new WeaponDatum()
         {
             shootInterval = 0.3f,
             virtualYRange = 0.0f,
@@ -318,6 +318,8 @@ public class Player
     public float m = 100.0f;
     public bool hittable = false;
     public float lastHitByEnemyTime = -10000.0f;
+    public bool disarmed = false;
+    public float lastHitByBossTime = -10000.0f;
     public float availableAutoRestoreHP = 0.0f;
 
     public Player(int _index, GameObject _obj, PlayerInputManager _playerInputManager)
@@ -338,6 +340,7 @@ public class Player
     {
         AutoRestoreHP();
         UpdateHittableState();
+        UpdateDisarmedState();
         UpdateMass();
         playerInputManager.Update();
         UpdateLevel();
@@ -348,6 +351,15 @@ public class Player
     public void FixedUpdate()
     {
         UpdateVelocity();
+    }
+
+    public void UpdateDisarmedState()
+    {
+        if (GameManager.gameTime > lastHitByBossTime + hitProtectionDuration)
+        {
+            if (disarmed) weapon.SetLastShootTime(GameManager.gameTime);
+            disarmed = false;
+        }
     }
 
     public void UpdateLevel()
@@ -391,7 +403,7 @@ public class Player
 
     public void Shoot()
     {
-        if (hittable)
+        if (hittable && !disarmed)
         {
             Vector3 shootDir = playerInputManager.GetShootDir(obj.transform.localPosition);
             weapon.Shoot(obj.transform.localPosition, shootDir);

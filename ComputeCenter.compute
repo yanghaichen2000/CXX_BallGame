@@ -1,4 +1,5 @@
 #pragma kernel PlayerShoot
+#pragma kernel BossShoot
 #pragma kernel UpdatePlayerBulletPosition
 #pragma kernel CullPlayerBullet
 #pragma kernel ProcessPlayerBulletCollision
@@ -32,6 +33,8 @@
 #pragma kernel ResolvePlaneLightingTexture
 #pragma kernel GaussianBlurU
 #pragma kernel GaussianBlurV
+#pragma kernel ProcessPlayerBulletBossCollision
+#pragma kernel KnockOutAllEnemy
 
 
 #define DEG2RAD_V 0.01745329252f
@@ -138,7 +141,7 @@ struct EnemyDatum
     uint baseColor;
     float lastHitByPlayer2Skill0Time;
     float createdTime;
-    float tmp;
+    int knockedOutByBoss;
 };
 
 struct EnemyCollisionCacheDatum
@@ -192,7 +195,19 @@ struct BulletRenderingGridDatum
     float3 color[4];
 };
 
+struct BossDatum
+{
+    float3 pos;
+    int hpChange;
+    int3 hitImpulse;
+    float tmp;
+    float4 tmp1;
+    float4 tmp2;
+};
+
 RWStructuredBuffer<PlayerDatum> playerData;
+
+RWStructuredBuffer<BossDatum> bossData;
 
 RWStructuredBuffer<PlayerSkillDatum> playerSkillData;
 
@@ -202,6 +217,7 @@ RWStructuredBuffer<int> playerBulletNum;
 RWStructuredBuffer<int> culledPlayerBulletNum;
 
 RWStructuredBuffer<BulletDatum> playerShootRequestData;
+RWStructuredBuffer<BulletDatum> bossShootRequestData;
 
 RWStructuredBuffer<BulletGridDatum> playerBulletGridData;
 RWStructuredBuffer<BulletGridDatum> enemyBulletGridData;
@@ -249,6 +265,7 @@ float3 planeSizeInv;
 float4 planeLightingGaussianBlurWeight[7];
 
 int playerShootRequestNum;
+int bossShootRequestNum;
 int createSphereEnemyRequestNum;
 float deltaTime;
 float gameTime;
@@ -361,6 +378,18 @@ void PlayerShoot(uint3 id : SV_DispatchThreadID)
         int index;
         InterlockedAdd(playerBulletNum[0], 1, index);
         playerBulletData[index] = playerShootRequestData[id.x];
+    }
+}
+
+
+[numthreads(256, 1, 1)]
+void BossShoot(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < bossShootRequestNum)
+    {
+        int index;
+        InterlockedAdd(enemyBulletNum[0], 1, index);
+        enemyBulletData[index] = bossShootRequestData[id.x];
     }
 }
 
@@ -557,7 +586,35 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
         }
     }
 }
- 
+
+
+[numthreads(256, 1, 1)]
+void ProcessPlayerBulletBossCollision(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < playerBulletNum[0])
+    {
+        BulletDatum bullet = playerBulletData[id.x];
+        float3 bossPos = bossData[0].pos;
+        float3 bossRelativePos = bullet.pos - bossPos;
+        
+        if (length(bossRelativePos) <= 0.5f + bullet.radius)
+        {
+            InterlockedAdd(bossData[0].hpChange, -bullet.damage);
+            float3 normal = normalize(bossRelativePos);
+            float3 impulse = 10000.0f * bullet.impulse * normal * min(0.0f, dot(bullet.dir, normal));
+            InterlockedAdd(bossData[0].hitImpulse.x, (int) impulse.x);
+            InterlockedAdd(bossData[0].hitImpulse.z, (int) impulse.z);
+            bullet.pos = bossPos + (0.5f + bullet.radius) * normal;
+            bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
+            bullet.dir.y = 0.0f;
+            bullet.dir = normalize(bullet.dir);
+            bullet.bounces -= 1;
+            SetBit(bullet.packedInfo, 1, 0);
+            playerBulletData[id.x] = bullet;
+        }
+    }
+}
+
 
 [numthreads(256, 1, 1)]
 void ProcessEnemyBulletCollision(uint3 id : SV_DispatchThreadID)
@@ -1242,4 +1299,21 @@ void GaussianBlurV(uint3 id : SV_DispatchThreadID)
         result += planeLightingGaussianBlurWeight[i].x * planeLightingTextureTmp[id.xy + int2(0, i - 3)];
     }
     planeLightingTexture[id.xy] = float4(result, 1.0f);
+}
+
+
+[numthreads(1, 128, 1)]
+void knockOutAllEnemy(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < sphereEnemyNum[0])
+    {
+        EnemyDatum enemy = sphereEnemyData[id.x];
+        float3 relativePosToCenter = enemy.pos - float3(0.0f, 0.5f, 0.0f);
+        float distanceToCenter = length(relativePosToCenter);
+        float speedXZ = 15.0f / (1.0f + distanceToCenter * 0.04);
+        float speedY = 10.0f / (1.0f + distanceToCenter * 0.04);
+        float3 dirXZ = normalize(relativePosToCenter);
+        sphereEnemyData[id.x].velocity = dirXZ * speedXZ + float3(0.0f, speedY, 0.0f);
+        sphereEnemyData[id.x].knockedOutByBoss = 1;
+    }
 }

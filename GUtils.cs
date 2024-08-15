@@ -40,14 +40,20 @@ public class GUtils
         }
     }
 
-    public static Vector3 Vector3Pow(Vector3 x, float y)
+    public static Vector3 Pow(Vector3 x, float y)
     {
         return new Vector3(MathF.Pow(x.x, y), MathF.Pow(x.y, y), MathF.Pow(x.z, y));
     }
 
-    public static Vector3 Vector3Mul(Vector3 x, Vector3 y)
+    public static Vector3 Mul(Vector3 x, Vector3 y)
     {
         return new Vector3(x.x * y.x, x.y * y.y, x.z * y.z);
+    }
+
+    public static Vector3 Lerp(Vector3 from, Vector3 to, float k)
+    {
+        k = Math.Clamp(k, 0.0f, 1.0f);
+        return from * (1.0f - k) + to * k;
     }
 
     private static float SRGBToLinear(float val)
@@ -81,5 +87,9 @@ public class GUtils
         return ret;
     }
 
+    public static bool RandomBool(float truePossibility)
+    {
+        return UnityEngine.Random.Range(0.0f, 1.0f) < truePossibility;
+    }
 }
 

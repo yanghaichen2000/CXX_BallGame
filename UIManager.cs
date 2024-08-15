@@ -42,6 +42,9 @@ public class UIManager
     public PlayerSkillUI[,] playerSkillUI;
     public GameObject image_aimingPoint;
 
+    public Image image_bossHP;
+    public TextMeshProUGUI text_bossHP;
+
     public TextMeshProUGUI text_nextWave;
     public TextMeshProUGUI text_currentWave;
 
@@ -64,6 +67,9 @@ public class UIManager
         text_player2Mass = GameObject.Find("text_player2Mass").GetComponent<TextMeshProUGUI>();
         text_player2Level = GameObject.Find("text_player2Level").GetComponent<TextMeshProUGUI>();
         image_player2HP = GameObject.Find("image_player2HP").GetComponent<Image>();
+
+        image_bossHP = GameObject.Find("image_bossHP").GetComponent<Image>();
+        text_bossHP = GameObject.Find("text_bossHP").GetComponent<TextMeshProUGUI>();
 
         text_nextWave = GameObject.Find("text_nextWave").GetComponent<TextMeshProUGUI>();
         text_currentWave = GameObject.Find("text_currentWave").GetComponent<TextMeshProUGUI>();
@@ -187,4 +193,10 @@ public class UIManager
         resolution.text = string.Format("resolution = {0}x{1}", Screen.width, Screen.height);
     }
 
+    public void UpdateBossHPAndMass()
+    {
+        Boss boss = GameManager.boss;
+        text_bossHP.text = string.Format("{0} / {1}, {2:F} kg", boss.hp, boss.maxHP, boss.mass);
+        image_bossHP.fillAmount = (float)boss.hp / boss.maxHP;
+    }
 }

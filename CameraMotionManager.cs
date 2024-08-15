@@ -45,17 +45,17 @@ public class CameraMotionManager
     public void Update()
     {
         // rotation
-        currentAngleSpeed += -GUtils.Vector3Mul(currentAngle, angleSpringCoeff) * GameManager.deltaTime;
+        currentAngleSpeed += -GUtils.Mul(currentAngle, angleSpringCoeff) * GameManager.deltaTime;
         currentAngle += currentAngleSpeed * GameManager.deltaTime;
-        currentAngle = GUtils.Vector3Mul(currentAngle, GUtils.Vector3Pow(angleAttenuationCoeff, GameManager.deltaTime));
+        currentAngle = GUtils.Mul(currentAngle, GUtils.Pow(angleAttenuationCoeff, GameManager.deltaTime));
         Quaternion rotation1 = Quaternion.AngleAxis(currentAngle.x, originalForward);
         Quaternion rotation2 = Quaternion.Euler(currentAngle.y, currentAngle.z, 0.0f);
         Camera.main.transform.rotation = rotation1 * rotation2 * originalRotation;
 
         // position
-        currentDisplacementSpeed += -GUtils.Vector3Mul(currentDisplacement, displacementSpringCoeff) * GameManager.deltaTime;
+        currentDisplacementSpeed += -GUtils.Mul(currentDisplacement, displacementSpringCoeff) * GameManager.deltaTime;
         currentDisplacement += currentDisplacementSpeed * GameManager.deltaTime;
-        currentDisplacement = GUtils.Vector3Mul(currentDisplacement, GUtils.Vector3Pow(displacementAttenuationCoeff, GameManager.deltaTime));
+        currentDisplacement = GUtils.Mul(currentDisplacement, GUtils.Pow(displacementAttenuationCoeff, GameManager.deltaTime));
         Camera.main.transform.position = originalPosition +
             Camera.main.transform.right * currentDisplacement.x +
             Camera.main.transform.up * currentDisplacement.y +
