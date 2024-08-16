@@ -177,6 +177,40 @@ public class WeaponDatumSample
         impulse = 3.0f,
         renderingBiasY = 0.0f,
     };
+
+    public static WeaponDatum bossState7Weak = new WeaponDatum()
+    {
+        shootInterval = 0.01f,
+        virtualYRange = 0.2f,
+        virtualYBase = 0.5f,
+        angleBiasRange = 0f,
+        extraBulletsPerSide = 3,
+        angle = 360.0f / 7.0f,
+        speed = 50.0f,
+        radius = 0.07f,
+        damage = 1,
+        bounces = 2,
+        lifeSpan = 12.0f,
+        impulse = 0.1f,
+        renderingBiasY = 0.0f,
+    };
+
+    public static WeaponDatum bossState7Normal = new WeaponDatum()
+    {
+        shootInterval = 0.005f,
+        virtualYRange = 0.2f,
+        virtualYBase = 0.5f,
+        angleBiasRange = 0f,
+        extraBulletsPerSide = 21,
+        angle = 360.0f / 7.0f + 0.15f,
+        speed = 50.0f,
+        radius = 0.07f,
+        damage = 1,
+        bounces = 2,
+        lifeSpan = 12.0f,
+        impulse = 2.0f,
+        renderingBiasY = 0.0f,
+    };
 }
 
 public class Weapon

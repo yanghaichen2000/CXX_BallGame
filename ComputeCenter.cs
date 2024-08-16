@@ -165,7 +165,8 @@ public class ComputeCenter
         public int hpChange;
         public int3 hitImpulse;
         public float tmp;
-        public Vector4 tmp1;
+        public Vector3 velocity;
+        public float tmp1;
         public Vector4 tmp2;
     }
     const int bossDatumSize = 64;
@@ -198,7 +199,7 @@ public class ComputeCenter
 
     int currentResourceCBIndex;
 
-    bool knockOutAllEnemyRequest;
+    public bool knockOutAllEnemyRequest;
 
     BulletDatum[] playerBulletData;
     ComputeBuffer[] playerBulletDataCB;
@@ -329,6 +330,7 @@ public class ComputeCenter
     int gaussianBlurVKernel = -1;
     int processPlayerBulletBossCollisionKernel = -1;
     int knockOutAllEnemyKernel = -1;
+    int processBossEnemyCollisionKernel = -1;
 
 
     Mesh playerBulletMesh;
@@ -512,7 +514,7 @@ public class ComputeCenter
         gaussianBlurVKernel = computeCenterCS.FindKernel("GaussianBlurV");
         processPlayerBulletBossCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerBulletBossCollision");
         knockOutAllEnemyKernel = computeCenterCS.FindKernel("KnockOutAllEnemy");
-
+        processBossEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessBossEnemyCollision");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -616,6 +618,7 @@ public class ComputeCenter
         using (new GUtils.PFL("ExecutePlayerShootRequest")) { ExecutePlayerShootRequest(); }
         using (new GUtils.PFL("ExecuteBossShootRequest")) { ExecuteBossShootRequest(); }
         using (new GUtils.PFL("ExecuteCreateEnemyRequest")) { ExecuteCreateEnemyRequest(); }
+        using (new GUtils.PFL("ExecuteKnockOutAllEnemyRequest")) { ExecuteKnockOutAllEnemyRequest(); }
         using (new GUtils.PFL("UpdateDeployingEnemy")) { UpdateDeployingEnemy(); }
         using (new GUtils.PFL("EnemyShoot")) { EnemyShoot(); }
 
@@ -625,6 +628,7 @@ public class ComputeCenter
         using (new GUtils.PFL("ProcessPlayerBulletBossCollision")) { ProcessPlayerBulletBossCollision(); }
         using (new GUtils.PFL("ProcessEnemyBulletCollision")) { ProcessEnemyBulletCollision(); }
         using (new GUtils.PFL("ProcessPlayerEnemyCollision")) { ProcessPlayerEnemyCollision(); } // 这个必须要放在敌人和子弹碰撞之后
+        using (new GUtils.PFL("ProcessBossEnemyCollision")) { ProcessBossEnemyCollision(); }
         using (new GUtils.PFL("ProcessBulletBulletCollision")) { ProcessBulletBulletCollision(); }
 
         using (new GUtils.PFL("UpdatePlayerBulletPosition")) { UpdatePlayerBulletPosition(); }
@@ -1056,7 +1060,7 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 2.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.14f,
+            shootInterval = 0.17f,
             extraBulletsPerSide = 4,
             angle = 8.0f,
             randomShootDelay = 0.03f,
@@ -1074,7 +1078,7 @@ public class ComputeCenter
         {
             uniformRandomAngleBias = 2.0f,
             individualRandomAngleBias = 0.0f,
-            shootInterval = 0.06f,
+            shootInterval = 0.08f,
             extraBulletsPerSide = 1,
             angle = 3.0f,
             randomShootDelay = 0.0f,
@@ -1122,6 +1126,7 @@ public class ComputeCenter
             pos = GameManager.boss.obj.transform.localPosition,
             hpChange = 0,
             hitImpulse = new int3(0, 0, 0),
+            velocity = GameManager.boss.body.velocity,
         };
         bossDataCB.SetData(bossData);
     }
@@ -1337,6 +1342,15 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+    }
+
+    public void ProcessBossEnemyCollision()
+    {
+        int kernel = processBossEnemyCollisionKernel;
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeCenterCS.SetBuffer(kernel, "bossData", bossDataCB);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
@@ -1595,6 +1609,8 @@ public void ExecuteCreateEnemyRequest()
     {
         if (knockOutAllEnemyRequest)
         {
+            knockOutAllEnemyRequest = false;
+
             int kernel = knockOutAllEnemyKernel;
             computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
             computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);

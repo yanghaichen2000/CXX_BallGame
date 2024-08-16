@@ -2,35 +2,43 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using static UnityEditor.PlayerSettings;
 using Unity.VisualScripting;
-using static UnityEditor.Experimental.GraphView.GraphView;
 using Unity.Mathematics;
 
 public class Boss
 {
-    public const float state3Duration = 3.5f;
-    public const float state3LoadingTime = 1.7f;
+    public const float state1FixedShootStrategyDuration = 5.0f;
+    public const float state1FixedShootStrategyRandomExtraDuration = 2.0f;
+    public const float state1ShootRotationSpeed = 720.0f;
+    public const float state1TransitionToState6Threshold = 5.0f;
+    public const float state3Cd = 5.0f;
+    public const float state3Duration = 3.0f;
+    public const float state3LoadingTime = 1.0f;
     public const float state4InitialStateTransitionPossibility = 0.33f;
     public const float state4Duration = 15.0f;
     public const float state4Cd = 60.0f;
     public const float state5VerticalSpeed = 50.0f;
     public const float state5Duration = 1.0f;
-
+    public const float state6InitialStopDuration = 0.7f;
+    public const float state6JumpDuration = 1.0f;
+    public const float state6Gravity = 60.0f;
+    public const float state7Duration = 3.0f;
+    public const float state7WeakDuration = 1.0f;
+    public const float state7ShootRotationSpeedWeak = 5.0f;
+    public const float state7ShootRotationSpeedNormal = 27.0f;
 
     public GameObject obj;
     public Rigidbody body;
     public float maxSpeed;
     public float maxAcceleration;
-    public float state1ShootRotationSpeed;
+    
     public int maxHP;
-
     public Player player1;
     public Player player2;
 
     public BossWeapon weapon;
     public Vector3 velocity;
-    public int state; // 0£ºÍ£Ö¹£¬1£ºÅö×²£¬2£º»ØÖÐÐÄ£¬3£ºÐîÁ¦È«ÆÁµ¯Ä»£¬4£ºÕÙ»½Ð¡¹Ö£¬5£ºÂäµØ
+    public int state; // 0£ºÍ£Ö¹£¬1£ºÅö×²£¬2£º»ØÖÐÐÄ£¬3£ºÐîÁ¦È«ÆÁµ¯Ä»£¬4£ºÕÙ»½Ð¡¹Ö£¬5£ºÂäµØ£¬6£ºÔ¶³ÌÍ»Ï®ÌøÔ¾
     public Vector3 state2Destination;
     public Vector3 lastShootDir;
     public int hp;
@@ -38,30 +46,48 @@ public class Boss
     public float stateStartTime;
     public bool hitPlayer1;
     public float lastState4StartTime;
+    public float lastState3StartTime;
     public int state4enemyWaveNum;
     public int state4enemyNum;
     public float state4StateTransitionPossibility;
+    public float state1LastChangeShootStrategyTime;
+    public int state1ShootStrategy; // 0£ºÃé×¼Ô¶´¦Íæ¼Ò£¬1£º×ªÈ¦
+    public float state1LastHitPlayerTime;
+    public bool state6TargetPositionComfirmed;
+    public Vector3 state6InitialVelocityXZ;
+    public float state6InitialVelocityY;
+    public Vector3 state6InitialPosition;
+    public bool state7Ready;
+    public bool state7CanRepeatState6;
+    public float state6StopDuration;
 
     public Boss()
     {
         obj = GameObject.Find("Boss");
         body = obj.GetComponent<Rigidbody>();
-        maxSpeed = 10.0f;
-        maxAcceleration = 20.0f;
-        state1ShootRotationSpeed = 720.0f;
+        maxSpeed = 8.0f;
+        maxAcceleration = 25.0f;
         player1 = GameManager.player1;
         player2 = GameManager.player2;
         weapon = new BossWeapon(WeaponDatumSample.bossState1);
         state = 1;
         lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
-        maxHP = 1000000;
+        maxHP = 800000;
         hp = maxHP;
         mass = GetMassFromHP(hp);
         stateStartTime = GameManager.gameTime;
         hitPlayer1 = false;
         lastState4StartTime = -99999.0f;
+        lastState3StartTime = -99999.0f;
         state4enemyNum = 0;
         state4StateTransitionPossibility = state4InitialStateTransitionPossibility;
+        state1LastChangeShootStrategyTime = -99999.0f;
+        state1LastHitPlayerTime = -99999.0f;
+        state1ShootStrategy = 0;
+        state6TargetPositionComfirmed = false;
+        state7Ready = false;
+        state7CanRepeatState6 = true;
+        state6StopDuration = state6InitialStopDuration;
     }
 
     public void FixedUpdate()
@@ -83,6 +109,29 @@ public class Boss
             UpdateBodyVelocity(desiredVelocity);
         }
         else if (state == 4)
+        {
+            Vector3 desiredVelocity = new Vector3(0.0f, 0.0f, 0.0f);
+            UpdateBodyVelocity(desiredVelocity);
+        }
+        else if (state == 5)
+        {
+            Vector3 desiredVelocity = new Vector3(0.0f, 0.0f, 0.0f);
+            body.velocity = desiredVelocity;
+        }
+        else if (state == 6)
+        {
+            if (GameManager.gameTime - stateStartTime < state6StopDuration)
+            {
+                Vector3 desiredVelocity = GUtils.Lerp(body.velocity, Vector3.zero, 8.0f * GameManager.deltaTime);
+                UpdateBodyVelocity(desiredVelocity);
+            }
+            else
+            {
+                Vector3 desiredVelocity = new Vector3(0.0f, 0.0f, 0.0f);
+                body.velocity = desiredVelocity;
+            }
+        }
+        else if (state == 7)
         {
             Vector3 desiredVelocity = new Vector3(0.0f, 0.0f, 0.0f);
             UpdateBodyVelocity(desiredVelocity);
@@ -115,6 +164,7 @@ public class Boss
                 float shakeForce = Math.Clamp(1.0f / player.m, 0.5f, 5.0f);
                 GameManager.cameraMotionManager.ShakeByRotation(shakeForce);
 
+                state1LastHitPlayerTime = GameManager.gameTime;
                 if (player.index == 0)
                 {
                     hitPlayer1 = true;
@@ -160,7 +210,39 @@ public class Boss
         else if (state == 5)
         {
             float state5Time = GameManager.gameTime - stateStartTime;
-            obj.transform.localPosition = new Vector3(0.0f, 0.5f + state5VerticalSpeed * (state5Duration - state5Time), 0.0f);
+            obj.transform.localPosition = new Vector3(0.0f, 0.51f + state5VerticalSpeed * (state5Duration - state5Time), 0.0f);
+            body.velocity = new Vector3(0.0f, 0.0f, 0.0f);
+        }
+        else if (state == 6)
+        {
+            float state6Time = GameManager.gameTime - stateStartTime;
+            if (state6Time > state6StopDuration)
+            {
+                if (!state6TargetPositionComfirmed)
+                {
+                    GetState6InitialVelocityAndPosition();
+                    state6TargetPositionComfirmed = true;
+
+                    GameManager.cameraMotionManager.ShakeByRotation(0.5f);
+                    GameManager.cameraMotionManager.ShakeByZDisplacement(-4.0f);
+                }
+
+                float t = state6Time - state6StopDuration;
+                Vector3 currentPos = state6InitialPosition + t * state6InitialVelocityXZ;
+                currentPos.y = 0.5f + state6InitialVelocityY * t - 0.5f * state6Gravity * t * t;
+                obj.transform.localPosition = currentPos;
+            }
+        }
+        else if (state == 7)
+        {
+            float state7Time = GameManager.gameTime - stateStartTime;
+            if (state7Time > state7WeakDuration && !state7Ready)
+            {
+                weapon = new BossWeapon(WeaponDatumSample.bossState7Normal);
+                state7Ready = true;
+            }
+            lastShootDir = GetState7ShootDir();
+            weapon.Shoot(obj.transform.localPosition, lastShootDir);
         }
 
 
@@ -177,12 +259,29 @@ public class Boss
             }
             else
             {
-                if (hitPlayer1 && GUtils.RandomBool(0.33f))
+                if (hitPlayer1 && GUtils.RandomBool(0.33f) && GameManager.gameTime - lastState3StartTime > state3Cd)
                 {
                     state = 3;
+                    lastState3StartTime = GameManager.gameTime;
                     UpdateStateStartTime();
                     weapon = new BossWeapon(WeaponDatumSample.bossState3);
                     weapon.lastShootTime = GameManager.gameTime + state3LoadingTime;
+                }
+                else if (GameManager.gameTime - state1LastHitPlayerTime > state1TransitionToState6Threshold
+                    && GameManager.gameTime - stateStartTime > state1TransitionToState6Threshold)
+                {
+                    if (GUtils.RandomBool(0.5f))
+                    {
+                        state1LastHitPlayerTime = GameManager.gameTime - state1TransitionToState6Threshold + 0.5f;
+                    }
+                    else
+                    {
+                        state = 6;
+                        UpdateStateStartTime();
+                        state6StopDuration = state6InitialStopDuration;
+                        state7CanRepeatState6 = true;
+                        state6TargetPositionComfirmed = false;
+                    }
                 }
             }
         }
@@ -193,27 +292,37 @@ public class Boss
             if (destRelativePos.magnitude < 1.0f ||
                 (pos.x > -14.0f && pos.x < 14.0f && pos.z > -10.0f && pos.z < 10.0f))
             {
-                if (GUtils.RandomBool(0.33f))
-                {
-                    state = 1;
-                    UpdateStateStartTime();
-                    weapon = new BossWeapon(WeaponDatumSample.bossState1);
-                }
-                else
+                //if (GUtils.RandomBool(1.0f))
+                if (GUtils.RandomBool(0.5f) && GameManager.gameTime - lastState3StartTime > state3Cd)
                 {
                     state = 3;
+                    lastState3StartTime = GameManager.gameTime;
                     UpdateStateStartTime();
                     weapon = new BossWeapon(WeaponDatumSample.bossState3);
                     weapon.lastShootTime = GameManager.gameTime + state3LoadingTime;
                 }
+                else if (hp < maxHP * 0.625f && GUtils.RandomBool(0.3f))
+                {
+                    state = 6;
+                    UpdateStateStartTime();
+                    state6StopDuration = state6InitialStopDuration;
+                    state7CanRepeatState6 = true;
+                    state6TargetPositionComfirmed = false;
+                }
+                else
+                {
+                    state = 1;
+                    UpdateStateStartTime();
+                    weapon = new BossWeapon(WeaponDatumSample.bossState1);
+                }               
             }
         }
         else if (state == 3)
         {
             if (GameManager.gameTime - stateStartTime > state3Duration)
             {
-                if (hp < maxHP * 0.7 && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
                 //if (GUtils.RandomBool(1.0f))
+                if (hp < maxHP * 0.75f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
                 {
                     state = 4;
                     UpdateStateStartTime();
@@ -246,7 +355,8 @@ public class Boss
         }
         else if (state == 4)
         {
-            if (GameManager.gameTime - stateStartTime > 17.0f && state4enemyNum == 0)
+            if (GameManager.gameTime - stateStartTime > 22.0f ||
+                (GameManager.gameTime - stateStartTime > 17.0f && state4enemyNum == 0))
             {
                 state = 5;
                 UpdateStateStartTime();
@@ -258,8 +368,78 @@ public class Boss
             {
                 state = 1;
                 UpdateStateStartTime();
+                lastState3StartTime = GameManager.gameTime;
+                GameManager.computeCenter.knockOutAllEnemyRequest = true;
                 weapon = new BossWeapon(WeaponDatumSample.bossState1);
-                GameManager.cameraMotionManager.ShakeByRotation(2.0f);
+                GameManager.cameraMotionManager.ShakeByRotation(3.5f);
+                GameManager.cameraMotionManager.ShakeByZDisplacement(-8.0f);
+            }
+        }
+        else if (state == 6)
+        {
+            if (GameManager.gameTime - stateStartTime >= state6StopDuration + state6JumpDuration)
+            {
+                if (hp < maxHP * 0.7f && GUtils.RandomBool(0.8f))
+                {
+                    state = 7;
+                    UpdateStateStartTime();
+                    state7Ready = false;
+                    weapon = new BossWeapon(WeaponDatumSample.bossState7Weak);
+                    GameManager.cameraMotionManager.ShakeByRotation(2.0f);
+                    GameManager.cameraMotionManager.ShakeByZDisplacement(-4.0f);
+                }
+                else
+                {
+                    state = 1;
+                    UpdateStateStartTime();
+                    lastState3StartTime = GameManager.gameTime;
+                    weapon = new BossWeapon(WeaponDatumSample.bossState1);
+                    GameManager.cameraMotionManager.ShakeByRotation(2.0f);
+                    GameManager.cameraMotionManager.ShakeByZDisplacement(-4.0f);
+                }
+            }
+        }
+        else if (state == 7)
+        {
+            if (GameManager.gameTime - stateStartTime >= state7Duration)
+            {
+                //if (state7CanRepeatState6)
+                if (state7CanRepeatState6 && hp < maxHP * 0.6f && GUtils.RandomBool(0.7f))
+                {
+                    state7CanRepeatState6 = false;
+                    state = 6;
+                    state6StopDuration = 0.0f;
+                    UpdateStateStartTime();
+                    state6TargetPositionComfirmed = false;
+                }
+                //else if (GUtils.RandomBool(1.0f))
+                else if (hp < maxHP * 0.7f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
+                {
+                    state = 4;
+                    UpdateStateStartTime();
+                    lastState4StartTime = GameManager.gameTime;
+                    state4enemyWaveNum = 0;
+                    state4StateTransitionPossibility = state4InitialStateTransitionPossibility;
+                    GameManager.cameraMotionManager.ShakeByZDisplacement(-5.0f);
+                    GameManager.cameraMotionManager.ShakeByRotation(0.5f);
+                }
+                else
+                {
+                    Vector3 pos = obj.transform.localPosition;
+                    if (pos.x < -17.0f || pos.x > 17.0f || pos.z < -12.0f || pos.z > 12.0f)
+                    {
+                        state = 2;
+                        UpdateStateStartTime();
+                        weapon = new BossWeapon(WeaponDatumSample.bossState2);
+                        SetState2Destination();
+                    }
+                    else
+                    {
+                        state = 1;
+                        UpdateStateStartTime();
+                        weapon = new BossWeapon(WeaponDatumSample.bossState1);
+                    }
+                }
             }
         }
     }
@@ -322,40 +502,58 @@ public class Boss
         Vector3 player1Dir = (player1Pos - obj.transform.localPosition).normalized;
         Vector3 player2Dir = (player2Pos - obj.transform.localPosition).normalized;
 
-        if (player1Pos.y >= 0.1 && player1Pos.y <= 0.6)
+        if (GameManager.gameTime - state1LastChangeShootStrategyTime > 
+            state1FixedShootStrategyDuration + UnityEngine.Random.Range(0.0f, 1.0f) * state1FixedShootStrategyRandomExtraDuration)
         {
-            if (player2Pos.y >= 0.1 && player2Pos.y <= 0.6)
+            state1ShootStrategy = 1 - state1ShootStrategy;
+            state1LastChangeShootStrategyTime = GameManager.gameTime;
+        }
+
+        if (state1ShootStrategy == 0)
+        {
+            if (player1Pos.y >= 0.1 && player1Pos.y <= 0.6)
             {
-                Vector3 desiredShootDir = player1Distance < player2Distance ? player2Dir : player1Dir;
-                desiredShootDir.y = 0;
-                desiredShootDir = desiredShootDir.normalized;
-                return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
+                if (player2Pos.y >= 0.1 && player2Pos.y <= 0.6)
+                {
+                    Vector3 desiredShootDir = player1Distance < player2Distance ? player2Dir : player1Dir;
+                    desiredShootDir.y = 0;
+                    desiredShootDir = desiredShootDir.normalized;
+                    return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
+                }
+                else
+                {
+                    Vector3 desiredShootDir = player1Dir;
+                    desiredShootDir.y = 0;
+                    desiredShootDir = desiredShootDir.normalized;
+                    return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
+                }
             }
             else
             {
-                Vector3 desiredShootDir = player1Dir;
-                desiredShootDir.y = 0;
-                desiredShootDir = desiredShootDir.normalized;
-                return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
+                if (player2Pos.y >= 0.1 && player2Pos.y <= 0.6)
+                {
+                    Vector3 desiredShootDir = player2Dir;
+                    desiredShootDir.y = 0;
+                    desiredShootDir = desiredShootDir.normalized;
+                    return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
+                }
+                else
+                {
+                    Quaternion rotation = Quaternion.Euler(0, state1ShootRotationSpeed * GameManager.deltaTime, 0);
+                    Vector3 desiredShootDir = rotation * lastShootDir;
+                    desiredShootDir.y = 0;
+                    desiredShootDir = desiredShootDir.normalized;
+                    return desiredShootDir;
+                }
             }
         }
         else
         {
-            if (player2Pos.y >= 0.1 && player2Pos.y <= 0.6)
-            {
-                Vector3 desiredShootDir = player2Dir;
-                desiredShootDir.y = 0;
-                desiredShootDir = desiredShootDir.normalized;
-                return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
-            }
-            else
-            {
-                Quaternion rotation = Quaternion.Euler(0, state1ShootRotationSpeed * GameManager.deltaTime, 0);
-                Vector3 desiredShootDir = rotation * lastShootDir;
-                desiredShootDir.y = 0;
-                desiredShootDir = desiredShootDir.normalized;
-                return desiredShootDir;
-            }
+            Quaternion rotation = Quaternion.Euler(0, state1ShootRotationSpeed * GameManager.deltaTime, 0);
+            Vector3 desiredShootDir = rotation * lastShootDir;
+            desiredShootDir.y = 0;
+            desiredShootDir = desiredShootDir.normalized;
+            return desiredShootDir;
         }
     }
 
@@ -365,6 +563,18 @@ public class Boss
         desiredShootDir.y = 0;
         desiredShootDir = desiredShootDir.normalized;
         return GUtils.Lerp(lastShootDir, desiredShootDir, 0.8f).normalized;
+    }
+
+    public Vector3 GetState7ShootDir()
+    {
+        float state7Time = GameManager.gameTime - stateStartTime;
+        float rotationSpeed = state7Time < state7WeakDuration ?
+            state7ShootRotationSpeedWeak : state7ShootRotationSpeedNormal;
+        Quaternion rotation = Quaternion.Euler(0, rotationSpeed * GameManager.deltaTime, 0);
+        Vector3 desiredShootDir = rotation * lastShootDir;
+        desiredShootDir.y = 0;
+        desiredShootDir = desiredShootDir.normalized;
+        return desiredShootDir;
     }
 
     public Vector3 GetState1DesiredVelocity()
@@ -401,6 +611,51 @@ public class Boss
         Vector3 desiredVelocity = desiredDir * maxSpeed;
 
         return desiredVelocity;
+    }
+
+    public void GetState6InitialVelocityAndPosition()
+    {
+        Vector3 player1Pos = player1.GetPos();
+        Vector3 player2Pos = player2.GetPos();
+        float player1Distance = (player1Pos - obj.transform.localPosition).magnitude;
+        float player2Distance = (player2Pos - obj.transform.localPosition).magnitude;
+
+        Vector3 targetPos;
+        if (player1Pos.x > -20.5f && player1Pos.x < 20.5f && player1Pos.z > -15.5f && player1Pos.z < 15.5f && player1Pos.y > 0.4f)
+        {
+            if (player2Pos.x > -20.5f && player2Pos.x < 20.5f && player2Pos.z > -15.5f && player2Pos.z < 15.5f && player2Pos.y > 0.4f)
+            {
+                targetPos = player1Distance < player2Distance ? player2Pos : player1Pos;
+            }
+            else
+            {
+                targetPos = player1Pos;
+            }
+        }
+        else
+        {
+            if (player2Pos.x > -20.5f && player2Pos.x < 20.5f && player2Pos.z > -15.5f && player2Pos.z < 15.5f && player2Pos.y > 0.4f)
+            {
+                targetPos = player2Pos;
+            }
+            else
+            {
+                targetPos = new Vector3(0.0f, 0.5f, 0.0f);
+            }
+        }
+
+        float theta = UnityEngine.Random.Range(0.0f, 2 * Mathf.PI);
+        float r = UnityEngine.Random.Range(0.2f, 0.3f);
+        Vector3 targetPosBias = new Vector3(r * Mathf.Cos(theta), 0.0f, r * Mathf.Sin(theta));
+
+        targetPos = GUtils.Clamp(targetPos, new Vector3(-16.5f, 0.5f, -11.5f), new Vector3(16.5f, 0.5f, 11.5f));
+        targetPos += targetPosBias;
+        Vector3 RelativePosXZ = targetPos - obj.transform.localPosition;
+        RelativePosXZ.y = 0.0f;
+        state6InitialVelocityXZ = RelativePosXZ / state6JumpDuration;
+        state6InitialVelocityY = state6Gravity * state6JumpDuration * 0.5f;
+        state6InitialPosition = obj.transform.localPosition;
+        state6InitialPosition.y = 0.50001f;
     }
 
     public float GetMassFromHP(int hp)

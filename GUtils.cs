@@ -56,6 +56,15 @@ public class GUtils
         return from * (1.0f - k) + to * k;
     }
 
+    public static Vector3 Clamp(Vector3 vec, Vector3 min, Vector3 max)
+    {
+        return new Vector3(
+            Mathf.Clamp(vec.x, min.x, max.x),
+            Mathf.Clamp(vec.y, min.y, max.y),
+            Mathf.Clamp(vec.z, min.z, max.z)
+        );
+    }
+
     private static float SRGBToLinear(float val)
     {
         if (val <= 0.04045f)

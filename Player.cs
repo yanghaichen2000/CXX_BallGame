@@ -115,19 +115,19 @@ public class AllLevelPlayerData
         player1WeaponData[17].impulse = 0.1f;
 
         player1WeaponData[18] = player1WeaponData[17];
-        player1WeaponData[18].extraBulletsPerSide = 200;
+        player1WeaponData[18].extraBulletsPerSide = 190;
         player1WeaponData[18].shootInterval = 0.042f;
         player1WeaponData[18].angle = 0.4f;
         player1WeaponData[18].impulse = 0.13f;
 
         player1WeaponData[19] = player1WeaponData[18];
-        player1WeaponData[19].extraBulletsPerSide = 240;
-        player1WeaponData[19].shootInterval = 0.038f;
+        player1WeaponData[19].extraBulletsPerSide = 220;
+        player1WeaponData[19].shootInterval = 0.040f;
         player1WeaponData[19].angle = 0.35f;
 
         player1WeaponData[20] = player1WeaponData[19];
-        player1WeaponData[20].extraBulletsPerSide = 300;
-        player1WeaponData[20].shootInterval = 0.034f;
+        player1WeaponData[20].extraBulletsPerSide = 250;
+        player1WeaponData[20].shootInterval = 0.038f;
         player1WeaponData[20].angle = 0.34f;
         player1WeaponData[20].impulse = 0.1f;
     }

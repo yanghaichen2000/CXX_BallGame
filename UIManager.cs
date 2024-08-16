@@ -197,6 +197,7 @@ public class UIManager
     {
         Boss boss = GameManager.boss;
         text_bossHP.text = string.Format("{0} / {1}, {2:F} kg", boss.hp, boss.maxHP, boss.mass);
-        image_bossHP.fillAmount = (float)boss.hp / boss.maxHP;
+        if (image_bossHP != null)
+            image_bossHP.fillAmount = (float)boss.hp / boss.maxHP;
     }
 }

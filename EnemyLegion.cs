@@ -126,7 +126,7 @@ public class AllEnemyProperty
         {
             hp = 2000,
             weapon = 7,
-            mass = 20.0f,
+            mass = 25.0f,
             acceleration = 1.0f,
             frictionalDeceleration = 3.0f,
             maxSpeed = 1.0f,
