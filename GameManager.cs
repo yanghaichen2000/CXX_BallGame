@@ -100,15 +100,15 @@ public class GameManager : MonoBehaviour
         lastTickTime = DateTime.Now;
 
 
-        //boss.Remove();
         
-        player1.exp = 88888;
-        player2.exp = 88888;
-        player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
-        player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
         
+        //player1.exp = 88888;
+        //player2.exp = 88888;
+        //player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
+        //player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
 
-        //level.StartLevel();
+        boss.Remove();
+        level.StartLevel();
     }
 
     void Update()
@@ -129,6 +129,16 @@ public class GameManager : MonoBehaviour
             {
                 level.nextWave = level.Wave17;
                 level.currentWave = 16;
+                player1.exp = 88888;
+                player2.exp = 88888;
+                player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
+                player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
+            }
+
+            if (Input.GetKeyDown(KeyCode.I))
+            {
+                level.nextWave = level.Wave20;
+                level.currentWave = 19;
                 player1.exp = 88888;
                 player2.exp = 88888;
                 player1.weapon = allLevelPlayerData.GetWeapon(0, 20);

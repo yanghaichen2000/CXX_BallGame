@@ -335,7 +335,7 @@ void LitPassFragment(
             }
         }
         
-        /*
+        
         // 2x2 cell
         int possible2x2IndexList[20];
         int possible2x2XZNum = 0;
@@ -374,7 +374,7 @@ void LitPassFragment(
                 inputRadiance += bulletColor * distanceFade * cosine;
             }
         }
-        */
+        
     
         // diffuse lighting from bullets
         color.rgb += inputRadiance * surfaceData.albedo * bulletLightingOnEnemyIntensity;

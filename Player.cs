@@ -63,6 +63,7 @@ public class AllLevelPlayerData
         player1WeaponData[6].angle = 4.0f;
 
         player1WeaponData[7] = player1WeaponData[6];
+        player1WeaponData[7].extraBulletsPerSide = 10;
         player1WeaponData[7].shootInterval = 0.18f;
         player1WeaponData[7].speed = 9.5f;
 
@@ -181,7 +182,8 @@ public class AllLevelPlayerData
         player2WeaponData[6].speed = 10.0f;
 
         player2WeaponData[7] = player2WeaponData[6];
-        player2WeaponData[6].shootInterval = 0.14f;
+        player2WeaponData[7].shootInterval = 0.14f;
+        player2WeaponData[7].extraBulletsPerSide = 3;
         player2WeaponData[7].speed = 11.0f;
 
         player2WeaponData[8] = player2WeaponData[7];
@@ -190,7 +192,7 @@ public class AllLevelPlayerData
         player2WeaponData[8].impulse = 3.5f;
 
         player2WeaponData[9] = player2WeaponData[8];
-        player2WeaponData[9].extraBulletsPerSide = 3;
+        player2WeaponData[9].extraBulletsPerSide = 4;
         player2WeaponData[9].shootInterval = 0.10f;
         player2WeaponData[9].angle = 1.5f;
         player2WeaponData[9].speed = 13.0f;
@@ -204,29 +206,29 @@ public class AllLevelPlayerData
         player2WeaponData[11].speed = 15.0f;
 
         player2WeaponData[12] = player2WeaponData[11];
-        player2WeaponData[12].extraBulletsPerSide = 4;
+        player2WeaponData[12].extraBulletsPerSide = 5;
         player2WeaponData[12].angle = 1.2f;
         player2WeaponData[12].speed = 16.0f;
 
         player2WeaponData[13] = player2WeaponData[12];
         player2WeaponData[13].shootInterval = 0.048f;
-        player2WeaponData[13].extraBulletsPerSide = 5;
+        player2WeaponData[13].extraBulletsPerSide = 6;
         player2WeaponData[13].angle = 1.0f;
         player2WeaponData[13].speed = 17.0f;
 
         player2WeaponData[14] = player2WeaponData[13];
         player2WeaponData[14].shootInterval = 0.043f;
-        player2WeaponData[14].extraBulletsPerSide = 6;
+        player2WeaponData[14].extraBulletsPerSide = 7;
         player2WeaponData[14].speed = 18.0f;
 
         player2WeaponData[15] = player2WeaponData[14];
         player2WeaponData[15].shootInterval = 0.04f;
-        player2WeaponData[15].extraBulletsPerSide = 7;
+        player2WeaponData[15].extraBulletsPerSide = 8;
         player2WeaponData[15].speed = 19.0f;
 
         player2WeaponData[16] = player2WeaponData[15];
         player2WeaponData[16].shootInterval = 0.037f;
-        player2WeaponData[16].extraBulletsPerSide = 8;
+        player2WeaponData[16].extraBulletsPerSide = 9;
         player2WeaponData[16].speed = 20.0f;
         player2WeaponData[16].impulse = 4.0f;
 

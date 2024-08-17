@@ -22,8 +22,8 @@ public class Boss
     public const float state6InitialStopDuration = 0.7f;
     public const float state6JumpDuration = 1.0f;
     public const float state6Gravity = 60.0f;
-    public const float state7Duration = 3.0f;
-    public const float state7WeakDuration = 1.0f;
+    public const float state7Duration = 2.4f;
+    public const float state7WeakDuration = 0.7f;
     public const float state7ShootRotationSpeedWeak = 5.0f;
     public const float state7ShootRotationSpeedNormal = 27.0f;
 
@@ -222,7 +222,11 @@ public class Boss
         else if (state == 6)
         {
             float state6Time = GameManager.gameTime - stateStartTime;
-            if (state6Time > state6StopDuration)
+            if (state6Time < state6StopDuration)
+            {
+                weapon.Shoot(obj.transform.localPosition, lastShootDir);
+            }
+            else
             {
                 if (!state6TargetPositionComfirmed)
                 {
@@ -231,6 +235,7 @@ public class Boss
 
                     GameManager.cameraMotionManager.ShakeByRotation(0.5f);
                     GameManager.cameraMotionManager.ShakeByZDisplacement(-4.0f);
+                    body.isKinematic = true;
                 }
 
                 float t = state6Time - state6StopDuration;
@@ -284,6 +289,7 @@ public class Boss
                     {
                         state = 6;
                         UpdateStateStartTime();
+                        weapon = new BossWeapon(WeaponDatumSample.bossState6);
                         state6StopDuration = state6InitialStopDuration;
                         state7CanRepeatState6 = true;
                         state6TargetPositionComfirmed = false;
@@ -298,8 +304,8 @@ public class Boss
             if (destRelativePos.magnitude < 1.0f ||
                 (pos.x > -14.0f && pos.x < 14.0f && pos.z > -10.0f && pos.z < 10.0f))
             {
-                if (GUtils.RandomBool(1.0f))
-                //if (GUtils.RandomBool(0.5f) && GameManager.gameTime - lastState3StartTime > state3Cd)
+                //if (GUtils.RandomBool(1.0f))
+                if (GUtils.RandomBool(0.5f) && GameManager.gameTime - lastState3StartTime > state3Cd)
                 {
                     state = 3;
                     lastState3StartTime = GameManager.gameTime;
@@ -307,10 +313,12 @@ public class Boss
                     weapon = new BossWeapon(WeaponDatumSample.bossState3);
                     weapon.lastShootTime = GameManager.gameTime + state3LoadingTime;
                 }
+                //else if (GUtils.RandomBool(1.0f))
                 else if (hp < maxHP * 0.625f && GUtils.RandomBool(0.3f))
                 {
                     state = 6;
                     UpdateStateStartTime();
+                    weapon = new BossWeapon(WeaponDatumSample.bossState6);
                     state6StopDuration = state6InitialStopDuration;
                     state7CanRepeatState6 = true;
                     state6TargetPositionComfirmed = false;
@@ -327,8 +335,8 @@ public class Boss
         {
             if (GameManager.gameTime - stateStartTime > state3Duration)
             {
-                if (GUtils.RandomBool(1.0f))
-                //if (hp < maxHP * 0.75f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
+                //if (GUtils.RandomBool(1.0f))
+                if (hp < maxHP * 0.8f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
                 {
                     state = 4;
                     UpdateStateStartTime();
@@ -365,6 +373,7 @@ public class Boss
                 (GameManager.gameTime - stateStartTime > 17.0f && state4enemyNum == 0))
             {
                 state = 5;
+                body.isKinematic = true;
                 UpdateStateStartTime();
             }
         }
@@ -373,6 +382,7 @@ public class Boss
             if (GameManager.gameTime - stateStartTime >= state5Duration)
             {
                 state = 1;
+                body.isKinematic = false;
                 UpdateStateStartTime();
                 lastState3StartTime = GameManager.gameTime;
                 GameManager.computeCenter.knockOutAllEnemyRequest = true;
@@ -385,9 +395,12 @@ public class Boss
         {
             if (GameManager.gameTime - stateStartTime >= state6StopDuration + state6JumpDuration)
             {
+                //if (GUtils.RandomBool(1.0f))
                 if (hp < maxHP * 0.7f && GUtils.RandomBool(0.8f))
                 {
                     state = 7;
+                    body.isKinematic = false;
+                    body.velocity = Vector3.zero;
                     UpdateStateStartTime();
                     state7Ready = false;
                     weapon = new BossWeapon(WeaponDatumSample.bossState7Weak);
@@ -397,6 +410,8 @@ public class Boss
                 else
                 {
                     state = 1;
+                    body.isKinematic = false;
+                    body.velocity = Vector3.zero;
                     UpdateStateStartTime();
                     lastState3StartTime = GameManager.gameTime;
                     weapon = new BossWeapon(WeaponDatumSample.bossState1);
@@ -410,7 +425,7 @@ public class Boss
             if (GameManager.gameTime - stateStartTime >= state7Duration)
             {
                 //if (state7CanRepeatState6)
-                if (state7CanRepeatState6 && hp < maxHP * 0.6f && GUtils.RandomBool(0.7f))
+                if (state7CanRepeatState6 && hp < maxHP * 0.5f && GUtils.RandomBool(0.7f))
                 {
                     state7CanRepeatState6 = false;
                     state = 6;
@@ -678,14 +693,14 @@ public class Boss
     {
         enabled = false;
         obj.transform.localPosition = new Vector3(-100.0f, 0.5f, -100.0f);
-        body.isKinematic = false;
+        body.isKinematic = true;
     }
 
     public void Load()
     {
         enabled = true;
         obj.transform.localPosition = new Vector3(0.0f, 0.5f, 0.0f);
-        body.isKinematic = true;
+        body.isKinematic = false;
     }
 }
 

@@ -174,7 +174,7 @@ public class GameLevel
 
     public int Wave9()
     {
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 18; i++)
         {
             for (int j = 0; j < 4; j++)
             {
@@ -191,7 +191,7 @@ public class GameLevel
 
     public int Wave10()
     {
-        for (int i = 0; i < 25; i++)
+        for (int i = 0; i < 20; i++)
         {
             for (int j = 0; j < 4; j++)
             {
@@ -366,6 +366,16 @@ public class GameLevel
         GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 30.0f);
         GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 36.0f);
         GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 42.0f);
+
+        currentWave++;
+        nextWaveTime = GameManager.gameTime + 60.0f;
+        nextWave = Wave20;
+        return 0;
+    }
+
+    public int Wave20()
+    {
+        GameManager.boss.Load();
 
         currentWave++;
         nextWaveTime = GameManager.gameTime + 60.0f;
