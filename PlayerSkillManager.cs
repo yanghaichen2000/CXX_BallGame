@@ -16,6 +16,7 @@ public class PlayerSkillManager
         skills["Player2Skill0"] = new Player2Skill0();
         skills["Player2Skill1"] = new Player2Skill1();
         skills["SharedSkill0"] = new SharedSkill0();
+        skills["SharedSkill1"] = new SharedSkill1();
     }
 
     public void Update()
@@ -408,6 +409,44 @@ public class SharedSkill0 : Skill
         GameManager.computeCenter.playerSkillData[0].sharedSkill0 = state;
         Shader.SetGlobalFloat("sharedSkill0LastTriggeredTime", lastTriggeredTime);
         Shader.SetGlobalFloat("sharedSkill0CdStartTime", lastTriggeredTime + delay);
+    }
+
+    public int GetState()
+    {
+        return state;
+    }
+}
+
+public class SharedSkill1 : Skill
+{
+    public float cd = 12.0f;
+    public float duration = 5.0f;
+
+    public float lastTriggeredTime = -99999.9f;
+    public int state = 0;
+
+    public void UpdateState()
+    {
+        if (state == 0) // ø… π”√
+        {
+            if (Input.GetKey(KeyCode.Y))
+            {
+                state = 1;
+                lastTriggeredTime = GameManager.gameTime;
+            }
+        }
+        
+
+        if (state == 0)
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 2, false);
+            GameManager.uiManager.UpdatePlayerSkillUI(1, 2, false);
+        }
+    }
+
+    public void UpdateGPUDataAndBuffer()
+    {
+        GameManager.computeCenter.playerSkillData[0].sharedSkill1 = state;
     }
 
     public int GetState()

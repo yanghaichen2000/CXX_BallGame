@@ -253,6 +253,11 @@ public class Weapon
     {
         float currentShootTime = GameManager.gameTime;
         float currentShootInterval = datum.shootInterval * shootIntervalCoeff;
+        if (currentShootTime - lastShootTime > 1.0f)
+        {
+            lastShootTime = currentShootTime;
+            return;
+        }
         int currentBulletIndex = (int)Mathf.Floor(currentShootTime / currentShootInterval);
         int lastBulletIndex = (int)Mathf.Floor(lastShootTime / currentShootInterval);
 

@@ -36,6 +36,7 @@ public class Boss
     public Player player1;
     public Player player2;
 
+    public bool enabled;
     public BossWeapon weapon;
     public Vector3 velocity;
     public int state; // 0£ºÍ£Ö¹£¬1£ºÅö×²£¬2£º»ØÖÐÐÄ£¬3£ºÐîÁ¦È«ÆÁµ¯Ä»£¬4£ºÕÙ»½Ð¡¹Ö£¬5£ºÂäµØ£¬6£ºÔ¶³ÌÍ»Ï®ÌøÔ¾
@@ -63,6 +64,7 @@ public class Boss
 
     public Boss()
     {
+        enabled = true;
         obj = GameObject.Find("Boss");
         body = obj.GetComponent<Rigidbody>();
         maxSpeed = 8.0f;
@@ -72,7 +74,7 @@ public class Boss
         weapon = new BossWeapon(WeaponDatumSample.bossState1);
         state = 1;
         lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
-        maxHP = 800000;
+        maxHP = 600000;
         hp = maxHP;
         mass = GetMassFromHP(hp);
         stateStartTime = GameManager.gameTime;
@@ -92,6 +94,8 @@ public class Boss
 
     public void FixedUpdate()
     {
+        if (!enabled) return;
+
         // update velocity
         if (state == 1)
         {
@@ -140,6 +144,8 @@ public class Boss
 
     public void Update()
     {
+        if (!enabled) return;
+
         // check collision
         hitPlayer1 = false;
         foreach (Player player in new Player[]{ player1, player2 })
@@ -292,8 +298,8 @@ public class Boss
             if (destRelativePos.magnitude < 1.0f ||
                 (pos.x > -14.0f && pos.x < 14.0f && pos.z > -10.0f && pos.z < 10.0f))
             {
-                //if (GUtils.RandomBool(1.0f))
-                if (GUtils.RandomBool(0.5f) && GameManager.gameTime - lastState3StartTime > state3Cd)
+                if (GUtils.RandomBool(1.0f))
+                //if (GUtils.RandomBool(0.5f) && GameManager.gameTime - lastState3StartTime > state3Cd)
                 {
                     state = 3;
                     lastState3StartTime = GameManager.gameTime;
@@ -321,8 +327,8 @@ public class Boss
         {
             if (GameManager.gameTime - stateStartTime > state3Duration)
             {
-                //if (GUtils.RandomBool(1.0f))
-                if (hp < maxHP * 0.75f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
+                if (GUtils.RandomBool(1.0f))
+                //if (hp < maxHP * 0.75f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
                 {
                     state = 4;
                     UpdateStateStartTime();
@@ -667,6 +673,19 @@ public class Boss
     {
         stateStartTime = GameManager.gameTime;
     }
-}
 
+    public void Remove()
+    {
+        enabled = false;
+        obj.transform.localPosition = new Vector3(-100.0f, 0.5f, -100.0f);
+        body.isKinematic = false;
+    }
+
+    public void Load()
+    {
+        enabled = true;
+        obj.transform.localPosition = new Vector3(0.0f, 0.5f, 0.0f);
+        body.isKinematic = true;
+    }
+}
 

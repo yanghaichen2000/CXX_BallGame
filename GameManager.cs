@@ -64,7 +64,7 @@ public class GameManager : MonoBehaviour
     [Range(0.0f, 3.0f)] public float bulletDirectionalLightIntensity;
     [Range(0.0f, 3.0f)] public float bulletEmissionIntensity;
     [Range(0.0f, 3.0f)] public float planeLightingGaussianBlurCoeff;
-    [Range(0.0f, 3.0f)] public float planeLightingTextureIntensity;
+    [Range(0.0f, 0.005f)] public float planeLightingTextureIntensity;
     [Range(0.0f, 3.0f)] public float bulletLightingOnEnemyIntensity;
 
     // game
@@ -99,10 +99,14 @@ public class GameManager : MonoBehaviour
     {
         lastTickTime = DateTime.Now;
 
+
+        //boss.Remove();
+        
         player1.exp = 88888;
         player2.exp = 88888;
         player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
         player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
+        
 
         //level.StartLevel();
     }

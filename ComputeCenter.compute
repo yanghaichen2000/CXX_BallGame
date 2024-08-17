@@ -36,6 +36,8 @@
 #pragma kernel ProcessPlayerBulletBossCollision
 #pragma kernel KnockOutAllEnemy
 #pragma kernel ProcessBossEnemyCollision
+#pragma kernel PhysicallyBasedBlur
+#pragma kernel CopyTexture
 
 
 #define DEG2RAD_V 0.01745329252f
@@ -260,6 +262,9 @@ RWStructuredBuffer<int> deadEnemyNum;
 
 RWTexture2D<float4> planeLightingTexture;
 RWTexture2D<float4> planeLightingTextureTmp;
+
+RWTexture2D<float4> textureFrom;
+RWTexture2D<float4> textureTo;
 
 float planeLightingTextureWidth;
 float planeLightingTextureHeight;
@@ -1373,4 +1378,31 @@ void KnockOutAllEnemy(uint3 id : SV_DispatchThreadID)
             sphereEnemyData[id.x].knockedOutByBoss = 1;
         }
     }
+}
+
+
+[numthreads(32, 32, 1)]
+void PhysicallyBasedBlur(uint3 id : SV_DispatchThreadID)
+{
+    float3 result = float3(0.0f, 0.0f, 0.0f);
+    for (int i = -30; i <= 30; i++)
+    {
+        for (int j = -30; j <= 30; j++)
+        {
+            float dX = 40.0f / planeLightingTextureWidth * i;
+            float dZ = 30.0f / planeLightingTextureHeight * j;
+            float squaredHorizontalDistance = dX * dX + dZ * dZ;
+            float distance = sqrt(squaredHorizontalDistance + 0.25f);
+            float weight = 0.5f / (distance * distance * distance);
+            result += weight * planeLightingTexture[id.xy + int2(i, j)];
+        }
+    }
+    planeLightingTextureTmp[id.xy] = float4(result, 1.0f);
+}
+
+
+[numthreads(32, 32, 1)]
+void CopyTexture(uint3 id : SV_DispatchThreadID)
+{
+    textureTo[id.xy] = textureFrom[id.xy];
 }

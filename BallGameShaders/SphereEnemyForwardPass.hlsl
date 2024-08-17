@@ -294,7 +294,7 @@ void LitPassFragment(
     GetBulletGridXZFromPos(enemy.pos - 0.5f * float3(bulletGridSize, 0.0f, bulletGridSize), anchorX, anchorZ);
     
     // lighting from bullets
-    if (inputData.positionWS.y > 0.2f && enemy.hp < 0)
+    if (inputData.positionWS.y > 0.2f)// && enemy.hp < 0)
     {
         // 1x1 cell
         int possible1x1IndexList[20];
@@ -324,16 +324,18 @@ void LitPassFragment(
             BulletRenderingGridDatum datum = bulletRenderingGridData1x1[possible1x1IndexList[i]];
             for (int j = 0; j < 4; j++)
             {
-                if (j == datum.size) break;
-                float3 dir = normalize(datum.pos[j] - inputData.positionWS);
+                if (j == datum.size)
+                    break;
+                float3 relativePos = datum.pos[j] - inputData.positionWS;
+                float3 dir = normalize(relativePos);
                 float cosine = saturate(dot(dir, inputData.normalWS));
-                float distanceFade = 1.0f / (1.0f + dot(dir, dir));
+                float distanceFade = 1.0f / (1.0f + dot(relativePos, relativePos));
                 float3 bulletColor = datum.color[j];
                 inputRadiance += bulletColor * distanceFade * cosine;
             }
         }
         
-        
+        /*
         // 2x2 cell
         int possible2x2IndexList[20];
         int possible2x2XZNum = 0;
@@ -362,14 +364,17 @@ void LitPassFragment(
             BulletRenderingGridDatum datum = bulletRenderingGridData2x2[possible2x2IndexList[i]];
             for (int j = 0; j < 4; j++)
             {
-                if (j == datum.size) break;
-                float3 dir = normalize(datum.pos[j] - inputData.positionWS);
+                if (j == datum.size)
+                    break;
+                float3 relativePos = datum.pos[j] - inputData.positionWS;
+                float3 dir = normalize(relativePos);
                 float cosine = saturate(dot(dir, normalize(inputData.normalWS)));
-                float distanceFade = 1.0f / (1.0f + dot(dir, dir));
+                float distanceFade = 1.0f / (1.0f + dot(relativePos, relativePos));
                 float3 bulletColor = datum.color[j];
                 inputRadiance += bulletColor * distanceFade * cosine;
             }
         }
+        */
     
         // diffuse lighting from bullets
         color.rgb += inputRadiance * surfaceData.albedo * bulletLightingOnEnemyIntensity;

@@ -331,6 +331,8 @@ public class ComputeCenter
     int processPlayerBulletBossCollisionKernel = -1;
     int knockOutAllEnemyKernel = -1;
     int processBossEnemyCollisionKernel = -1;
+    int physicallyBasedBlurKernel = -1;
+    int copyTextureKernel = -1;
 
 
     Mesh playerBulletMesh;
@@ -343,8 +345,8 @@ public class ComputeCenter
     Material sphereEnemyMaterial;
     Material deployingSphereEnemyMaterial;
 
-    const int planeLightingTextureWidth = 512;
-    const int planeLightingTextureHeight = 384;
+    const int planeLightingTextureWidth = 256;
+    const int planeLightingTextureHeight = 192;
     RenderTexture planeLightingTexture;
     RenderTexture planeLightingTextureTmp;
 
@@ -515,6 +517,8 @@ public class ComputeCenter
         processPlayerBulletBossCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerBulletBossCollision");
         knockOutAllEnemyKernel = computeCenterCS.FindKernel("KnockOutAllEnemy");
         processBossEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessBossEnemyCollision");
+        physicallyBasedBlurKernel = computeCenterCS.FindKernel("PhysicallyBasedBlur");
+        copyTextureKernel = computeCenterCS.FindKernel("CopyTexture");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -765,10 +769,12 @@ public class ComputeCenter
         computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
 
+        /*
         kernel = resolveBulletRenderingGrid4x4Kernel;
         computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
         computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
+        */
     }
 
     public void GeneratePlaneLightingTexture()
@@ -789,6 +795,17 @@ public class ComputeCenter
         computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 16), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 16));
 
+        kernel = physicallyBasedBlurKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.SetTexture(kernel, "planeLightingTextureTmp", planeLightingTextureTmp);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+
+        kernel = copyTextureKernel;
+        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
+        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingTexture);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+
+        /*
         computeCenterCS.SetTexture(gaussianBlurUKernel, "planeLightingTexture", planeLightingTexture);
         computeCenterCS.SetTexture(gaussianBlurUKernel, "planeLightingTextureTmp", planeLightingTextureTmp);
         
@@ -800,6 +817,7 @@ public class ComputeCenter
             computeCenterCS.Dispatch(gaussianBlurUKernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 160), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 1), 1);
             computeCenterCS.Dispatch(gaussianBlurVKernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 1), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 150), 1);
         }
+        */
     }
 
     public void SetGlobalConstant()
