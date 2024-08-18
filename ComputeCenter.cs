@@ -333,7 +333,15 @@ public class ComputeCenter
     int processBossEnemyCollisionKernel = -1;
     int physicallyBasedBlurKernel = -1;
     int copyTextureKernel = -1;
-
+    int copyTextureAndReverseYKernel = -1;
+    int dftStepUKernel = -1;
+    int dftStepVKernel = -1;
+    int idftStepUKernel = -1;
+    int idftStepVKernel = -1;
+    int planeLightingFrequencyDomainMultiplyKernel = -1;
+    int initializePlaneLightingTemporalConvolutionKernelKernel = -1;
+    int padPlaneLightingTextureKernel = -1;
+  
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -345,10 +353,18 @@ public class ComputeCenter
     Material sphereEnemyMaterial;
     Material deployingSphereEnemyMaterial;
 
-    const int planeLightingTextureWidth = 256;
-    const int planeLightingTextureHeight = 192;
+    const int planeLightingTextureWidth = 224;
+    const int planeLightingTextureHeight = 224;
+    const int fftTextureSize = 256; // 要求planeLightingTexture长宽一样
     RenderTexture planeLightingTexture;
+    RenderTexture planeLightingTextureIn;
+    RenderTexture planeLightingTextureInImag;
     RenderTexture planeLightingTextureTmp;
+    RenderTexture planeLightingTextureTmpImag;
+    RenderTexture planeLightingTextureOut;
+    RenderTexture planeLightingTextureOutImag;
+    RenderTexture planeLightingConvolutionKernel;
+    RenderTexture planeLightingConvolutionKernelImag;
 
 
     public ComputeCenter(GameManager _gameManager) 
@@ -519,6 +535,14 @@ public class ComputeCenter
         processBossEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessBossEnemyCollision");
         physicallyBasedBlurKernel = computeCenterCS.FindKernel("PhysicallyBasedBlur");
         copyTextureKernel = computeCenterCS.FindKernel("CopyTexture");
+        copyTextureAndReverseYKernel = computeCenterCS.FindKernel("CopyTextureAndReverseY");
+        dftStepUKernel = computeCenterCS.FindKernel("DFTStepU");
+        dftStepVKernel = computeCenterCS.FindKernel("DFTStepV");
+        idftStepUKernel = computeCenterCS.FindKernel("IDFTStepU");
+        idftStepVKernel = computeCenterCS.FindKernel("IDFTStepV");
+        planeLightingFrequencyDomainMultiplyKernel = computeCenterCS.FindKernel("PlaneLightingFrequencyDomainMultiply");
+        initializePlaneLightingTemporalConvolutionKernelKernel = computeCenterCS.FindKernel("InitializePlaneLightingTemporalConvolutionKernel");
+        padPlaneLightingTextureKernel = computeCenterCS.FindKernel("PadPlaneLightingTexture");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -536,10 +560,42 @@ public class ComputeCenter
         planeLightingTexture.enableRandomWrite = true;
         planeLightingTexture.Create();
 
-        planeLightingTextureTmp = new RenderTexture(planeLightingTextureWidth, planeLightingTextureHeight, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureIn = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureIn.enableRandomWrite = true;
+        planeLightingTextureIn.Create();
+
+        planeLightingTextureInImag = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureInImag.enableRandomWrite = true;
+        planeLightingTextureInImag.Create();
+
+        ClearPlaneLightingTexture(planeLightingTextureInImag);
+        ClearPlaneLightingTexture(planeLightingTextureIn);
+
+        planeLightingTextureTmp = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
         planeLightingTextureTmp.enableRandomWrite = true;
         planeLightingTextureTmp.Create();
 
+        planeLightingTextureTmpImag = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureTmpImag.enableRandomWrite = true;
+        planeLightingTextureTmpImag.Create();
+
+        planeLightingTextureOut = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureOut.enableRandomWrite = true;
+        planeLightingTextureOut.Create();
+
+        planeLightingTextureOutImag = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingTextureOutImag.enableRandomWrite = true;
+        planeLightingTextureOutImag.Create();
+
+        planeLightingConvolutionKernel = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingConvolutionKernel.enableRandomWrite = true;
+        planeLightingConvolutionKernel.Create();
+
+        planeLightingConvolutionKernelImag = new RenderTexture(fftTextureSize, fftTextureSize, 0, RenderTextureFormat.ARGBFloat);
+        planeLightingConvolutionKernelImag.enableRandomWrite = true;
+        planeLightingConvolutionKernelImag.Create();
+
+        PrecomputePlaneLightingConvolutionKernel();
         InitializeComputeBuffers();
         SetGlobalConstant();
     }
@@ -668,6 +724,181 @@ public class ComputeCenter
         }
     }
 
+    public void PrecomputePlaneLightingConvolutionKernel()
+    {
+        // Get temporal kernel
+        int kernel = initializePlaneLightingTemporalConvolutionKernelKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingConvolutionKernel", planeLightingConvolutionKernel);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+
+        // DFTU
+        kernel = dftStepUKernel;
+        int fftButterflySize = 1;
+        if (fftButterflySize < fftTextureSize)
+        {
+            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingConvolutionKernel);
+            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureInImag);
+            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+            SwapFFTTexture();
+            fftButterflySize <<= 1;
+
+            while (fftButterflySize < fftTextureSize)
+            {
+                computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+                computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+                computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+                computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+                computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+                computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+                SwapFFTTexture();
+                fftButterflySize <<= 1;
+            }
+        }
+
+        // DFTV
+        kernel = dftStepVKernel;
+        fftButterflySize = 1;
+        while (fftButterflySize < fftTextureSize)
+        {
+            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+            SwapFFTTexture();
+            fftButterflySize <<= 1;
+        }
+
+        // Copy the result
+        kernel = copyTextureKernel;
+        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
+        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingConvolutionKernel);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmpImag);
+        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingConvolutionKernelImag);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+    }
+
+    public void PlaneLightingTextureBlurFFT()
+    {
+        // padding
+        int kernel = padPlaneLightingTextureKernel;
+        computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureIn);
+        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+
+        // DFTU
+        kernel = dftStepUKernel;
+        int fftButterflySize = 1;
+        if (fftButterflySize < fftTextureSize)
+        {
+            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureIn);
+            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureInImag);
+            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+            SwapFFTTexture();
+            fftButterflySize <<= 1;
+
+            while (fftButterflySize < fftTextureSize)
+            {
+                computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+                computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+                computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+                computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+                computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+                computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+                SwapFFTTexture();
+                fftButterflySize <<= 1;
+            }
+        }
+
+        // DFTV
+        kernel = dftStepVKernel;
+        fftButterflySize = 1;
+        while (fftButterflySize < fftTextureSize)
+        {
+            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+            SwapFFTTexture();
+            fftButterflySize <<= 1;
+        }
+
+        // Multiply in frequency domain
+        
+        kernel = planeLightingFrequencyDomainMultiplyKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingConvolutionKernel", planeLightingConvolutionKernel);
+        computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureTmp);
+        computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureTmpImag);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+        
+
+        // IDFTU
+        kernel = idftStepUKernel;
+        fftButterflySize = 1;
+        while (fftButterflySize < fftTextureSize)
+        {
+            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+            SwapFFTTexture();
+            fftButterflySize <<= 1;
+        }
+
+        // IDFTV
+        kernel = idftStepVKernel;
+        fftButterflySize = 1;
+        while (fftButterflySize < fftTextureSize)
+        {
+            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
+            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+            SwapFFTTexture();
+            fftButterflySize <<= 1;
+        }
+
+        // Copy the result
+        kernel = copyTextureKernel;
+        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
+        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingTexture);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+    }
+
+    public void SwapFFTTexture()
+    {
+        RenderTexture tmp;
+
+        tmp = planeLightingTextureOut;
+        planeLightingTextureOut = planeLightingTextureTmp;
+        planeLightingTextureTmp = tmp;
+
+        tmp = planeLightingTextureOutImag;
+        planeLightingTextureOutImag = planeLightingTextureTmpImag;
+        planeLightingTextureTmpImag = tmp;
+    }
+
+    public void ClearPlaneLightingTexture(RenderTexture tex)
+    {
+        int kernel = resetPlaneLightingTextureKernel;
+        computeCenterCS.SetTexture(kernel, "planeLightingTexture", tex);
+        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32));
+    }
+
     public void SkillGetAvailablePosition()
     {
         availablePositionData[0].num = 0;
@@ -779,11 +1010,9 @@ public class ComputeCenter
 
     public void GeneratePlaneLightingTexture()
     {
-        int kernel = resetPlaneLightingTextureKernel;
-        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32));
+        ClearPlaneLightingTexture(planeLightingTexture);
 
-        kernel = generatePlaneLightingTextureKernel;
+        int kernel = generatePlaneLightingTextureKernel;
         computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
         computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
         computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
@@ -795,6 +1024,10 @@ public class ComputeCenter
         computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 16), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 16));
 
+        PlaneLightingTextureBlurFFT();
+
+        // physically based blur
+        /*
         kernel = physicallyBasedBlurKernel;
         computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
         computeCenterCS.SetTexture(kernel, "planeLightingTextureTmp", planeLightingTextureTmp);
@@ -804,7 +1037,9 @@ public class ComputeCenter
         computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
         computeCenterCS.SetTexture(kernel, "textureTo", planeLightingTexture);
         computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+        */
 
+        // gaussian blur
         /*
         computeCenterCS.SetTexture(gaussianBlurUKernel, "planeLightingTexture", planeLightingTexture);
         computeCenterCS.SetTexture(gaussianBlurUKernel, "planeLightingTextureTmp", planeLightingTextureTmp);
@@ -834,7 +1069,10 @@ public class ComputeCenter
         // plane lighting
         computeCenterCS.SetFloat("planeLightingTextureWidth", planeLightingTextureWidth);
         computeCenterCS.SetFloat("planeLightingTextureHeight", planeLightingTextureHeight);
+        computeCenterCS.SetFloat("planeLightingTexturePixelSizeX", 40.0f / planeLightingTextureWidth);
+        computeCenterCS.SetFloat("planeLightingTexturePixelSizeY", 30.0f / planeLightingTextureHeight);
         computeCenterCS.SetFloats("planeSizeInv", 1.0f / 40.0f, 1.0f, 1.0f / 30.0f);
+        computeCenterCS.SetInt("fftTextureSize", fftTextureSize);
         Shader.SetGlobalFloat("planeLightingTextureIntensity", 0.0f);
 
         // plane lighting gaussian blur precomputed weights

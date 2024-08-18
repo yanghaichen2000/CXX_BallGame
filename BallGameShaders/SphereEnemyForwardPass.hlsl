@@ -294,7 +294,7 @@ void LitPassFragment(
     GetBulletGridXZFromPos(enemy.pos - 0.5f * float3(bulletGridSize, 0.0f, bulletGridSize), anchorX, anchorZ);
     
     // lighting from bullets
-    if (inputData.positionWS.y > 0.2f)// && enemy.hp < 0)
+    if (true)// && enemy.hp < 0)
     {
         // 1x1 cell
         int possible1x1IndexList[20];

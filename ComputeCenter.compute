@@ -38,16 +38,53 @@
 #pragma kernel ProcessBossEnemyCollision
 #pragma kernel PhysicallyBasedBlur
 #pragma kernel CopyTexture
+#pragma kernel CopyTextureAndReverseY
+#pragma kernel DFTStepU
+#pragma kernel DFTStepV
+#pragma kernel IDFTStepU
+#pragma kernel IDFTStepV
+#pragma kernel PlaneLightingFrequencyDomainMultiply
+#pragma kernel InitializePlaneLightingTemporalConvolutionKernel
+#pragma kernel PadPlaneLightingTexture
 
 
 #define DEG2RAD_V 0.01745329252f
+#define PI 3.14159265359f
+#define SQRT2INV 0.70710678119f
 
-uint GetNegative(uint num)
+struct ComplexFloat3
+{
+    float3 real;
+    float3 imag;
+};
+
+inline ComplexFloat3 ComplexMul(ComplexFloat3 a, float2 b)
+{
+    ComplexFloat3 ret;
+    ret.real = a.real * b.x - a.imag * b.y;
+    ret.imag = a.real * b.y + a.imag * b.x;
+    return ret;
+}
+
+inline float2 ComplexMul(float2 a, float2 b)
+{
+    return float2(
+        a.x * b.x - a.y * b.y,
+        a.x * b.y + a.y * b.x
+        );
+}
+
+inline float2 angleToComplex(float theta)
+{
+    return float2(cos(theta), sin(theta));
+}
+
+inline uint GetNegative(uint num)
 {
     return 0xFFFFFFFF - num + 1;
 }
 
-float Random3DTo1D(float3 value, float a, float3 b)
+inline float Random3DTo1D(float3 value, float a, float3 b)
 {
     float3 smallValue = sin(value);
     float random = dot(smallValue, b);
@@ -55,7 +92,7 @@ float Random3DTo1D(float3 value, float a, float3 b)
     return random;
 }
 
-float3 Random3DTo3D(float3 value)
+inline float3 Random3DTo3D(float3 value)
 {
     return float3(
 		Random3DTo1D(value, 14375.5964, float3(15.637, 76.243, 37.168)),
@@ -64,7 +101,7 @@ float3 Random3DTo3D(float3 value)
 	);
 }
 
-float3 RotateAroundY(float3 vec, float angle)
+inline float3 RotateAroundY(float3 vec, float angle)
 {
     angle *= DEG2RAD_V;
     
@@ -266,8 +303,21 @@ RWTexture2D<float4> planeLightingTextureTmp;
 RWTexture2D<float4> textureFrom;
 RWTexture2D<float4> textureTo;
 
+RWTexture2D<float4> fftInReal;
+RWTexture2D<float4> fftInImag;
+RWTexture2D<float4> fftOutReal;
+RWTexture2D<float4> fftOutImag;
+
+RWTexture2D<float4> planeLightingConvolutionKernel;
+
+int fftTextureSize;
+int fftButterflySize;
+float idftScale;
+
 float planeLightingTextureWidth;
 float planeLightingTextureHeight;
+float planeLightingTexturePixelSizeX;
+float planeLightingTexturePixelSizeY;
 float3 planeSizeInv;
 float4 planeLightingGaussianBlurWeight[7];
 
@@ -307,6 +357,29 @@ groupshared EnemyDatum enemyData[128];
 groupshared int enemyNum = 0;
 
 float player2Skill0TMax;
+
+
+inline ComplexFloat3 GetFFTComplexColor(int2 index)
+{
+    ComplexFloat3 ret;
+    ret.real = fftInReal[index].xyz;
+    ret.imag = fftInImag[index].xyz;
+    return ret;
+}
+
+inline void SetFFTComplexColor(int2 index, ComplexFloat3 result1, ComplexFloat3 result2, bool add)
+{
+    if (add)
+    {
+        fftOutReal[index] = float4((result1.real + result2.real) * SQRT2INV, 0.0f);
+        fftOutImag[index] = float4((result1.imag + result2.imag) * SQRT2INV, 0.0f);
+    }
+    else
+    {
+        fftOutReal[index] = float4((result1.real - result2.real) * SQRT2INV, 0.0f);
+        fftOutImag[index] = float4((result1.imag - result2.imag) * SQRT2INV, 0.0f);
+    } 
+}
 
 uint GetBit(uint packedInfo, int index)
 {
@@ -1331,7 +1404,7 @@ void GeneratePlaneLightingTexture(uint3 id : SV_DispatchThreadID)
 void ResolvePlaneLightingTexture(uint3 id : SV_DispatchThreadID)
 {
     float4 data = planeLightingTexture[id.xy];
-    float weight = pow(data.a, 0.1f);
+    float weight = pow(data.a, 0.3f);
     planeLightingTexture[id.xy] = float4(data.rgb * weight, 1.0f);
 }
 
@@ -1385,10 +1458,13 @@ void KnockOutAllEnemy(uint3 id : SV_DispatchThreadID)
 void PhysicallyBasedBlur(uint3 id : SV_DispatchThreadID)
 {
     float3 result = float3(0.0f, 0.0f, 0.0f);
-    for (int i = -30; i <= 30; i++)
+    int radius = 30;
+    for (int i = -radius; i <= radius; i++)
     {
-        for (int j = -30; j <= 30; j++)
+        for (int j = -radius; j <= radius; j++)
         {
+            if (i * i + j * j > radius * radius)
+                continue;
             float dX = 40.0f / planeLightingTextureWidth * i;
             float dZ = 30.0f / planeLightingTextureHeight * j;
             float squaredHorizontalDistance = dX * dX + dZ * dZ;
@@ -1405,4 +1481,110 @@ void PhysicallyBasedBlur(uint3 id : SV_DispatchThreadID)
 void CopyTexture(uint3 id : SV_DispatchThreadID)
 {
     textureTo[id.xy] = textureFrom[id.xy];
+}
+
+[numthreads(32, 32, 1)]
+void CopyTextureAndReverseY(uint3 id : SV_DispatchThreadID)
+{
+    textureTo[id.xy] = textureFrom[int2(id.x, fftTextureSize - 1 - id.y)];
+}
+
+[numthreads(16, 16, 1)]
+void DFTStepU(uint3 id : SV_DispatchThreadID)
+{
+    int2 index1 = id.xy;
+    int2 index2 = int2(id.x + int(fftTextureSize / 2), id.y);
+    int k = id.x & (fftButterflySize - 1);
+
+    float theta = -float(k) / fftButterflySize;
+    ComplexFloat3 result1 = GetFFTComplexColor(index1);
+    ComplexFloat3 result2 = ComplexMul(GetFFTComplexColor(index2), angleToComplex(theta * PI));
+    
+    int2 index1Out = int2((id.x << 1) - k, id.y);
+    int2 index2Out = int2(index1Out.x + fftButterflySize, id.y);
+    SetFFTComplexColor(index1Out, result1, result2, true);
+    SetFFTComplexColor(index2Out, result1, result2, false);
+}
+
+
+[numthreads(16, 16, 1)]
+void DFTStepV(uint3 id : SV_DispatchThreadID)
+{
+    int2 index1 = id.xy;
+    int2 index2 = int2(id.x, id.y + int(fftTextureSize / 2));
+    int k = id.y & (fftButterflySize - 1);
+
+    float theta = -float(k) / fftButterflySize;
+    ComplexFloat3 result1 = GetFFTComplexColor(index1);
+    ComplexFloat3 result2 = ComplexMul(GetFFTComplexColor(index2), angleToComplex(theta * PI));
+
+    int2 index1Out = int2(id.x, (id.y << 1) - k);
+    int2 index2Out = int2(id.x, index1Out.y + fftButterflySize);
+    SetFFTComplexColor(index1Out, result1, result2, true);
+    SetFFTComplexColor(index2Out, result1, result2, false);
+}
+
+
+[numthreads(16, 16, 1)]
+void IDFTStepU(uint3 id : SV_DispatchThreadID)
+{
+    int2 index1 = id.xy;
+    int2 index2 = int2(id.x + int(fftTextureSize / 2), id.y);
+    int k = id.x & (fftButterflySize - 1);
+
+    float theta = float(k) / fftButterflySize;
+    ComplexFloat3 result1 = GetFFTComplexColor(index1);
+    ComplexFloat3 result2 = ComplexMul(GetFFTComplexColor(index2), angleToComplex(theta * PI));
+    
+    int2 index1Out = int2((id.x << 1) - k, id.y);
+    int2 index2Out = int2(index1Out.x + fftButterflySize, id.y);
+    SetFFTComplexColor(index1Out, result1, result2, true);
+    SetFFTComplexColor(index2Out, result1, result2, false);
+}
+
+ 
+[numthreads(16, 16, 1)]
+void IDFTStepV(uint3 id : SV_DispatchThreadID)
+{
+    int2 index1 = id.xy;
+    int2 index2 = int2(id.x, id.y + int(fftTextureSize / 2));
+    int k = id.y & (fftButterflySize - 1);
+
+    float theta = float(k) / fftButterflySize;
+    ComplexFloat3 result1 = GetFFTComplexColor(index1);
+    ComplexFloat3 result2 = ComplexMul(GetFFTComplexColor(index2), angleToComplex(theta * PI));
+
+    int2 index1Out = int2(id.x, (id.y << 1) - k);
+    int2 index2Out = int2(id.x, index1Out.y + fftButterflySize);
+    SetFFTComplexColor(index1Out, result1, result2, true);
+    SetFFTComplexColor(index2Out, result1, result2, false);
+}
+
+
+[numthreads(32, 32, 1)]
+void PlaneLightingFrequencyDomainMultiply(uint3 id : SV_DispatchThreadID)
+{
+    // assert the imag component of the convolution kernel in frequency domain is zero
+    // because the kernel is conjugate symmetric in temporal domain
+    float scale = planeLightingConvolutionKernel[id.xy].x;
+    fftOutReal[id.xy] *= scale;
+    fftOutImag[id.xy] *= scale;
+}
+
+
+[numthreads(32, 32, 1)]
+void InitializePlaneLightingTemporalConvolutionKernel(uint3 id : SV_DispatchThreadID)
+{
+    float dX = min(id.x, fftTextureSize - id.x) * planeLightingTexturePixelSizeX;
+    float dY = min(id.y, fftTextureSize - id.y) * planeLightingTexturePixelSizeY;
+    float distanceInv = rsqrt(dX * dX + dY * dY + 0.25f);
+    float weight = 0.5f * distanceInv * distanceInv * distanceInv;
+    planeLightingConvolutionKernel[id.xy] = float4(weight, weight, weight, weight);
+}
+
+
+[numthreads(32, 32, 1)]
+void PadPlaneLightingTexture(uint3 id : SV_DispatchThreadID)
+{
+    fftInReal[id.xy] = planeLightingTexture[id.xy];
 }

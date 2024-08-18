@@ -301,8 +301,8 @@ public class Player
     public GameObject obj;
     public Rigidbody body;
     public PlayerInputManager playerInputManager;
-    public float initialMaxSpeed = 4.0f;
-    public float initialMaxAcceleration = 10.0f;
+    public float initialMaxSpeed = 5.0f;
+    public float initialMaxAcceleration = 12.0f;
     public float hitProtectionDuration = 3.0f;
     public float autoRestoreHPRate = 3.0f;
     public int initialMaxHP = 300;

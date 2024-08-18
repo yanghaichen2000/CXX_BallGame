@@ -96,6 +96,13 @@ public class Boss
     {
         if (!enabled) return;
 
+        Vector3 pos = body.position;
+        if (pos.x > -20.0f && pos.x < 20.0f && pos.z > -15.0f && pos.z < 15.0f)
+        {
+            pos.y = Mathf.Max(0.0f, pos.y);
+            body.position = pos;
+        }
+
         // update velocity
         if (state == 1)
         {
@@ -699,8 +706,9 @@ public class Boss
     public void Load()
     {
         enabled = true;
-        obj.transform.localPosition = new Vector3(0.0f, 0.5f, 0.0f);
-        body.isKinematic = false;
+        state = 5;
+        body.isKinematic = true;
+        UpdateStateStartTime();
     }
 }
 

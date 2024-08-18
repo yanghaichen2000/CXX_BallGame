@@ -63,7 +63,8 @@ half DepthOnlyFragment(Varyings input) : SV_TARGET
     {
         float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
         float dither = GetDither8x8(uv);
-        float desiredAlpha = lerp(1.0f, 0.0f, (enemy.createdTime - gameTime) * 0.33333f);
+        float rate = (enemy.createdTime - gameTime) * 0.33333f;
+            float desiredAlpha = lerp(1.0f, 0.2f, pow(rate, 0.2f) - 0.4f);
         if (dither > desiredAlpha)
             discard;
     }

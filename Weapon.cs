@@ -191,7 +191,7 @@ public class WeaponDatumSample
         damage = 1,
         bounces = 2,
         lifeSpan = 12.0f,
-        impulse = 3.0f,
+        impulse = 1.0f,
         renderingBiasY = 0.0f,
     };
 
