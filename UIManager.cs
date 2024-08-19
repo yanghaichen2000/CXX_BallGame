@@ -42,6 +42,7 @@ public class UIManager
     public PlayerSkillUI[,] playerSkillUI;
     public GameObject image_aimingPoint;
 
+    public Image image_bossHPBack;
     public Image image_bossHP;
     public TextMeshProUGUI text_bossHP;
 
@@ -49,6 +50,10 @@ public class UIManager
     public TextMeshProUGUI text_currentWave;
 
     public TextMeshProUGUI text_gameOver;
+
+    public GameObject obj_gameOver;
+    public GameObject obj_mainMenu;
+    public GameObject obj_gameUI;
 
     public TextMeshProUGUI fps;
     public TextMeshProUGUI resolution;
@@ -58,6 +63,10 @@ public class UIManager
 
     public UIManager()
     {
+        obj_gameOver = GameObject.Find("text_gameOver");
+        obj_mainMenu = GameObject.Find("text_mainMenu");
+        obj_gameUI = GameObject.Find("text_gameUI");
+
         text_player1HP = GameObject.Find("text_player1HP").GetComponent<TextMeshProUGUI>();
         text_player1Mass = GameObject.Find("text_player1Mass").GetComponent<TextMeshProUGUI>();
         text_player1Level = GameObject.Find("text_player1Level").GetComponent<TextMeshProUGUI>();
@@ -68,6 +77,7 @@ public class UIManager
         text_player2Level = GameObject.Find("text_player2Level").GetComponent<TextMeshProUGUI>();
         image_player2HP = GameObject.Find("image_player2HP").GetComponent<Image>();
 
+        image_bossHPBack = GameObject.Find("image_bossHPBack").GetComponent<Image>();
         image_bossHP = GameObject.Find("image_bossHP").GetComponent<Image>();
         text_bossHP = GameObject.Find("text_bossHP").GetComponent<TextMeshProUGUI>();
 
@@ -76,10 +86,10 @@ public class UIManager
 
         text_gameOver = GameObject.Find("text_gameOver").GetComponent<TextMeshProUGUI>();
 
-        playerSkillUI = new PlayerSkillUI[2, 4];
+        playerSkillUI = new PlayerSkillUI[2, 3];
         for (int p = 0; p < 2; p++)
         {
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 3; i++)
             {
                 playerSkillUI[p, i] = new PlayerSkillUI(p, i);
             }
@@ -150,13 +160,27 @@ public class UIManager
     }
 
     public void UpdateNextWaveTime(float time)
-    {
-        text_nextWave.text = string.Format("Next Wave Arrives in: {0}s", Mathf.FloorToInt(time));
+    {   
+        if (time < 0.0f)
+        {
+            text_nextWave.text = " ";
+        }
+        else
+        {
+            text_nextWave.text = string.Format("Next Wave Arrives in: {0}s", Mathf.FloorToInt(time));
+        }
     }
 
     public void UpdateCurrentWave(int wave)
     {
-        text_currentWave.text = string.Format("Current Wave: {0} / {1}", wave, 19);
+        if (wave != 20)
+        {
+            text_currentWave.text = string.Format("Current Wave: {0} / {1}", wave, 20);
+        }
+        else
+        {
+            text_currentWave.text = string.Format("The Last Wave");
+        }
     }
 
     public void UpdatePlayerLevel(int player, int exp)
@@ -199,5 +223,48 @@ public class UIManager
         text_bossHP.text = string.Format("{0} / {1}, {2:F} kg", boss.hp, boss.maxHP, boss.mass);
         if (image_bossHP != null)
             image_bossHP.fillAmount = (float)boss.hp / boss.maxHP;
+    }
+
+    public void RemoveBossUI()
+    {
+        image_bossHPBack.rectTransform.anchoredPosition = new Vector3(0.0f, 2000.0f, 0.0f);
+    }
+
+    public void ShowBossUI()
+    {
+        image_bossHPBack.rectTransform.anchoredPosition = new Vector3(0.0f, 1000.0f, 0.0f);
+    }
+
+    public void UpdateUIState(int state, bool lose = false)
+    {
+        if (state == 0)
+        {
+            obj_gameOver.SetActive(false);
+            obj_mainMenu.SetActive(true);
+            obj_gameUI.SetActive(false);
+        }
+        else if (state == 1)
+        {
+            obj_gameOver.SetActive(false);
+            obj_mainMenu.SetActive(false);
+            obj_gameUI.SetActive(true);
+        }
+        else if (state == 2)
+        {
+            obj_gameOver.SetActive(true);
+            obj_mainMenu.SetActive(false);
+            obj_gameUI.SetActive(false);
+
+            if (!lose)
+            {
+                text_gameOver.text = "YOU WIN";
+                text_gameOver.color = Color.green;
+            }
+            else
+            {
+                text_gameOver.text = "YOU LOSE";
+                text_gameOver.color = Color.red;
+            }
+        }
     }
 }

@@ -47,6 +47,7 @@ public class GameManager : MonoBehaviour
 
     public ComputeShader computeManagerCS;
 
+    public SceneRenderingManager sceneRenderingManager;
 
     // const
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
@@ -69,15 +70,12 @@ public class GameManager : MonoBehaviour
     [Range(0.0f, 10.0f)] public float playerSkillEmission;
 
     // game
-    bool gameOver = false;
+    bool gamePaused = false;
+    int state = 0;
 
     void Awake()
     {
         instance = this;
-
-        //Screen.SetResolution(2560, 1440, true);
-        Application.targetFrameRate = 240;
-
         deltaTimeQueue = new Queue<float>();
         timeSum = 0.0f;
         frameCount = -1;
@@ -94,73 +92,133 @@ public class GameManager : MonoBehaviour
         cameraMotionManager = new CameraMotionManager();
         level = new GameLevel();
         boss = new Boss();
+        sceneRenderingManager = new SceneRenderingManager();
+        state = 0;
     }
 
     void Start()
     {
         lastTickTime = DateTime.Now;
         boss.Remove();
-        level.StartLevel();
+        player1.Remove();
+        player2.Remove();
+        uiManager.UpdateUIState(state);
     }
 
     void Update()
     {
-        if (!gameOver)
+        if (state == 0)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+            {
+                state = 1;
+                level.StartLevel1();
+                uiManager.UpdateUIState(state);
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                state = 1;
+                level.StartLevel17();
+                uiManager.UpdateUIState(state);
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha3))
+            {
+                state = 1;
+                level.StartLevel20();
+                uiManager.UpdateUIState(state);
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Application.Quit();
+            }
+        }
+        if (state == 1)
+        {
+            if (Input.GetKeyDown(KeyCode.P))
+            {
+                gamePaused = !gamePaused;
+
+                if (gamePaused)
+                {
+                    player1.body.isKinematic = true;
+                    player2.body.isKinematic = true;
+                    boss.body.isKinematic = true;
+                }
+                else
+                {
+                    player1.body.isKinematic = false;
+                    player2.body.isKinematic = false;
+                    boss.body.isKinematic = false;
+                }
+            }
+
+            if (!gamePaused)
+            {
+                UpdateTime();
+                using (new GUtils.PFL("GameLevel.Update")) { level.Update(); }
+                using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
+                using (new GUtils.PFL("EnemyLegion.Update")) { enemyLegion.Update(); }
+                using (new GUtils.PFL("player1.Update")) { player1.Update(); }
+                using (new GUtils.PFL("player2.Update")) { player2.Update(); }
+                using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
+                using (new GUtils.PFL("Boss.Update")) { boss.Update(); }
+                using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeManager.UpdateGPU(); }
+                using (new GUtils.PFL("SceneRenderingManager.Update")) { sceneRenderingManager.Update(); }
+
+                if (Input.GetKeyDown(KeyCode.U))
+                {
+                    level.nextWave = level.Wave17;
+                    level.currentWave = 16;
+                    player1.exp = 88888;
+                    player2.exp = 88888;
+                    player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
+                    player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
+                }
+
+                if (Input.GetKeyDown(KeyCode.I))
+                {
+                    level.nextWave = level.Wave20;
+                    level.currentWave = 19;
+                    player1.exp = 88888;
+                    player2.exp = 88888;
+                    player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
+                    player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
+                }
+
+                if (player1.obj.transform.localPosition.y < -20.0f && player2.obj.transform.localPosition.y < -20.0f)
+                {
+                    state = 2;
+                    uiManager.UpdateUIState(state, true);
+                }
+                else if (level.currentWave == 20 && level.currentEnemyNum == 0 && boss.obj.transform.localPosition.y < -5.0f)
+                {
+                    state = 2;
+                    uiManager.UpdateUIState(state, false);
+                    
+                }
+            }
+            if (gamePaused)
+            {
+                computeManager.UpdateComputeGlobalConstant();
+                computeManager.UpdateGlobalBufferForRendering();
+                computeManager.DrawEnemyBullet();
+                computeManager.DrawPlayerBullet();
+                computeManager.DrawEnemy();
+            }
+        }
+        else if (state == 2)
         {
             UpdateTime();
-            using (new GUtils.PFL("GameLevel.Update")) { level.Update(); }
-            using (new GUtils.PFL("CameraMotionManager.Update")) { cameraMotionManager.Update(); }
-            using (new GUtils.PFL("EnemyLegion.Update")) { enemyLegion.Update(); }
-            using (new GUtils.PFL("player1.Update")) { player1.Update(); }
-            using (new GUtils.PFL("player2.Update")) { player2.Update(); }
-            using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
-            using (new GUtils.PFL("Boss.Update")) { boss.Update(); }
             using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeManager.UpdateGPU(); }
 
-            if (Input.GetKeyDown(KeyCode.U))
+            if (Input.GetKeyDown(KeyCode.Escape))
             {
-                level.nextWave = level.Wave17;
-                level.currentWave = 16;
-                player1.exp = 88888;
-                player2.exp = 88888;
-                player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
-                player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
-            }
-
-            if (Input.GetKeyDown(KeyCode.I))
-            {
-                level.nextWave = level.Wave20;
-                level.currentWave = 19;
-                player1.exp = 88888;
-                player2.exp = 88888;
-                player1.weapon = allLevelPlayerData.GetWeapon(0, 20);
-                player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
-            }
-
-            if (player1.obj.transform.localPosition.y < -20.0f && player2.obj.transform.localPosition.y < -20.0f)
-            {
-                gameOver = true;
-                uiManager.text_gameOver.text = "YOU LOSE";
-                uiManager.text_gameOver.color = Color.red;
-            }
-            else if (level.currentWave == 20 && level.currentEnemyNum == 0 && gameTime > level.currentWaveStartTime + 45.0f)
-            {
-                gameOver = true;
-                uiManager.text_gameOver.text = "YOU WIN";
-                uiManager.text_gameOver.color = Color.green;
+                state = 0;
+                ResetContext();
+                uiManager.UpdateUIState(state);
             }
         }
-        else
-        {
-            UpdateTime();
-            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeManager.UpdateGPU(); }
-        }
 
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            Application.Quit();
-        }
     }
 
     void FixedUpdate()
@@ -188,5 +246,18 @@ public class GameManager : MonoBehaviour
         timeSum += deltaTime;
         averageFPS = deltaTimeQueue.Count > 0 ? (1.0f / (timeSum / deltaTimeQueue.Count)) : 1;
         uiManager.UpdateFPSAndOtherDebugData(averageFPS);
+    }
+
+    public void ResetContext()
+    {
+        computeManager.Release();
+        uiManager.obj_gameOver.SetActive(true);
+        uiManager.obj_mainMenu.SetActive(true);
+        uiManager.obj_gameUI.SetActive(true);
+        uiManager.image_aimingPoint.SetActive(true);
+        Awake();
+        boss.Remove();
+        player1.Remove();
+        player2.Remove();
     }
 }

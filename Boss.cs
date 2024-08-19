@@ -542,7 +542,14 @@ public class Boss
         {
             if (player1Pos.y >= 0.1 && player1Pos.y <= 0.6)
             {
-                if (player2Pos.y >= 0.1 && player2Pos.y <= 0.6)
+                if (GameManager.playerSkillManager.skills["SharedSkill1"].GetState() == 1)
+                {
+                    Vector3 desiredShootDir = -player1Dir;
+                    desiredShootDir.y = 0;
+                    desiredShootDir = desiredShootDir.normalized;
+                    return GUtils.Lerp(lastShootDir, desiredShootDir, 0.9f);
+                }
+                else if (player2Pos.y >= 0.1 && player2Pos.y <= 0.6)
                 {
                     Vector3 desiredShootDir = player1Distance < player2Distance ? player2Dir : player1Dir;
                     desiredShootDir.y = 0;
@@ -620,8 +627,18 @@ public class Boss
         float interestOnPlayer1 = -(player1Distance + Mathf.Abs(player1Pos.y - 0.5f) * 2.0f);
         float interestOnPlayer2 = -(player2Distance + Mathf.Abs(player2Pos.y - 0.5f) * 2.0f);
 
+        if (GameManager.playerSkillManager.skills["SharedSkill1"].GetState() == 1)
+        {
+            interestOnPlayer1 -= 1000000.0f;
+        }
+            
         Vector3 desiredVelocity = interestOnPlayer1 > interestOnPlayer2 ?
             player1Dir * maxSpeed : player2Dir * maxSpeed;
+
+        if ((player1Pos.y <= 0.4 || player1Pos.y >= 0.8) && (player2Pos.y <= 0.4 || player2Pos.y >= 0.8))
+        {
+            desiredVelocity = Vector3.zero;
+        }
 
         return desiredVelocity;
     }
@@ -652,7 +669,11 @@ public class Boss
         Vector3 targetPos;
         if (player1Pos.x > -20.5f && player1Pos.x < 20.5f && player1Pos.z > -15.5f && player1Pos.z < 15.5f && player1Pos.y > 0.4f)
         {
-            if (player2Pos.x > -20.5f && player2Pos.x < 20.5f && player2Pos.z > -15.5f && player2Pos.z < 15.5f && player2Pos.y > 0.4f)
+            if (GameManager.playerSkillManager.skills["SharedSkill1"].GetState() == 1)
+            {
+                targetPos = player2Pos;
+            }
+            else if (player2Pos.x > -20.5f && player2Pos.x < 20.5f && player2Pos.z > -15.5f && player2Pos.z < 15.5f && player2Pos.y > 0.4f)
             {
                 targetPos = player1Distance < player2Distance ? player2Pos : player1Pos;
             }
@@ -702,6 +723,7 @@ public class Boss
         enabled = false;
         obj.transform.localPosition = new Vector3(-100.0f, 0.5f, -100.0f);
         body.isKinematic = true;
+        GameManager.uiManager.RemoveBossUI();
     }
 
     public void Load()
@@ -710,6 +732,7 @@ public class Boss
         state = 5;
         body.isKinematic = true;
         UpdateStateStartTime();
+        GameManager.uiManager.ShowBossUI();
     }
 }
 

@@ -507,4 +507,18 @@ public class Player
     {
         return obj.transform.localPosition;
     }
+
+    public void Remove()
+    {
+        obj.transform.localPosition = new Vector3(-100.0f, 0.0f, -100.0f);
+        body.isKinematic = true;
+    }
+
+    public void Load()
+    {
+        if (index == 0) obj.transform.localPosition = new Vector3(-2.0f, 0.5f, 0.0f);
+        else obj.transform.localPosition = new Vector3(2.0f, 0.5f, 0.0f);
+        body.velocity = Vector3.zero;
+        body.isKinematic = false;
+    }
 }

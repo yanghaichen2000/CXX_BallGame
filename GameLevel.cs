@@ -16,8 +16,9 @@ public class GameLevel
     public float currentWaveStartTime;
     public bool canAutoSkipThisWave;
 
-    public void StartLevel()
+    public void StartLevel1()
     {
+        GameManager.instance.UpdateTime();
         levelStartTime = GameManager.gameTime;
         currentWave = 0;
         canAutoSkipThisWave = false;
@@ -25,8 +26,54 @@ public class GameLevel
         nextWaveTime = GameManager.gameTime + 3.0f;
         nextWave = Wave1;
 
+        GameManager.player1.Load();
+        GameManager.player2.Load();
+        GameManager.player1.exp = 0;
+        GameManager.player2.exp = 0;
+        GameManager.player1.level = 0;
+        GameManager.player2.level = 0;
         GameManager.player1.weapon = GameManager.allLevelPlayerData.GetWeapon(0, 0);
         GameManager.player2.weapon = GameManager.allLevelPlayerData.GetWeapon(1, 0);
+    }
+
+    public void StartLevel17()
+    {
+        GameManager.instance.UpdateTime();
+        levelStartTime = GameManager.gameTime;
+        currentWave = 16;
+        canAutoSkipThisWave = false;
+
+        nextWaveTime = GameManager.gameTime + 3.0f;
+        nextWave = Wave17;
+
+        GameManager.player1.Load();
+        GameManager.player2.Load();
+        GameManager.player1.exp = 2400;
+        GameManager.player2.exp = 2400;
+        GameManager.player1.level = 18;
+        GameManager.player2.level = 18;
+        GameManager.player1.weapon = GameManager.allLevelPlayerData.GetWeapon(0, 18);
+        GameManager.player2.weapon = GameManager.allLevelPlayerData.GetWeapon(1, 18);
+    }
+
+    public void StartLevel20()
+    {
+        GameManager.instance.UpdateTime();
+        levelStartTime = GameManager.gameTime;
+        currentWave = 19;
+        canAutoSkipThisWave = false;
+
+        nextWaveTime = GameManager.gameTime + 3.0f;
+        nextWave = Wave20;
+
+        GameManager.player1.Load();
+        GameManager.player2.Load();
+        GameManager.player1.exp = 5000;
+        GameManager.player2.exp = 5000;
+        GameManager.player1.level = 20;
+        GameManager.player2.level = 20;
+        GameManager.player1.weapon = GameManager.allLevelPlayerData.GetWeapon(0, 20);
+        GameManager.player2.weapon = GameManager.allLevelPlayerData.GetWeapon(1, 20);
     }
 
     public void Update()
@@ -42,7 +89,7 @@ public class GameLevel
         {
             nextWaveTime = GameManager.gameTime + 0.25f;
         }
-        else if (currentEnemyNum == 0 && currentDeployingEnemyNum == 0 && 
+        else if (currentEnemyNum == 0 && currentDeployingEnemyNum == 0 && currentWave != 20 &&
             canAutoSkipThisWave && GameManager.gameTime - currentWaveStartTime > 5.0f)
         {
             nextWaveTime = GameManager.gameTime + 2.0f;
@@ -378,7 +425,7 @@ public class GameLevel
         GameManager.boss.Load();
 
         currentWave++;
-        nextWaveTime = GameManager.gameTime + 60.0f;
+        nextWaveTime = GameManager.gameTime - 1.0f;
         nextWave = null;
         return 0;
     }

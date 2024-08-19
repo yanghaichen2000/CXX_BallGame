@@ -689,7 +689,54 @@ public class ComputeManager
     public void Release()
     {
         planeLightingTexture.Release();
+        planeLightingTextureIn.Release();
+        planeLightingTextureInImag.Release();
         planeLightingTextureTmp.Release();
+        planeLightingTextureTmpImag.Release();
+        planeLightingTextureOut.Release();
+        planeLightingTextureOutImag.Release();
+        planeLightingConvolutionKernel.Release();
+        planeLightingConvolutionKernelImag.Release();
+
+        playerDataCB.Release();
+        bossDataCB.Release();
+        playerSkillDataCB.Release();
+        playerBulletDataCB[0].Release();
+        playerBulletDataCB[1].Release();
+        playerBulletNumCB[0].Release();
+        playerBulletNumCB[1].Release();
+        enemyBulletDataCB[0].Release();
+        enemyBulletDataCB[1].Release();
+        enemyBulletNumCB[0].Release();
+        enemyBulletNumCB[1].Release();
+        playerShootRequestDataCB.Release();
+        bossShootRequestDataCB.Release();
+
+        playerBulletGridDataCB.Release();
+        enemyBulletGridDataCB.Release();
+        enemyGridDataCB.Release();
+        bulletRenderingGridDataCB[0].Release();
+        bulletRenderingGridDataCB[1].Release();
+        sphereEnemyDataCB[0].Release();
+        sphereEnemyDataCB[1].Release();
+        enemyCollisionCacheDataCB.Release();
+        sphereEnemyNumCB[0].Release();
+        sphereEnemyNumCB[1].Release();
+        deployingSphereEnemyDataCB[0].Release();
+        deployingSphereEnemyDataCB[1].Release();
+        deployingSphereEnemyNumCB[0].Release();
+        deployingSphereEnemyNumCB[1].Release();
+        cubeEnemyDataCB.Release();
+        cubeEnemyNumCB.Release();
+        createSphereEnemyRequestDataCB.Release();
+        createCubeEnemyRequestDataCB.Release();
+        enemyWeaponDataCB.Release();
+        drawPlayerBulletArgsCB.Release();
+        drawEnemyBulletArgsCB.Release();
+        drawSphereEnemyArgsCB.Release();
+        drawDeployingSphereEnemyArgsCB.Release();
+        availablePositionDataCB.Release();
+        deadEnemyNumCB.Release();
     }
 
 
@@ -1250,6 +1297,7 @@ public class ComputeManager
     {
         int kernel = enemyShootKernel;
         computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
         computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeManagerCS.SetBuffer(kernel, "enemyWeaponData", enemyWeaponDataCB);
@@ -1725,6 +1773,7 @@ public class ComputeManager
         computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
         computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
         computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
 
         computeManagerCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);

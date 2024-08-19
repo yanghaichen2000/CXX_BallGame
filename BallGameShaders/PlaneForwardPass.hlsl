@@ -237,7 +237,10 @@ void LitPassFragment(
     color.rgb = MixFog(color.rgb, inputData.fogCoord);
     color.a = OutputAlpha(color.a, IsSurfaceTypeTransparent(_Surface));
     
-    color.rgb += tex2D(planeLightingTexture, float2(1.0f, 1.0f) - input.uv) * planeLightingTextureIntensity;
+    float3 normalWS = normalize(inputData.normalWS);
+    float2 displacementXZ = normalWS.xz / normalWS.y;
+    float2 uv = float2(1.0f, 1.0f) - input.uv * float2(0.5f, 0.666667f) + displacementXZ * float2(0.025f, 0.03f);
+    color.rgb += tex2D(planeLightingTexture, uv) * planeLightingTextureIntensity;
     
     outColor = color;
 

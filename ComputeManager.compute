@@ -849,7 +849,11 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
         float3 dir;
         if (InThePlane(player1Pos))
         {
-            if (InThePlane(player2Pos))
+            if (playerSkillData[0].sharedSkill1 == 1)
+            {
+                dir = -player1RelativePos;
+            }
+            else if (InThePlane(player2Pos))
             {
                 dir = length(player1RelativePos) < length(player2RelativePos) ?
                 player1RelativePos : player2RelativePos;
@@ -1038,14 +1042,14 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
         for (int i = 0; i < 2; i++)
         {
             PlayerDatum player = playerData[i];
-            if (player.hittable)
+            if (player.hittable || (i == 1 && playerSkillData[0].player2Skill0 == 1))
             {
                 float3 relativePos = player.pos - enemy.pos;
                 float distance = length(relativePos);
                 float minDistance = (player.size + enemy.size) * 0.5;
                 if (distance < minDistance)
                 {
-                    if (playerSkillData[0].player2Skill0 == 1)
+                    if (playerSkillData[0].player2Skill0 == 1 && i == 1)
                     {
                         if (gameTime - enemy.lastHitByPlayer2Skill0Time >= player2Skill0TMax)
                             enemy.lastHitByPlayer2Skill0Time = gameTime;
@@ -1143,10 +1147,14 @@ void EnemyShoot(uint3 id : SV_DispatchThreadID)
             float3 player2RelativePos = player2Pos - enemy.pos;
             if (InThePlane(player1Pos))
             {
-                if (InThePlane(player2Pos))
+                if (playerSkillData[0].sharedSkill1 == 1)
+                {
+                    playerDir = -player1RelativePos;
+                }
+                else if (InThePlane(player2Pos))
                 {
                     playerDir = length(player1RelativePos) < length(player2RelativePos) ?
-                        player1RelativePos : player2RelativePos;
+                    player1RelativePos : player2RelativePos;
                 }
                 else
                 {
@@ -1337,7 +1345,7 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
 {
     int index = GetBulletGridIndexFromId(id);
 
-    for (int i = 0; i < min(playerBulletGridData[index].size, 2); i++)
+    for (int i = 0; i < min(playerBulletGridData[index].size, 1); i++)
     {
         BulletDatum bullet = playerBulletData[playerBulletGridData[index].bulletIndexList[i]];
         bool valid = true;
@@ -1359,7 +1367,7 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
         }
     }
     
-    for (int i = 0; i < min(enemyBulletGridData[index].size, 2); i++)
+    for (int i = 0; i < min(enemyBulletGridData[index].size, 1); i++)
     {
         BulletDatum bullet = enemyBulletData[enemyBulletGridData[index].bulletIndexList[i]];
         bool valid = true;
