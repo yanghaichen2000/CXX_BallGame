@@ -138,7 +138,7 @@ inline float3 GetCellPosFromXZ(int x, int z)
     return bulletGridBottomLeftCellCenterPos + float3(x, 0.0f, z) * bulletGridSize;
 }
 
-VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
+inline VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;
     BulletDatum datum = playerBulletData[instanceID];
@@ -153,21 +153,21 @@ VertexPositionInputs GetPlayerBulletVertexPositionInputs(float3 positionOS, uint
     return input;
 }
 
-float4 GetPlayerBulletVertexPositionCS(float3 positionOS, uint instanceID)
+inline float4 GetPlayerBulletVertexPositionCS(float3 positionOS, uint instanceID)
 {
     BulletDatum datum = playerBulletData[instanceID];
     float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
     return TransformWorldToHClip(positionWS);
 }
 
-float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
+inline float4 GetEnemyBulletVertexPositionCS(float3 positionOS, uint instanceID)
 {
     BulletDatum datum = enemyBulletData[instanceID];
     float3 positionWS = positionOS * datum.radius * 2 + datum.pos + float3(0.0f, datum.renderingBiasY, 0.0f);
     return TransformWorldToHClip(positionWS);
 }
 
-float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
+inline float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
 {
     EnemyDatum datum = sphereEnemyData[instanceID];
     
@@ -182,14 +182,14 @@ float4 GetEnemyVertexPositionCS(float3 positionOS, uint instanceID)
     return TransformWorldToHClip(positionWS);
 }
 
-float4 GetDeployingEnemyVertexPositionCS(float3 positionOS, uint instanceID)
+inline float4 GetDeployingEnemyVertexPositionCS(float3 positionOS, uint instanceID)
 {
     EnemyDatum datum = deployingSphereEnemyData[instanceID];
     float3 positionWS = positionOS * datum.size + datum.pos;
     return TransformWorldToHClip(positionWS);
 }
 
-VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint instanceID)
+inline VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint instanceID)
 {
     VertexPositionInputs input;
     BulletDatum datum = enemyBulletData[instanceID];
@@ -204,13 +204,13 @@ VertexPositionInputs GetEnemyBulletVertexPositionInputs(float3 positionOS, uint 
     return input;
 }
 
-float3 BulletDiffuseShading(float3 baseColor, float3 normal)
+inline float3 BulletDiffuseShading(float3 baseColor, float3 normal)
 {
     return baseColor * bulletLightIntensity * saturate(dot(bulletLightDir, normal)) +
             bulletEmissionIntensity * baseColor;
 }
 
-float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
+inline float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
 {
     float d = saturate(dot(bulletLightDir, normal));
     float d2 = d * d;
@@ -222,14 +222,14 @@ float3 BulletBlinnPhongShading(float3 baseColor, float3 normal)
 }
 
 // (hue, saturation, value)
-float3 HSVToRGB(float3 c)
+inline float3 HSVToRGB(float3 c)
 {
     float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
     float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
     return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
-float3 PackeduintColorToFloat3(uint color)
+inline float3 PackeduintColorToFloat3(uint color)
 {
     float3 ret;
     ret.r = (color >> 24 & 255) / 255.0f;
@@ -239,7 +239,7 @@ float3 PackeduintColorToFloat3(uint color)
     return ret;
 }
 
-float GetDither4x4(float2 uv, int scale = 1)
+inline float GetDither4x4(float2 uv, int scale = 1)
 {
     static const float4x4 ditherMatrix = float4x4(
         0.0f, 8.0f, 2.0f, 10.0f,
@@ -251,7 +251,7 @@ float GetDither4x4(float2 uv, int scale = 1)
     return ditherMatrix[((int) (uv.x * screenWidth - 0.5f) / scale) % 4][((int) (uv.y * screenHeight - 0.5f) / scale) % 4] / 16.0f;
 }
 
-float GetDither8x8(float2 uv, int scale = 1)
+inline float GetDither8x8(float2 uv, int scale = 1)
 {
     static const float ditherMatrix[64] =
     {

@@ -426,7 +426,7 @@ public class Player
         body.velocity = velocity;
     }
 
-    public void OnProcessPlayerReadbackData(ComputeCenter.PlayerDatum datum)
+    public void OnProcessPlayerReadbackData(ComputeManager.PlayerDatum datum)
     {
         // ¸üÐÂhp
         if (hittable) updateHP(datum.hpChange);
@@ -452,7 +452,7 @@ public class Player
         }
     }
 
-    public void OnProcessPlayerSkillReadbackData(ComputeCenter.PlayerSkillDatum datum)
+    public void OnProcessPlayerSkillReadbackData(ComputeManager.PlayerSkillDatum datum)
     {
         updateHP(datum.player2Skill0HPRestoration / 2, true);
     }

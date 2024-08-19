@@ -46,7 +46,8 @@
 #pragma kernel PlaneLightingFrequencyDomainMultiply
 #pragma kernel InitializePlaneLightingTemporalConvolutionKernel
 #pragma kernel PadPlaneLightingTexture
-
+#pragma kernel ClearEnemyGrid
+#pragma kernel BuildEnemyGrid
 
 #define DEG2RAD_V 0.01745329252f
 #define PI 3.14159265359f
@@ -125,10 +126,8 @@ struct PlayerDatum
     float size;
     uint hittable;
     int hitByEnemy;
-    float3 dir;
-    float tmp1;
-    float tmp2;
-    float tmp3;
+    float3 velocity;
+    float3 tmp;
 };
 
 
@@ -228,6 +227,12 @@ struct BulletGridDatum
     int bulletIndexList[BULLET_GRID_CAPACITY];
 };
 
+struct EnemyGridDatum
+{
+    int size;
+    int index[3];
+};
+
 struct BulletRenderingGridDatum
 {
     int size;
@@ -262,6 +267,8 @@ RWStructuredBuffer<BulletDatum> bossShootRequestData;
 
 RWStructuredBuffer<BulletGridDatum> playerBulletGridData;
 RWStructuredBuffer<BulletGridDatum> enemyBulletGridData;
+
+RWStructuredBuffer<EnemyGridDatum> enemyGridData;
 
 RWStructuredBuffer<BulletRenderingGridDatum> bulletRenderingGridData1x1;
 RWStructuredBuffer<BulletRenderingGridDatum> bulletRenderingGridData2x2;
@@ -350,11 +357,15 @@ float3 bulletGridBottomLeftPos;
 float bulletGridSize;
 float bulletGridSizeInv;
 
+int enemyGridLengthX;
+int enemyGridLengthZ;
+int enemyGridLength;
+float3 enemyGridBottomLeftPos;
+float enemyGridSize;
+float enemyGridSizeInv;
+
 uint packedPlayer1BulletColor;
 uint packedPlayer2BulletColor;
-
-groupshared EnemyDatum enemyData[128];
-groupshared int enemyNum = 0;
 
 float player2Skill0TMax;
 
@@ -381,12 +392,12 @@ inline void SetFFTComplexColor(int2 index, ComplexFloat3 result1, ComplexFloat3 
     } 
 }
 
-uint GetBit(uint packedInfo, int index)
+inline uint GetBit(uint packedInfo, int index)
 {
     return (packedInfo >> index) & 1;
 }
 
-void SetBit(inout uint packedInfo, int index, int value)
+inline void SetBit(inout uint packedInfo, int index, int value)
 {
     if (value == 0)
         packedInfo &= ~(1 << index);
@@ -394,25 +405,32 @@ void SetBit(inout uint packedInfo, int index, int value)
         packedInfo |= 1 << index;
 }
 
-int GetBulletGridIndexFromId(int3 xyz)
+inline int GetBulletGridIndexFromId(int3 xyz)
 {
     xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
     return xyz.z * bulletGridLengthX + xyz.x;
 }
 
-int GetBulletGridIndexFromPos(float3 pos)
+inline int GetBulletGridIndexFromPos(float3 pos)
 {
     int3 xyz = floor((pos - bulletGridBottomLeftPos + 0.00001f) * bulletGridSizeInv);
     xyz = clamp(xyz, int3(0, 0, 0), int3(bulletGridLengthX - 1, 0, bulletGridLengthZ - 1));
     return xyz.z * bulletGridLengthX + xyz.x;
 }
 
-int GetBulletGridIndexFromXZ(int x, int z)
+inline int GetBulletGridIndexFromXZ(int x, int z)
 {
     return z * bulletGridLengthX + x;
 }
 
-bool IsInViewFrustum(float3 pos, float radius)
+inline int GetEnemyGridIndexFromPos(float3 pos)
+{
+    int3 xyz = floor((pos - enemyGridBottomLeftPos + 0.00001f) * enemyGridSizeInv);
+    xyz = clamp(xyz, int3(0, 0, 0), int3(enemyGridLengthX - 1, 0, enemyGridLengthZ - 1));
+    return xyz.z * enemyGridLengthX + xyz.x;
+}
+
+inline bool IsInViewFrustum(float3 pos, float radius)
 {   
     if (pos.z + radius < viewFrustrumZMin) return false;
     if (pos.z - radius > viewFrustrumZMax) return false;
@@ -429,7 +447,7 @@ bool IsInViewFrustum(float3 pos, float radius)
     return true;
 }
 
-bool InThePlane(float3 pos)
+inline bool InThePlane(float3 pos)
 {
     bool ret = true;
     return (pos.x >= planeXMin - 0.5f) &&
@@ -439,7 +457,7 @@ bool InThePlane(float3 pos)
         (pos.y >= 0.1f);
 }
 
-float3 PackedUIntColorToFloat3(uint color)
+inline float3 PackedUIntColorToFloat3(uint color)
 {
     float3 ret;
     ret.r = (color >> 24 & 255) / 255.0f;
@@ -634,7 +652,8 @@ void UpdateDrawEnemyArgs(uint3 id : SV_DispatchThreadID)
 }
 
 
-[numthreads(64, 1, 1)]
+/*
+[numthreads(256, 1, 1)]
 void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
 {
     if (id.x < playerBulletNum[0])
@@ -663,6 +682,58 @@ void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
                 SetBit(bullet.packedInfo, 1, 0);
                 playerBulletData[id.x] = bullet;
                 return;
+            }
+        }
+    }
+}
+*/
+
+
+[numthreads(256, 1, 1)]
+void ProcessPlayerBulletCollision(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < playerBulletNum[0])
+    {
+        BulletDatum bullet = playerBulletData[id.x];
+        int cellIndex = GetEnemyGridIndexFromPos(bullet.pos);
+        for (int biasX = -1; biasX <= 1; biasX++)
+        {
+            for (int biasZ = -1; biasZ <= 1; biasZ++)
+            {
+                int anotherCellIndex = cellIndex + biasX + biasZ * enemyGridLengthX;
+                if (anotherCellIndex < 0 || anotherCellIndex >= enemyGridLength)
+                    continue;
+                EnemyGridDatum anotherCell = enemyGridData[anotherCellIndex];
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i == anotherCell.size)
+                        break;
+                    int anotherEnemyIndex = anotherCell.index[i];
+                    if (anotherEnemyIndex == id.x)
+                        continue;
+                    EnemyDatum enemy = sphereEnemyData[anotherEnemyIndex];
+                    if (enemy.knockedOutByBoss == 1)
+                        continue;
+                    float enemyRadius = enemy.size * 0.5f;
+                    float3 bulletRelativePos = bullet.pos - enemy.pos;
+            
+                    if (length(bulletRelativePos) <= enemyRadius + bullet.radius)
+                    {
+                        InterlockedAdd(sphereEnemyData[anotherEnemyIndex].hp, -bullet.damage);
+                        float3 normal = normalize(bulletRelativePos);
+                        float3 impulse = 10000.0f * bullet.impulse * normal * min(0.0f, dot(bullet.dir, normal));
+                        InterlockedAdd(sphereEnemyData[anotherEnemyIndex].hitImpulse.x, (int) impulse.x);
+                        InterlockedAdd(sphereEnemyData[anotherEnemyIndex].hitImpulse.z, (int) impulse.z);
+                        bullet.pos = enemy.pos + (enemyRadius + bullet.radius) * normal;
+                        bullet.dir -= 2.0f * dot(normal, bullet.dir) * normal;
+                        bullet.dir.y = 0.0f;
+                        bullet.dir = normalize(bullet.dir);
+                        bullet.bounces -= 1;
+                        SetBit(bullet.packedInfo, 1, 0);
+                        playerBulletData[id.x] = bullet;
+                        return;
+                    }
+                }
             }
         }
     }
@@ -830,26 +901,37 @@ void UpdateEnemyVelocityAndPosition(uint3 id : SV_DispatchThreadID)
 
 [numthreads(128, 1, 1)]
 void ResolveEnemyCollision1(uint3 id : SV_DispatchThreadID)
-{   
+{
     float3 deltaPos = float3(0.0f, 0.0f, 0.0f);
     float3 deltaVelocity = float3(0.0f, 0.0f, 0.0f);
     if (id.x < sphereEnemyNum[0] && sphereEnemyData[id.x].knockedOutByBoss == 0)
     {
         EnemyDatum enemy = sphereEnemyData[id.x];
-        for (int i = 0; i < sphereEnemyNum[0]; i++)
+        int cellIndex = GetEnemyGridIndexFromPos(enemy.pos);
+        for (int biasX = -1; biasX <= 1; biasX++)
         {
-            if (i == id.x)
-                continue;
-            EnemyDatum another = sphereEnemyData[i];
-            float3 relativePos = another.pos - enemy.pos;
-            float collisionDistance = length(relativePos) - 0.5f * (enemy.size + another.size);
-            float3 normal = normalize(relativePos);
-            if (collisionDistance < 0.0f)
+            for (int biasZ = -1; biasZ <= 1; biasZ++)
             {
-                float pushDistance = collisionDistance * (-0.5f) + 0.001f;
-                deltaPos += -normal * pushDistance;
-                float impulseValue = (1.0f + enemyCollisionVelocityRestitution) * dot(enemy.velocity - another.velocity, normal) / (1.0f / enemy.m + 1.0f / another.m);
-                deltaVelocity += -normal * abs(impulseValue) / enemy.m;
+                int anotherCellIndex = cellIndex + biasX + biasZ * enemyGridLengthX;
+                if (anotherCellIndex < 0 || anotherCellIndex >= enemyGridLength) continue;
+                EnemyGridDatum anotherCell = enemyGridData[anotherCellIndex];
+                for (int i = 0; i < 3; i++)
+                {
+                    if (i == anotherCell.size) break;
+                    int anotherEnemyIndex = anotherCell.index[i];
+                    if (anotherEnemyIndex == id.x) continue;
+                    EnemyDatum another = sphereEnemyData[anotherEnemyIndex];
+                    float3 relativePos = another.pos - enemy.pos;
+                    float collisionDistance = length(relativePos) - 0.5f * (enemy.size + another.size);
+                    if (collisionDistance < 0.0f)
+                    {
+                        float3 normal = normalize(relativePos);
+                        float pushDistance = collisionDistance * (-0.5f) + 0.001f;
+                        deltaPos += -normal * pushDistance;
+                        float impulseValue = (1.0f + enemyCollisionVelocityRestitution) * dot(enemy.velocity - another.velocity, normal) / (1.0f / enemy.m + 1.0f / another.m);
+                        deltaVelocity += -normal * abs(impulseValue) / enemy.m;
+                    }
+                }
             }
         }
         
@@ -857,7 +939,7 @@ void ResolveEnemyCollision1(uint3 id : SV_DispatchThreadID)
         enemyCollisionCacheData[id.x].deltaVelocity = deltaVelocity;
     }
 }
-        
+
 
 float resolveEnemyCollision2VelocityCoeff;
 [numthreads(128, 1, 1)]
@@ -974,12 +1056,15 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                         float3 dV = -dir * 2.0f;
                         
                         // extra normal impulse
-                        float3 playerVelocityNormal = normalize(float3(player.dir.z, 0.0f, -player.dir.x));
-                        if (dot(playerVelocityNormal, -dir) > 0.0f)
-                            dV += playerVelocityNormal * 4.5f;
-                        else
-                            dV -= playerVelocityNormal * 4.5f;
-                        
+                        if (length(player.velocity > 0.1f))
+                        {
+                            float3 playerVelocityNormal = normalize(float3(player.velocity.z, 0.0f, -player.velocity.x));
+                            if (dot(playerVelocityNormal, -dir) > 0.0f)
+                                dV += playerVelocityNormal * 4.5f;
+                            else
+                                dV -= playerVelocityNormal * 4.5f;
+                        }
+                            
                         dV.y = 0.0f;
                         enemy.velocity += dV;
                         
@@ -1297,40 +1382,102 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
     }
 }
 
-
+groupshared float3 colorCache[9][9];
+groupshared float3 posCache[9][9];
+groupshared int bulletNumCache[9][9];
 
 [numthreads(8, 1, 8)]
-void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID)
+void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
 {
-    int index = GetBulletGridIndexFromId(id);
-    for (int x = id.x; x <= id.x + 1; x++)
+    int bulletNum = 0;
+    float3 colorSum = float3(0.0f, 0.0f, 0.0f);
+    float3 posSum = float3(0.0f, 0.0f, 0.0f);
+    int cellIndex = GetBulletGridIndexFromXZ(id.x, id.z);
+    for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
     {
-        for (int z = id.z; z <= id.z + 1; z++)
+        bulletNum++;
+        colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
+        posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
+    }
+    float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
+    colorCache[groupThreadID.x][groupThreadID.z] = colorSum * bulletNumInv;
+    posCache[groupThreadID.x][groupThreadID.z] = posSum * bulletNumInv;
+    bulletNumCache[groupThreadID.x][groupThreadID.z] = bulletNum;
+    
+    if (groupThreadID.x == 7)
+    {
+        int bulletNum = 0;
+        float3 colorSum = float3(0.0f, 0.0f, 0.0f);
+        float3 posSum = float3(0.0f, 0.0f, 0.0f);
+        int cellIndex = GetBulletGridIndexFromXZ(id.x + 1, id.z);
+        for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
+        {
+            bulletNum++;
+            colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
+            posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
+        }
+        float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
+        colorCache[groupThreadID.x + 1][groupThreadID.z] = colorSum * bulletNumInv;
+        posCache[groupThreadID.x + 1][groupThreadID.z] = posSum * bulletNumInv;
+        bulletNumCache[groupThreadID.x + 1][groupThreadID.z] = bulletNum;
+    }
+    if (groupThreadID.z == 7)
+    {
+        int bulletNum = 0;
+        float3 colorSum = float3(0.0f, 0.0f, 0.0f);
+        float3 posSum = float3(0.0f, 0.0f, 0.0f);
+        int cellIndex = GetBulletGridIndexFromXZ(id.x, id.z + 1);
+        for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
+        {
+            bulletNum++;
+            colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
+            posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
+        }
+        float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
+        colorCache[groupThreadID.x][groupThreadID.z + 1] = colorSum * bulletNumInv;
+        posCache[groupThreadID.x][groupThreadID.z + 1] = posSum * bulletNumInv;
+        bulletNumCache[groupThreadID.x][groupThreadID.z + 1] = bulletNum;
+        
+        if (groupThreadID.x == 7)
         {
             int bulletNum = 0;
             float3 colorSum = float3(0.0f, 0.0f, 0.0f);
             float3 posSum = float3(0.0f, 0.0f, 0.0f);
-            int cellIndex = GetBulletGridIndexFromXZ(x, z);
+            int cellIndex = GetBulletGridIndexFromXZ(id.x + 1, id.z + 1);
             for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
             {
                 bulletNum++;
                 colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
                 posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
             }
-            
-            if (bulletNum != 0)
+            float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
+            colorCache[groupThreadID.x + 1][groupThreadID.z + 1] = colorSum * bulletNumInv;
+            posCache[groupThreadID.x + 1][groupThreadID.z + 1] = posSum * bulletNumInv;
+            bulletNumCache[groupThreadID.x + 1][groupThreadID.z + 1] = bulletNum;
+        }
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    int index = GetBulletGridIndexFromId(id);
+    int size = 0;
+    for (int x = groupThreadID.x; x <= groupThreadID.x + 1; x++)
+    {
+        for (int z = groupThreadID.z; z <= groupThreadID.z + 1; z++)
+        {
+            if (bulletNumCache[x][z] != 0)
             {
-                float bulletNumInv = 1.0f / (float) bulletNum;
-                bulletRenderingGridData2x2[index].color[0] = colorSum;
-                bulletRenderingGridData2x2[index].pos[0] = posSum * bulletNumInv;
-                bulletRenderingGridData2x2[index].size++;
+                bulletRenderingGridData2x2[index].color[size] = colorCache[x][z];
+                bulletRenderingGridData2x2[index].pos[size] = posCache[x][z];
+                size++;
             }
         }
     }
+    bulletRenderingGridData2x2[index].size = size;
 }
 
 
-// old
+// obsolete
 [numthreads(8, 1, 8)]
 void ResolveBulletRenderingGrid4x4(uint3 id : SV_DispatchThreadID)
 {
@@ -1587,4 +1734,24 @@ void InitializePlaneLightingTemporalConvolutionKernel(uint3 id : SV_DispatchThre
 void PadPlaneLightingTexture(uint3 id : SV_DispatchThreadID)
 {
     fftInReal[id.xy] = planeLightingTexture[id.xy];
+}
+
+
+[numthreads(32, 1, 32)]
+void ClearEnemyGrid(uint3 id : SV_DispatchThreadID)
+{
+    enemyGridData[id.z * enemyGridLengthX + id.x].size = 0;
+}
+
+
+[numthreads(256, 1, 1)]
+void BuildEnemyGrid(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < sphereEnemyNum[0])
+    {
+        int index = GetEnemyGridIndexFromPos(sphereEnemyData[id.x].pos);
+        int cellSize;
+        InterlockedAdd(enemyGridData[index].size, 1, cellSize);
+        enemyGridData[index].index[cellSize] = id.x;
+    }
 }

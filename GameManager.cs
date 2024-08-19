@@ -27,7 +27,7 @@ public class GameManager : MonoBehaviour
     float timeSum;
     float averageFPS;
 
-    public static ComputeCenter computeCenter;
+    public static ComputeManager computeManager;
 
     public static Player player1;
     public static Player player2;
@@ -45,7 +45,7 @@ public class GameManager : MonoBehaviour
 
     public static CameraMotionManager cameraMotionManager;
 
-    public ComputeShader computeCenterCS;
+    public ComputeShader computeManagerCS;
 
 
     // const
@@ -66,6 +66,7 @@ public class GameManager : MonoBehaviour
     [Range(0.0f, 3.0f)] public float planeLightingGaussianBlurCoeff;
     [Range(0.0f, 3.0f)] public float planeLightingTextureIntensity;
     [Range(0.0f, 3.0f)] public float bulletLightingOnEnemyIntensity;
+    [Range(0.0f, 10.0f)] public float playerSkillEmission;
 
     // game
     bool gameOver = false;
@@ -80,7 +81,7 @@ public class GameManager : MonoBehaviour
         deltaTimeQueue = new Queue<float>();
         timeSum = 0.0f;
         frameCount = -1;
-        computeCenter = new ComputeCenter(this);
+        computeManager = new ComputeManager(this);
         player1 = new Player(0, GameObject.Find("Player1"), new KeyboardInputManager());
         player2 = new Player(1, GameObject.Find("Player2"), new ControllerInputManager());
         allLevelPlayerData = new AllLevelPlayerData();
@@ -114,7 +115,7 @@ public class GameManager : MonoBehaviour
             using (new GUtils.PFL("player2.Update")) { player2.Update(); }
             using (new GUtils.PFL("PlayerSkillManager.Update")) { playerSkillManager.Update(); }
             using (new GUtils.PFL("Boss.Update")) { boss.Update(); }
-            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
+            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeManager.UpdateGPU(); }
 
             if (Input.GetKeyDown(KeyCode.U))
             {
@@ -142,7 +143,7 @@ public class GameManager : MonoBehaviour
                 uiManager.text_gameOver.text = "YOU LOSE";
                 uiManager.text_gameOver.color = Color.red;
             }
-            else if (level.currentWave == 19 && level.currentEnemyNum == 0 && gameTime > level.currentWaveStartTime + 45.0f)
+            else if (level.currentWave == 20 && level.currentEnemyNum == 0 && gameTime > level.currentWaveStartTime + 45.0f)
             {
                 gameOver = true;
                 uiManager.text_gameOver.text = "YOU WIN";
@@ -152,7 +153,7 @@ public class GameManager : MonoBehaviour
         else
         {
             UpdateTime();
-            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeCenter.UpdateGPU(); }
+            using (new GUtils.PFL("ComputeCenter.UpdateGPU")) { computeManager.UpdateGPU(); }
         }
 
 
@@ -171,7 +172,7 @@ public class GameManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        computeCenter.Release();
+        computeManager.Release();
     }
 
     public void UpdateTime()

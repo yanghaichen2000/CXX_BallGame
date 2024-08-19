@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
-using static ComputeCenter;
+using static ComputeManager;
 
 public class PlayerSkillManager
 {
@@ -75,7 +75,7 @@ public class Player1Skill0 : Skill
             float ramainingTime = lastTriggeredTime + duration - GameManager.gameTime;
             if (ramainingTime > 2.0f)
             {
-                player1mat.SetColor("_EmissionColor", player1Color * 3.0f);
+                player1mat.SetColor("_EmissionColor", player1Color * GameManager.instance.playerSkillEmission);
             }
             else
             {
@@ -85,7 +85,7 @@ public class Player1Skill0 : Skill
                 }
                 else
                 {
-                    player1mat.SetColor("_EmissionColor", player1Color * 3.0f);
+                    player1mat.SetColor("_EmissionColor", player1Color * GameManager.instance.playerSkillEmission);
                 }
             }
 
@@ -107,7 +107,7 @@ public class Player1Skill0 : Skill
 
     public void UpdateGPUDataAndBuffer()
     {
-        GameManager.computeCenter.playerSkillData[0].player1Skill0 = state;
+        GameManager.computeManager.playerSkillData[0].player1Skill0 = state;
     }
 
     public int GetState()
@@ -193,8 +193,8 @@ public class Player1Skill1 : Skill
 
     public void UpdateGPUDataAndBuffer()
     {
-        GameManager.computeCenter.playerSkillData[0].player1Skill1 = state;
-        GameManager.computeCenter.playerSkillData[0].player1Skill1AimingPointPosition = aimingPointPosition;
+        GameManager.computeManager.playerSkillData[0].player1Skill1 = state;
+        GameManager.computeManager.playerSkillData[0].player1Skill1AimingPointPosition = aimingPointPosition;
     }
 
     public int GetState()
@@ -205,8 +205,8 @@ public class Player1Skill1 : Skill
 
 public class Player2Skill0 : Skill
 {
-    public float cd = 10.0f;
-    public float duration = 5.0f;
+    public float cd = 60.0f;
+    public float duration = 50.0f;
 
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
@@ -241,7 +241,7 @@ public class Player2Skill0 : Skill
             float ramainingTime = lastTriggeredTime + duration - GameManager.gameTime;
             if (ramainingTime > 2.0f)
             {
-                player2mat.SetColor("_EmissionColor", player2Color * 3.0f);
+                player2mat.SetColor("_EmissionColor", player2Color * GameManager.instance.playerSkillEmission);
             }
             else
             {
@@ -251,7 +251,7 @@ public class Player2Skill0 : Skill
                 }
                 else
                 {
-                    player2mat.SetColor("_EmissionColor", player2Color * 3.0f);
+                    player2mat.SetColor("_EmissionColor", player2Color * GameManager.instance.playerSkillEmission);
                 }
             }
 
@@ -278,7 +278,7 @@ public class Player2Skill0 : Skill
 
     public void UpdateGPUDataAndBuffer()
     {
-        GameManager.computeCenter.playerSkillData[0].player2Skill0 = state;
+        GameManager.computeManager.playerSkillData[0].player2Skill0 = state;
     }
 
     public int GetState()
@@ -326,7 +326,7 @@ public class Player2Skill1 : Skill
 
     public void UpdateGPUDataAndBuffer()
     {
-        GameManager.computeCenter.playerSkillData[0].player2Skill1 = state;
+        GameManager.computeManager.playerSkillData[0].player2Skill1 = state;
     }
 
     public int GetState()
@@ -406,7 +406,7 @@ public class SharedSkill0 : Skill
 
     public void UpdateGPUDataAndBuffer()
     {
-        GameManager.computeCenter.playerSkillData[0].sharedSkill0 = state;
+        GameManager.computeManager.playerSkillData[0].sharedSkill0 = state;
         Shader.SetGlobalFloat("sharedSkill0LastTriggeredTime", lastTriggeredTime);
         Shader.SetGlobalFloat("sharedSkill0CdStartTime", lastTriggeredTime + delay);
     }
@@ -435,18 +435,35 @@ public class SharedSkill1 : Skill
                 lastTriggeredTime = GameManager.gameTime;
             }
         }
+        else if (state == 1) //ÒÑ´¥·¢
+        {
+            if (GameManager.gameTime - lastTriggeredTime > duration)
+            {
+                state = 2;
+            }
+        }
+        else if (state == 2)
+        {
+            if (GameManager.gameTime - lastTriggeredTime > cd)
+            {
+                state = 0;
+            }
+        }
         
 
         if (state == 0)
         {
             GameManager.uiManager.UpdatePlayerSkillUI(0, 2, false);
-            GameManager.uiManager.UpdatePlayerSkillUI(1, 2, false);
+        }
+        else
+        {
+            GameManager.uiManager.UpdatePlayerSkillUI(0, 2, true, cd - (GameManager.gameTime - lastTriggeredTime), cd);
         }
     }
 
     public void UpdateGPUDataAndBuffer()
     {
-        GameManager.computeCenter.playerSkillData[0].sharedSkill1 = state;
+        GameManager.computeManager.playerSkillData[0].sharedSkill1 = state;
     }
 
     public int GetState()

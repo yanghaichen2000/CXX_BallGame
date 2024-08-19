@@ -74,7 +74,7 @@ public class Boss
         weapon = new BossWeapon(WeaponDatumSample.bossState1);
         state = 1;
         lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
-        maxHP = 600000;
+        maxHP = 800000;
         hp = maxHP;
         mass = GetMassFromHP(hp);
         stateStartTime = GameManager.gameTime;
@@ -392,7 +392,7 @@ public class Boss
                 body.isKinematic = false;
                 UpdateStateStartTime();
                 lastState3StartTime = GameManager.gameTime;
-                GameManager.computeCenter.knockOutAllEnemyRequest = true;
+                GameManager.computeManager.knockOutAllEnemyRequest = true;
                 weapon = new BossWeapon(WeaponDatumSample.bossState1);
                 GameManager.cameraMotionManager.ShakeByRotation(3.5f);
                 GameManager.cameraMotionManager.ShakeByZDisplacement(-8.0f);
@@ -472,7 +472,7 @@ public class Boss
         }
     }
 
-    public void OnProcessBossReadbackData(ComputeCenter.BossDatum datum)
+    public void OnProcessBossReadbackData(ComputeManager.BossDatum datum)
     {
         UpdateHPAndMass(datum.hpChange);
         Vector3 dV = new Vector3(datum.hitImpulse.x / 10000.0f, datum.hitImpulse.y / 10000.0f, datum.hitImpulse.z / 10000.0f);
@@ -483,6 +483,7 @@ public class Boss
     {
         hp = Math.Clamp(hp + hpChange, 0, maxHP);
         mass = GetMassFromHP(hp);
+        //mass = 100000.0f;
         GameManager.uiManager.UpdateBossHPAndMass();
     }
 

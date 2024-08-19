@@ -155,7 +155,7 @@ public class EnemyLegion
 
     public void SpawnSphereEnemy(float x, float z)
     {
-        GameManager.computeCenter.AppendCreateSphereEnemyRequest(
+        GameManager.computeManager.AppendCreateSphereEnemyRequest(
             new Vector3(x, 0.5f, z),
             new Vector3(0.0f, 0.0f, 0.0f),
             600,
@@ -177,7 +177,7 @@ public class EnemyLegion
 
     public void SpawnSphereEnemy(float x, float z, EnemyProperty prop, float extraDelay = 0.0f)
     {
-        GameManager.computeCenter.AppendCreateSphereEnemyRequest(
+        GameManager.computeManager.AppendCreateSphereEnemyRequest(
             new Vector3(x, 0.5f, z),
             new Vector3(0.0f, 0.0f, 0.0f),
             prop.hp,
@@ -204,7 +204,7 @@ public class EnemyLegion
 
     public void SpawnSphereEnemy(float xStart, float zStart, int xLength, int zLength, int propIndex, float stepSizeX = 1.6f, float stepSizeZ = 1.6f, float extraDelay = 0.0f)
     {
-        Debug.Assert(xLength * zLength <= ComputeCenter.maxDeployingEnemyNum);
+        Debug.Assert(xLength * zLength <= ComputeManager.maxDeployingEnemyNum);
         for (int i = 0; i < xLength; i++)
         {
             for (int j = 0; j < zLength; j++)

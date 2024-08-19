@@ -299,7 +299,7 @@ public class Weapon
                     Vector3 shootPosOfThisBullet = lerpCoeff * pos + (1.0f - lerpCoeff) * lastShootPos;
                     Vector3 currentPosOfThisBullet = shootPosOfThisBullet + (currentShootTime - shootTime) * datum.speed * dirOfThisBullet;
                     float virtualY = UnityEngine.Random.Range(datum.virtualYBase - datum.virtualYRange, datum.virtualYBase + datum.virtualYRange);
-                    GameManager.computeCenter.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed * bulletSpeedCoeff, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, index, datum.renderingBiasY, packedColor, affectedByPlayer1Skill1);
+                    GameManager.computeManager.AppendPlayerShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed * bulletSpeedCoeff, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, index, datum.renderingBiasY, packedColor, affectedByPlayer1Skill1);
                 }
             }
 
@@ -360,7 +360,7 @@ public class BossWeapon
                     Vector3 shootPosOfThisBullet = lerpCoeff * pos + (1.0f - lerpCoeff) * lastShootPos;
                     Vector3 currentPosOfThisBullet = shootPosOfThisBullet + (currentShootTime - shootTime) * datum.speed * dirOfThisBullet;
                     float virtualY = UnityEngine.Random.Range(datum.virtualYBase - datum.virtualYRange, datum.virtualYBase + datum.virtualYRange);
-                    GameManager.computeCenter.AppendBossShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed * bulletSpeedCoeff, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, datum.renderingBiasY, packedColor);
+                    GameManager.computeManager.AppendBossShootRequest(currentPosOfThisBullet, dirOfThisBullet, datum.speed * bulletSpeedCoeff, datum.radius, datum.damage, datum.bounces, datum.lifeSpan, datum.impulse, virtualY, datum.renderingBiasY, packedColor);
                 }
             }
 

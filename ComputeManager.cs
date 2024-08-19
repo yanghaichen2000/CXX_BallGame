@@ -3,7 +3,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public class ComputeCenter
+public class ComputeManager
 {
     //
     const bool debugPrintReadbackTime = false;
@@ -21,10 +21,8 @@ public class ComputeCenter
         public float size;
         public uint hittable;
         public int hitByEnemy;
-        public Vector3 dir;
-        public float tmp1;
-        public float tmp2;
-        public float tmp3;
+        public Vector3 velocity;
+        public Vector3 tmp;
     }
     const int playerDatumSize = 64;
 
@@ -143,7 +141,14 @@ public class ComputeCenter
         public Vector4 tmp5;
         public Vector4 tmp6;
     }
-    const int bulletGridDatumSIze = 128;
+    const int bulletGridDatumSize = 128;
+
+    public struct EnemyGridDatum
+    {
+        public int size;
+        public int3 index;
+    }
+    const int enemyGridDatumSize = 16;
 
     public struct BulletRenderingGridDatum
     {
@@ -171,7 +176,7 @@ public class ComputeCenter
     }
     const int bossDatumSize = 64;
 
-    // 目前grid覆盖范围：[-32.0, 32.0] x [-16.0, 16.0]
+    // bullet grid覆盖范围：[-32.0, 32.0] x [-16.0, 16.0]
     // 每个grid大小为0.2，要求子弹半径不能大于0.1
     const int bulletGridLengthX = 320;
     const int bulletGridLengthZ = 160;
@@ -179,6 +184,16 @@ public class ComputeCenter
     const float bulletGridZMin = -16.0f;
     const float bulletGridSize = 0.2f;
     const float bulletGridSizeInv = 1.0f / bulletGridSize;
+
+    // enemy grid覆盖范围：[-32.0, 32.0] x [-16.0, 16.0]
+    // grid大小为1
+    const int enemyGridLengthX = 64;
+    const int enemyGridLengthZ = 32;
+    const int enemyGridLength = enemyGridLengthX * enemyGridLengthZ;
+    const float enemyGridXMin = -32.0f;
+    const float enemyGridZMin = -16.0f;
+    const float enemyGridSize = 1.0f;
+    const float enemyGridSizeInv = 1.0f / enemyGridSize;
 
     public const int maxPlayerBulletNum = 131072;
     public const int maxEnemyBulletNum = 131072; // 两种子弹的最大数量必须相等，适配GeneratePlaneLightingTexture
@@ -232,6 +247,9 @@ public class ComputeCenter
     BulletGridDatum[] bulletGridData;
     ComputeBuffer playerBulletGridDataCB;
     ComputeBuffer enemyBulletGridDataCB;
+
+    EnemyGridDatum[] enemyGridData;
+    ComputeBuffer enemyGridDataCB;
 
     BulletRenderingGridDatum[] bulletRenderingGridData;
     ComputeBuffer[] bulletRenderingGridDataCB;
@@ -292,7 +310,7 @@ public class ComputeCenter
     int[] deadEnemyNum;
     ComputeBuffer deadEnemyNumCB;
 
-    ComputeShader computeCenterCS;
+    ComputeShader computeManagerCS;
     int playerShootKernel = -1;
     int bossShootKernel = -1;
     int updatePlayerBulletPositionKernel = -1;
@@ -341,7 +359,9 @@ public class ComputeCenter
     int planeLightingFrequencyDomainMultiplyKernel = -1;
     int initializePlaneLightingTemporalConvolutionKernelKernel = -1;
     int padPlaneLightingTextureKernel = -1;
-  
+    int clearEnemyGridKernel = -1;
+    int buildEnemyGridKernel = -1;
+
 
     Mesh playerBulletMesh;
     Material playerBulletMaterial;
@@ -367,7 +387,7 @@ public class ComputeCenter
     RenderTexture planeLightingConvolutionKernelImag;
 
 
-    public ComputeCenter(GameManager _gameManager) 
+    public ComputeManager(GameManager _gameManager) 
     {
         gameManager = _gameManager;
 
@@ -421,8 +441,11 @@ public class ComputeCenter
         bossShootRequestNum = 0;
 
         bulletGridData = new BulletGridDatum[bulletGridLengthX * bulletGridLengthZ];
-        playerBulletGridDataCB = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletGridDatumSIze);
-        enemyBulletGridDataCB = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletGridDatumSIze);
+        playerBulletGridDataCB = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletGridDatumSize);
+        enemyBulletGridDataCB = new ComputeBuffer(bulletGridLengthX * bulletGridLengthZ, bulletGridDatumSize);
+
+        enemyGridData = new EnemyGridDatum[enemyGridLengthX * enemyGridLengthZ];
+        enemyGridDataCB = new ComputeBuffer(enemyGridLengthX * enemyGridLengthZ, enemyGridDatumSize);
 
         bulletRenderingGridData = new BulletRenderingGridDatum[bulletGridLengthX * bulletGridLengthZ];
         bulletRenderingGridDataCB = new ComputeBuffer[3];
@@ -494,55 +517,57 @@ public class ComputeCenter
         deadEnemyNum = new int[1];
         deadEnemyNumCB = new ComputeBuffer(1, sizeof(int));
 
-        computeCenterCS = gameManager.computeCenterCS;
-        playerShootKernel = computeCenterCS.FindKernel("PlayerShoot");
-        bossShootKernel = computeCenterCS.FindKernel("BossShoot");
-        updatePlayerBulletPositionKernel = computeCenterCS.FindKernel("UpdatePlayerBulletPosition");
-        cullPlayerBulletKernel = computeCenterCS.FindKernel("CullPlayerBullet");
-        processPlayerBulletCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerBulletCollision");
-        updateDrawPlayerBulletArgsKernel = computeCenterCS.FindKernel("UpdateDrawPlayerBulletArgs");
-        createSphereEnemyKernel = computeCenterCS.FindKernel("CreateSphereEnemy");
-        cullSphereEnemyKernel = computeCenterCS.FindKernel("CullSphereEnemy");
-        updateEnemyVelocityAndPositionKernel = computeCenterCS.FindKernel("UpdateEnemyVelocityAndPosition");
-        processPlayerEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerEnemyCollision");
-        enemyShootKernel = computeCenterCS.FindKernel("EnemyShoot");
-        updateEnemyBulletVelocityAndPositionKernel = computeCenterCS.FindKernel("UpdateEnemyBulletVelocityAndPosition");
-        cullEnemyBulletKernel = computeCenterCS.FindKernel("CullEnemyBullet");
-        updateDrawEnemyBulletArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyBulletArgs");
-        processEnemyBulletCollisionKernel = computeCenterCS.FindKernel("ProcessEnemyBulletCollision");
-        buildPlayerBulletGridKernel = computeCenterCS.FindKernel("BuildPlayerBulletGrid");
-        buildEnemyBulletGridKernel = computeCenterCS.FindKernel("BuildEnemyBulletGrid");
-        resetBulletGridKernel = computeCenterCS.FindKernel("ResetBulletGrid");
-        processBulletBulletCollisionKernel = computeCenterCS.FindKernel("ProcessBulletBulletCollision");
-        updateDrawEnemyArgsKernel = computeCenterCS.FindKernel("UpdateDrawEnemyArgs");
-        skillTransferBulletTypeKernel = computeCenterCS.FindKernel("SkillTransferBulletType");
-        skillGetAvailablePositionKernel = computeCenterCS.FindKernel("SkillGetAvailablePosition");
-        updateDeployingEnemyKernel = computeCenterCS.FindKernel("UpdateDeployingEnemy");
-        resetBulletRenderingGridKernel = computeCenterCS.FindKernel("ResetBulletRenderingGrid");
-        resolveBulletRenderingGrid1x1Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid1x1");
-        resolveBulletRenderingGrid2x2Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid2x2");
-        resolveBulletRenderingGrid4x4Kernel = computeCenterCS.FindKernel("ResolveBulletRenderingGrid4x4");
-        resolveEnemyCollision1Kernel = computeCenterCS.FindKernel("ResolveEnemyCollision1");
-        resolveEnemyCollision2Kernel = computeCenterCS.FindKernel("ResolveEnemyCollision2");
-        applyEnemyGravityKernel = computeCenterCS.FindKernel("ApplyEnemyGravity");
-        resetPlaneLightingTextureKernel = computeCenterCS.FindKernel("ResetPlaneLightingTexture");
-        generatePlaneLightingTextureKernel = computeCenterCS.FindKernel("GeneratePlaneLightingTexture");
-        resolvePlaneLightingTextureKernel = computeCenterCS.FindKernel("ResolvePlaneLightingTexture");
-        gaussianBlurUKernel = computeCenterCS.FindKernel("GaussianBlurU");
-        gaussianBlurVKernel = computeCenterCS.FindKernel("GaussianBlurV");
-        processPlayerBulletBossCollisionKernel = computeCenterCS.FindKernel("ProcessPlayerBulletBossCollision");
-        knockOutAllEnemyKernel = computeCenterCS.FindKernel("KnockOutAllEnemy");
-        processBossEnemyCollisionKernel = computeCenterCS.FindKernel("ProcessBossEnemyCollision");
-        physicallyBasedBlurKernel = computeCenterCS.FindKernel("PhysicallyBasedBlur");
-        copyTextureKernel = computeCenterCS.FindKernel("CopyTexture");
-        copyTextureAndReverseYKernel = computeCenterCS.FindKernel("CopyTextureAndReverseY");
-        dftStepUKernel = computeCenterCS.FindKernel("DFTStepU");
-        dftStepVKernel = computeCenterCS.FindKernel("DFTStepV");
-        idftStepUKernel = computeCenterCS.FindKernel("IDFTStepU");
-        idftStepVKernel = computeCenterCS.FindKernel("IDFTStepV");
-        planeLightingFrequencyDomainMultiplyKernel = computeCenterCS.FindKernel("PlaneLightingFrequencyDomainMultiply");
-        initializePlaneLightingTemporalConvolutionKernelKernel = computeCenterCS.FindKernel("InitializePlaneLightingTemporalConvolutionKernel");
-        padPlaneLightingTextureKernel = computeCenterCS.FindKernel("PadPlaneLightingTexture");
+        computeManagerCS = gameManager.computeManagerCS;
+        playerShootKernel = computeManagerCS.FindKernel("PlayerShoot");
+        bossShootKernel = computeManagerCS.FindKernel("BossShoot");
+        updatePlayerBulletPositionKernel = computeManagerCS.FindKernel("UpdatePlayerBulletPosition");
+        cullPlayerBulletKernel = computeManagerCS.FindKernel("CullPlayerBullet");
+        processPlayerBulletCollisionKernel = computeManagerCS.FindKernel("ProcessPlayerBulletCollision");
+        updateDrawPlayerBulletArgsKernel = computeManagerCS.FindKernel("UpdateDrawPlayerBulletArgs");
+        createSphereEnemyKernel = computeManagerCS.FindKernel("CreateSphereEnemy");
+        cullSphereEnemyKernel = computeManagerCS.FindKernel("CullSphereEnemy");
+        updateEnemyVelocityAndPositionKernel = computeManagerCS.FindKernel("UpdateEnemyVelocityAndPosition");
+        processPlayerEnemyCollisionKernel = computeManagerCS.FindKernel("ProcessPlayerEnemyCollision");
+        enemyShootKernel = computeManagerCS.FindKernel("EnemyShoot");
+        updateEnemyBulletVelocityAndPositionKernel = computeManagerCS.FindKernel("UpdateEnemyBulletVelocityAndPosition");
+        cullEnemyBulletKernel = computeManagerCS.FindKernel("CullEnemyBullet");
+        updateDrawEnemyBulletArgsKernel = computeManagerCS.FindKernel("UpdateDrawEnemyBulletArgs");
+        processEnemyBulletCollisionKernel = computeManagerCS.FindKernel("ProcessEnemyBulletCollision");
+        buildPlayerBulletGridKernel = computeManagerCS.FindKernel("BuildPlayerBulletGrid");
+        buildEnemyBulletGridKernel = computeManagerCS.FindKernel("BuildEnemyBulletGrid");
+        resetBulletGridKernel = computeManagerCS.FindKernel("ResetBulletGrid");
+        processBulletBulletCollisionKernel = computeManagerCS.FindKernel("ProcessBulletBulletCollision");
+        updateDrawEnemyArgsKernel = computeManagerCS.FindKernel("UpdateDrawEnemyArgs");
+        skillTransferBulletTypeKernel = computeManagerCS.FindKernel("SkillTransferBulletType");
+        skillGetAvailablePositionKernel = computeManagerCS.FindKernel("SkillGetAvailablePosition");
+        updateDeployingEnemyKernel = computeManagerCS.FindKernel("UpdateDeployingEnemy");
+        resetBulletRenderingGridKernel = computeManagerCS.FindKernel("ResetBulletRenderingGrid");
+        resolveBulletRenderingGrid1x1Kernel = computeManagerCS.FindKernel("ResolveBulletRenderingGrid1x1");
+        resolveBulletRenderingGrid2x2Kernel = computeManagerCS.FindKernel("ResolveBulletRenderingGrid2x2");
+        resolveBulletRenderingGrid4x4Kernel = computeManagerCS.FindKernel("ResolveBulletRenderingGrid4x4");
+        resolveEnemyCollision1Kernel = computeManagerCS.FindKernel("ResolveEnemyCollision1");
+        resolveEnemyCollision2Kernel = computeManagerCS.FindKernel("ResolveEnemyCollision2");
+        applyEnemyGravityKernel = computeManagerCS.FindKernel("ApplyEnemyGravity");
+        resetPlaneLightingTextureKernel = computeManagerCS.FindKernel("ResetPlaneLightingTexture");
+        generatePlaneLightingTextureKernel = computeManagerCS.FindKernel("GeneratePlaneLightingTexture");
+        resolvePlaneLightingTextureKernel = computeManagerCS.FindKernel("ResolvePlaneLightingTexture");
+        gaussianBlurUKernel = computeManagerCS.FindKernel("GaussianBlurU");
+        gaussianBlurVKernel = computeManagerCS.FindKernel("GaussianBlurV");
+        processPlayerBulletBossCollisionKernel = computeManagerCS.FindKernel("ProcessPlayerBulletBossCollision");
+        knockOutAllEnemyKernel = computeManagerCS.FindKernel("KnockOutAllEnemy");
+        processBossEnemyCollisionKernel = computeManagerCS.FindKernel("ProcessBossEnemyCollision");
+        physicallyBasedBlurKernel = computeManagerCS.FindKernel("PhysicallyBasedBlur");
+        copyTextureKernel = computeManagerCS.FindKernel("CopyTexture");
+        copyTextureAndReverseYKernel = computeManagerCS.FindKernel("CopyTextureAndReverseY");
+        dftStepUKernel = computeManagerCS.FindKernel("DFTStepU");
+        dftStepVKernel = computeManagerCS.FindKernel("DFTStepV");
+        idftStepUKernel = computeManagerCS.FindKernel("IDFTStepU");
+        idftStepVKernel = computeManagerCS.FindKernel("IDFTStepV");
+        planeLightingFrequencyDomainMultiplyKernel = computeManagerCS.FindKernel("PlaneLightingFrequencyDomainMultiply");
+        initializePlaneLightingTemporalConvolutionKernelKernel = computeManagerCS.FindKernel("InitializePlaneLightingTemporalConvolutionKernel");
+        padPlaneLightingTextureKernel = computeManagerCS.FindKernel("PadPlaneLightingTexture");
+        clearEnemyGridKernel = computeManagerCS.FindKernel("ClearEnemyGrid");
+        buildEnemyGridKernel = computeManagerCS.FindKernel("BuildEnemyGrid");
 
         //playerBulletMesh = GameObject.Find("Player1").GetComponent<MeshFilter>().mesh;
         playerBulletMesh = Resources.Load<GameObject>("bulletMesh").GetComponent<MeshFilter>().sharedMesh;
@@ -595,9 +620,9 @@ public class ComputeCenter
         planeLightingConvolutionKernelImag.enableRandomWrite = true;
         planeLightingConvolutionKernelImag.Create();
 
-        PrecomputePlaneLightingConvolutionKernel();
         InitializeComputeBuffers();
         SetGlobalConstant();
+        PrecomputePlaneLightingConvolutionKernel();
     }
 
     public void InitializeComputeBuffers()
@@ -724,35 +749,48 @@ public class ComputeCenter
         }
     }
 
+    public void UpdateEnemyGrid()
+    {
+        int kernel = clearEnemyGridKernel;
+        computeManagerCS.SetBuffer(kernel, "enemyGridData", enemyGridDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(enemyGridLengthX, 32), 1, GUtils.GetComputeGroupNum(enemyGridLengthZ, 32));
+
+        kernel = buildEnemyGridKernel;
+        computeManagerCS.SetBuffer(kernel, "enemyGridData", enemyGridDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 256), 1, 1);
+    }
+
     public void PrecomputePlaneLightingConvolutionKernel()
     {
         // Get temporal kernel
         int kernel = initializePlaneLightingTemporalConvolutionKernelKernel;
-        computeCenterCS.SetTexture(kernel, "planeLightingConvolutionKernel", planeLightingConvolutionKernel);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+        computeManagerCS.SetTexture(kernel, "planeLightingConvolutionKernel", planeLightingConvolutionKernel);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
 
         // DFTU
         kernel = dftStepUKernel;
         int fftButterflySize = 1;
         if (fftButterflySize < fftTextureSize)
         {
-            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingConvolutionKernel);
-            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureInImag);
-            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+            computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingConvolutionKernel);
+            computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureInImag);
+            computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
             SwapFFTTexture();
             fftButterflySize <<= 1;
 
             while (fftButterflySize < fftTextureSize)
             {
-                computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
-                computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
-                computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-                computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-                computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-                computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+                computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+                computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+                computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+                computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+                computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+                computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
                 SwapFFTTexture();
                 fftButterflySize <<= 1;
             }
@@ -763,56 +801,56 @@ public class ComputeCenter
         fftButterflySize = 1;
         while (fftButterflySize < fftTextureSize)
         {
-            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
-            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
-            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+            computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
             SwapFFTTexture();
             fftButterflySize <<= 1;
         }
 
         // Copy the result
         kernel = copyTextureKernel;
-        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
-        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingConvolutionKernel);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
-        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmpImag);
-        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingConvolutionKernelImag);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+        computeManagerCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
+        computeManagerCS.SetTexture(kernel, "textureTo", planeLightingConvolutionKernel);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+        computeManagerCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmpImag);
+        computeManagerCS.SetTexture(kernel, "textureTo", planeLightingConvolutionKernelImag);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
     }
 
     public void PlaneLightingTextureBlurFFT()
     {
         // padding
         int kernel = padPlaneLightingTextureKernel;
-        computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureIn);
-        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+        computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureIn);
+        computeManagerCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
 
         // DFTU
         kernel = dftStepUKernel;
         int fftButterflySize = 1;
         if (fftButterflySize < fftTextureSize)
         {
-            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureIn);
-            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureInImag);
-            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+            computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureIn);
+            computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureInImag);
+            computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
             SwapFFTTexture();
             fftButterflySize <<= 1;
 
             while (fftButterflySize < fftTextureSize)
             {
-                computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
-                computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
-                computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-                computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-                computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-                computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+                computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+                computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+                computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+                computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+                computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+                computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
                 SwapFFTTexture();
                 fftButterflySize <<= 1;
             }
@@ -823,12 +861,12 @@ public class ComputeCenter
         fftButterflySize = 1;
         while (fftButterflySize < fftTextureSize)
         {
-            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
-            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
-            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+            computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
             SwapFFTTexture();
             fftButterflySize <<= 1;
         }
@@ -836,10 +874,10 @@ public class ComputeCenter
         // Multiply in frequency domain
         
         kernel = planeLightingFrequencyDomainMultiplyKernel;
-        computeCenterCS.SetTexture(kernel, "planeLightingConvolutionKernel", planeLightingConvolutionKernel);
-        computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureTmp);
-        computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureTmpImag);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+        computeManagerCS.SetTexture(kernel, "planeLightingConvolutionKernel", planeLightingConvolutionKernel);
+        computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureTmp);
+        computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureTmpImag);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
         
 
         // IDFTU
@@ -847,12 +885,12 @@ public class ComputeCenter
         fftButterflySize = 1;
         while (fftButterflySize < fftTextureSize)
         {
-            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
-            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
-            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
+            computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 32), GUtils.GetComputeGroupNum(fftTextureSize, 16), 1);
             SwapFFTTexture();
             fftButterflySize <<= 1;
         }
@@ -862,21 +900,21 @@ public class ComputeCenter
         fftButterflySize = 1;
         while (fftButterflySize < fftTextureSize)
         {
-            computeCenterCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
-            computeCenterCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
-            computeCenterCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
-            computeCenterCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
-            computeCenterCS.SetInt("fftButterflySize", fftButterflySize);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
+            computeManagerCS.SetTexture(kernel, "fftInReal", planeLightingTextureTmp);
+            computeManagerCS.SetTexture(kernel, "fftInImag", planeLightingTextureTmpImag);
+            computeManagerCS.SetTexture(kernel, "fftOutReal", planeLightingTextureOut);
+            computeManagerCS.SetTexture(kernel, "fftOutImag", planeLightingTextureOutImag);
+            computeManagerCS.SetInt("fftButterflySize", fftButterflySize);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(fftTextureSize, 16), GUtils.GetComputeGroupNum(fftTextureSize, 32), 1);
             SwapFFTTexture();
             fftButterflySize <<= 1;
         }
 
         // Copy the result
         kernel = copyTextureKernel;
-        computeCenterCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
-        computeCenterCS.SetTexture(kernel, "textureTo", planeLightingTexture);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
+        computeManagerCS.SetTexture(kernel, "textureFrom", planeLightingTextureTmp);
+        computeManagerCS.SetTexture(kernel, "textureTo", planeLightingTexture);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32), 1);
     }
 
     public void SwapFFTTexture()
@@ -895,8 +933,8 @@ public class ComputeCenter
     public void ClearPlaneLightingTexture(RenderTexture tex)
     {
         int kernel = resetPlaneLightingTextureKernel;
-        computeCenterCS.SetTexture(kernel, "planeLightingTexture", tex);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32));
+        computeManagerCS.SetTexture(kernel, "planeLightingTexture", tex);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 32), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 32));
     }
 
     public void SkillGetAvailablePosition()
@@ -905,10 +943,10 @@ public class ComputeCenter
         availablePositionDataCB.SetData(availablePositionData);
 
         int kernel = skillGetAvailablePositionKernel;
-        computeCenterCS.SetBuffer(kernel, "availablePositionData", availablePositionDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, 16, 1, 16); // 这个改了之后需要同步改compute shader
+        computeManagerCS.SetBuffer(kernel, "availablePositionData", availablePositionDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.Dispatch(kernel, 16, 1, 16); // 这个改了之后需要同步改compute shader
     }
 
     public void SkillTransferBulletType()
@@ -917,11 +955,11 @@ public class ComputeCenter
         if (state == 3 || state == 4)
         {
             int kernel = skillTransferBulletTypeKernel;
-            computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-            computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-            computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-            computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+            computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+            computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+            computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+            computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
 
             enemyBulletNum[0] = 0;
             sourceEnemyBulletNumCB.SetData(enemyBulletNum);
@@ -931,33 +969,33 @@ public class ComputeCenter
     public void ProcessBulletBulletCollision()
     {
         int kernel = processBulletBulletCollisionKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
     }
 
     public void BuildBulletCollisionGrid()
     {
         int kernel = resetBulletGridKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX * bulletGridLengthZ, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX * bulletGridLengthZ, 256), 1, 1);
 
         kernel = buildPlayerBulletGridKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
 
         kernel = buildEnemyBulletGridKernel;
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void BuildBulletRenderingGrid()
@@ -982,23 +1020,23 @@ public class ComputeCenter
         */
 
         int kernel = resetBulletRenderingGridKernel;
-        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
-        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
-        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX * bulletGridLengthZ, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
+        computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData4x4", bulletRenderingGridDataCB[2]);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX * bulletGridLengthZ, 256), 1, 1);
 
         kernel = resolveBulletRenderingGrid1x1Kernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
-        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
+        computeManagerCS.SetBuffer(kernel, "playerBulletGridData", playerBulletGridDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletGridData", enemyBulletGridDataCB);
+        computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
 
         kernel = resolveBulletRenderingGrid2x2Kernel;
-        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
-        computeCenterCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
+        computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
+        computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData2x2", bulletRenderingGridDataCB[1]);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
 
         /*
         kernel = resolveBulletRenderingGrid4x4Kernel;
@@ -1013,16 +1051,16 @@ public class ComputeCenter
         ClearPlaneLightingTexture(planeLightingTexture);
 
         int kernel = generatePlaneLightingTextureKernel;
-        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+        computeManagerCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
 
         kernel = resolvePlaneLightingTextureKernel;
-        computeCenterCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 16), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 16));
+        computeManagerCS.SetTexture(kernel, "planeLightingTexture", planeLightingTexture);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(planeLightingTextureWidth, 16), 1, GUtils.GetComputeGroupNum(planeLightingTextureHeight, 16));
 
         PlaneLightingTextureBlurFFT();
 
@@ -1058,21 +1096,21 @@ public class ComputeCenter
     public void SetGlobalConstant()
     {
         // gravity
-        computeCenterCS.SetFloat("gravity", 9.8f);
+        computeManagerCS.SetFloat("gravity", 9.8f);
 
         // plane
-        computeCenterCS.SetFloat("planeXMin", -20.0f);
-        computeCenterCS.SetFloat("planeXMax", 20.0f);
-        computeCenterCS.SetFloat("planeZMin", -15.0f);
-        computeCenterCS.SetFloat("planeZMax", 15.0f);
+        computeManagerCS.SetFloat("planeXMin", -20.0f);
+        computeManagerCS.SetFloat("planeXMax", 20.0f);
+        computeManagerCS.SetFloat("planeZMin", -15.0f);
+        computeManagerCS.SetFloat("planeZMax", 15.0f);
 
         // plane lighting
-        computeCenterCS.SetFloat("planeLightingTextureWidth", planeLightingTextureWidth);
-        computeCenterCS.SetFloat("planeLightingTextureHeight", planeLightingTextureHeight);
-        computeCenterCS.SetFloat("planeLightingTexturePixelSizeX", 40.0f / planeLightingTextureWidth);
-        computeCenterCS.SetFloat("planeLightingTexturePixelSizeY", 30.0f / planeLightingTextureHeight);
-        computeCenterCS.SetFloats("planeSizeInv", 1.0f / 40.0f, 1.0f, 1.0f / 30.0f);
-        computeCenterCS.SetInt("fftTextureSize", fftTextureSize);
+        computeManagerCS.SetFloat("planeLightingTextureWidth", planeLightingTextureWidth);
+        computeManagerCS.SetFloat("planeLightingTextureHeight", planeLightingTextureHeight);
+        computeManagerCS.SetFloat("planeLightingTexturePixelSizeX", 40.0f / planeLightingTextureWidth);
+        computeManagerCS.SetFloat("planeLightingTexturePixelSizeY", 30.0f / planeLightingTextureHeight);
+        computeManagerCS.SetFloats("planeSizeInv", 1.0f / 40.0f, 1.0f, 1.0f / 30.0f);
+        computeManagerCS.SetInt("fftTextureSize", fftTextureSize);
         Shader.SetGlobalFloat("planeLightingTextureIntensity", 0.0f);
 
         // plane lighting gaussian blur precomputed weights
@@ -1089,24 +1127,24 @@ public class ComputeCenter
         {
             weights[i * 4] /= weightSum;
         }
-        computeCenterCS.SetFloats("planeLightingGaussianBlurWeight", weights);
+        computeManagerCS.SetFloats("planeLightingGaussianBlurWeight", weights);
 
         // screen
-        computeCenterCS.SetFloat("screenWidth", (float)Screen.width);
-        computeCenterCS.SetFloat("screenHeight", (float)Screen.height);
+        computeManagerCS.SetFloat("screenWidth", (float)Screen.width);
+        computeManagerCS.SetFloat("screenHeight", (float)Screen.height);
         Shader.SetGlobalFloat("screenWidth", (float)Screen.width);
         Shader.SetGlobalFloat("screenHeight", (float)Screen.height);
 
         // enemy movement
-        computeCenterCS.SetFloat("enemySpacingAcceleration", 0.2f);
-        computeCenterCS.SetFloat("enemyCollisionVelocityRestitution", 0.5f);
+        computeManagerCS.SetFloat("enemySpacingAcceleration", 0.2f);
+        computeManagerCS.SetFloat("enemyCollisionVelocityRestitution", 0.5f);
 
         // bullet grid
-        computeCenterCS.SetInt("bulletGridLengthX", bulletGridLengthX);
-        computeCenterCS.SetInt("bulletGridLengthZ", bulletGridLengthZ);
-        computeCenterCS.SetVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
-        computeCenterCS.SetFloat("bulletGridSize", bulletGridSize);
-        computeCenterCS.SetFloat("bulletGridSizeInv", bulletGridSizeInv);
+        computeManagerCS.SetInt("bulletGridLengthX", bulletGridLengthX);
+        computeManagerCS.SetInt("bulletGridLengthZ", bulletGridLengthZ);
+        computeManagerCS.SetVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
+        computeManagerCS.SetFloat("bulletGridSize", bulletGridSize);
+        computeManagerCS.SetFloat("bulletGridSizeInv", bulletGridSizeInv);
         Shader.SetGlobalInt("bulletGridLengthX", bulletGridLengthX);
         Shader.SetGlobalInt("bulletGridLengthZ", bulletGridLengthZ);
         Shader.SetGlobalVector("bulletGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
@@ -1114,11 +1152,19 @@ public class ComputeCenter
         Shader.SetGlobalFloat("bulletGridSizeInv", bulletGridSizeInv);
         Shader.SetGlobalVector("bulletGridBottomLeftCellCenterPos", new Vector3(-32.0f + 0.5f * bulletGridSize, 0.5f, -16.0f + 0.5f * bulletGridSize));
 
+        // enemy grid
+        computeManagerCS.SetInt("enemyGridLengthX", enemyGridLengthX);
+        computeManagerCS.SetInt("enemyGridLengthZ", enemyGridLengthZ);
+        computeManagerCS.SetInt("enemyGridLength", enemyGridLength);
+        computeManagerCS.SetVector("enemyGridBottomLeftPos", new Vector3(-32.0f, 0.5f, -16.0f));
+        computeManagerCS.SetFloat("enemyGridSize", enemyGridSize);
+        computeManagerCS.SetFloat("enemyGridSizeInv", enemyGridSizeInv);
+
         // bullet color
         Shader.SetGlobalVector("player1BulletColor", gameManager.player1BulletColor);
         Shader.SetGlobalVector("player2BulletColor", gameManager.player2BulletColor);
-        computeCenterCS.SetInt("packedPlayer1BulletColor", (int)GUtils.SRGBColorToLinearUInt(gameManager.player1BulletColor));
-        computeCenterCS.SetInt("packedPlayer2BulletColor", (int)GUtils.SRGBColorToLinearUInt(gameManager.player2BulletColor));
+        computeManagerCS.SetInt("packedPlayer1BulletColor", (int)GUtils.SRGBColorToLinearUInt(gameManager.player1BulletColor));
+        computeManagerCS.SetInt("packedPlayer2BulletColor", (int)GUtils.SRGBColorToLinearUInt(gameManager.player2BulletColor));
 
         // lighting
         Vector3 lightDir = GameObject.Find("Directional Light").GetComponent<Transform>().forward;
@@ -1132,7 +1178,7 @@ public class ComputeCenter
         // player 2 skill 0
         float player2Skill0V0 = 2.5f;
         float player2Skill0TMax = player2Skill0V0 * 0.2f;
-        computeCenterCS.SetFloat("player2Skill0TMax", player2Skill0TMax);
+        computeManagerCS.SetFloat("player2Skill0TMax", player2Skill0TMax);
         Shader.SetGlobalFloat("player2Skill0TMax", player2Skill0TMax);
         Shader.SetGlobalFloat("player2Skill0V0", player2Skill0V0);
     }
@@ -1162,54 +1208,54 @@ public class ComputeCenter
         float xAtZMax = intersectionList[3].x;
         float lerpCoefficient = 1.0f / (zMax - zMin);
 
-        computeCenterCS.SetFloat("viewFrustrumZMin", zMin);
-        computeCenterCS.SetFloat("viewFrustrumZMax", zMax);
-        computeCenterCS.SetFloat("viewFrustrumXAtZMin", xAtZMin);
-        computeCenterCS.SetFloat("viewFrustrumXAtZMax", xAtZMax);
-        computeCenterCS.SetFloat("viewFrustrumCullingLerpCoefficient", lerpCoefficient);
+        computeManagerCS.SetFloat("viewFrustrumZMin", zMin);
+        computeManagerCS.SetFloat("viewFrustrumZMax", zMax);
+        computeManagerCS.SetFloat("viewFrustrumXAtZMin", xAtZMin);
+        computeManagerCS.SetFloat("viewFrustrumXAtZMax", xAtZMax);
+        computeManagerCS.SetFloat("viewFrustrumCullingLerpCoefficient", lerpCoefficient);
     }
 
     public void ProcessEnemyBulletCollision()
     {
         int kernel = processEnemyBulletCollisionKernel;
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void CullEnemyBullet()
     {
         int kernel = cullEnemyBulletKernel;
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "culledEnemyBulletData", targetEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "culledEnemyBulletNum", targetEnemyBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "culledEnemyBulletData", targetEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "culledEnemyBulletNum", targetEnemyBulletNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void UpdateEnemyBulletVelocityAndPosition()
     {
         int kernel = updateEnemyBulletVelocityAndPositionKernel;
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyBulletNum, 256), 1, 1);
     }
 
     public void EnemyShoot()
     {
         int kernel = enemyShootKernel;
-        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "enemyWeaponData", enemyWeaponDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "enemyWeaponData", enemyWeaponDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     public void InitializeEnemyWeapon()
@@ -1360,7 +1406,7 @@ public class ComputeCenter
             size = 1.0f,
             hittable = GameManager.player1.hittable ? (uint)1 : 0,
             hitByEnemy = 0,
-            dir = GameManager.player1.body.velocity.normalized,
+            velocity = GameManager.player1.body.velocity,
         };
         playerData[1] = new PlayerDatum
         {
@@ -1370,7 +1416,7 @@ public class ComputeCenter
             size = 1.0f,
             hittable = GameManager.player2.hittable ? (uint)1 : 0,
             hitByEnemy = 0,
-            dir = GameManager.player2.body.velocity.normalized,
+            velocity = GameManager.player2.body.velocity,
         };
         playerDataCB.SetData(playerData);
     }
@@ -1487,9 +1533,9 @@ public class ComputeCenter
     public void DrawPlayerBullet()
     {
         int kernel = updateDrawPlayerBulletArgsKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "drawPlayerBulletArgs", drawPlayerBulletArgsCB);
-        computeCenterCS.Dispatch(kernel, 1, 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "drawPlayerBulletArgs", drawPlayerBulletArgsCB);
+        computeManagerCS.Dispatch(kernel, 1, 1, 1);
 
         Graphics.DrawMeshInstancedIndirect(
             playerBulletMesh,
@@ -1527,9 +1573,9 @@ public class ComputeCenter
     public void DrawEnemyBullet()
     {
         int kernel = updateDrawEnemyBulletArgsKernel;
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "drawEnemyBulletArgs", drawEnemyBulletArgsCB);
-        computeCenterCS.Dispatch(kernel, 1, 1, 1);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "drawEnemyBulletArgs", drawEnemyBulletArgsCB);
+        computeManagerCS.Dispatch(kernel, 1, 1, 1);
 
         Graphics.DrawMeshInstancedIndirect(
             enemyBulletMesh,
@@ -1545,11 +1591,11 @@ public class ComputeCenter
     public void DrawEnemy()
     {
         int kernel = updateDrawEnemyArgsKernel;
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
-        computeCenterCS.SetBuffer(kernel, "drawDeployingSphereEnemyArgs", drawDeployingSphereEnemyArgsCB);
-        computeCenterCS.Dispatch(kernel, 1, 1, 1);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
+        computeManagerCS.SetBuffer(kernel, "drawDeployingSphereEnemyArgs", drawDeployingSphereEnemyArgsCB);
+        computeManagerCS.Dispatch(kernel, 1, 1, 1);
 
         Shader.SetGlobalBuffer("sphereEnemyData", sourceSphereEnemyDataCB);
         Shader.SetGlobalBuffer("deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
@@ -1575,39 +1621,42 @@ public class ComputeCenter
 
     public void ProcessPlayerBulletCollision()
     {
+        UpdateEnemyGrid();
+
         int kernel = processPlayerBulletCollisionKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 64), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "enemyGridData", enemyGridDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
 
     public void ProcessPlayerBulletBossCollision()
     {
         int kernel = processPlayerBulletBossCollisionKernel;
-        computeCenterCS.SetBuffer(kernel, "bossData", bossDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "bossData", bossDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
 
     public void ProcessPlayerEnemyCollision()
     {
         int kernel = processPlayerEnemyCollisionKernel;
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     public void ProcessBossEnemyCollision()
     {
         int kernel = processBossEnemyCollisionKernel;
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "bossData", bossDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "bossData", bossDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     // 这里的cull包含三个方面
@@ -1618,11 +1667,11 @@ public class ComputeCenter
     public void CullPlayerBullet()
     {
         int kernel = cullPlayerBulletKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "culledPlayerBulletData", targetPlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "culledPlayerBulletNum", targetPlayerBulletNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "culledPlayerBulletData", targetPlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "culledPlayerBulletNum", targetPlayerBulletNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
 
     public void CullEnemy()
@@ -1631,13 +1680,13 @@ public class ComputeCenter
         deadEnemyNumCB.SetData(deadEnemyNum);
 
         int kernel = cullSphereEnemyKernel;
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "culledSphereEnemyData", targetSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "culledSphereEnemyNum", targetSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
-        computeCenterCS.SetBuffer(kernel, "deadEnemyNum", deadEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "culledSphereEnemyData", targetSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "culledSphereEnemyNum", targetSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "drawSphereEnemyArgs", drawSphereEnemyArgsCB);
+        computeManagerCS.SetBuffer(kernel, "deadEnemyNum", deadEnemyNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     public void SwapAndResetDataBuffer()
@@ -1665,52 +1714,57 @@ public class ComputeCenter
     public void UpdatePlayerBulletPosition()
     {
         int kernel = updatePlayerBulletPositionKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerSkillData", playerSkillDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxPlayerBulletNum, 256), 1, 1);
     }
     public void UpdateEnemyVelocityAndPosition()
     {
         int kernel = updateEnemyVelocityAndPositionKernel;
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
 
-        computeCenterCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(resolveEnemyCollision1Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
-        computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(resolveEnemyCollision2Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
+        computeManagerCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(resolveEnemyCollision1Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(resolveEnemyCollision1Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
+        computeManagerCS.SetBuffer(resolveEnemyCollision1Kernel, "enemyGridData", enemyGridDataCB);
+
+        computeManagerCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(resolveEnemyCollision2Kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(resolveEnemyCollision2Kernel, "enemyCollisionCacheData", enemyCollisionCacheDataCB);
+        
         for (int i = 0; i < 8; i++)
         {
-            if (i == 0) computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 1.0f);
-            else computeCenterCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.1f);
-            computeCenterCS.Dispatch(resolveEnemyCollision1Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
-            computeCenterCS.Dispatch(resolveEnemyCollision2Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+            UpdateEnemyGrid();
+
+            if (i == 0) computeManagerCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 1.0f);
+            else computeManagerCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.1f);
+            computeManagerCS.Dispatch(resolveEnemyCollision1Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+            computeManagerCS.Dispatch(resolveEnemyCollision2Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
         }
         
         kernel = applyEnemyGravityKernel;
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerData", playerDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerData", playerDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
     }
 
     public void UpdateComputeGlobalConstant()
     {
-        computeCenterCS.SetInt("playerShootRequestNum", playerShootRequestNum);
-        computeCenterCS.SetInt("bossShootRequestNum", bossShootRequestNum);
-        computeCenterCS.SetInt("createSphereEnemyRequestNum", createSphereEnemyRequestNum);
-        computeCenterCS.SetFloat("deltaTime", GameManager.deltaTime);
-        computeCenterCS.SetFloat("gameTime", GameManager.gameTime);
+        computeManagerCS.SetInt("playerShootRequestNum", playerShootRequestNum);
+        computeManagerCS.SetInt("bossShootRequestNum", bossShootRequestNum);
+        computeManagerCS.SetInt("createSphereEnemyRequestNum", createSphereEnemyRequestNum);
+        computeManagerCS.SetFloat("deltaTime", GameManager.deltaTime);
+        computeManagerCS.SetFloat("gameTime", GameManager.gameTime);
 
         Vector3 pPos = GameManager.player1.GetPos();
-        computeCenterCS.SetFloats("player1Pos", pPos.x, pPos.y, pPos.z);
+        computeManagerCS.SetFloats("player1Pos", pPos.x, pPos.y, pPos.z);
         pPos = GameManager.player2.GetPos();
-        computeCenterCS.SetFloats("player2Pos", pPos.x, pPos.y, pPos.z);
+        computeManagerCS.SetFloats("player2Pos", pPos.x, pPos.y, pPos.z);
     }
 
     public void AppendPlayerShootRequest(Vector3 _pos, Vector3 _dir, float _speed, float _radius, int _damage, int _bounces, float _lifeSpan, float _impulse, float _virtualY, int _player, float _renderingBiasY, uint _color, bool _affectedByPlayer1Skill1)
@@ -1803,10 +1857,10 @@ public class ComputeCenter
         playerShootRequestDataCB.SetData(playerShootRequestData);
 
         int kernel = playerShootKernel;
-        computeCenterCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "playerShootRequestData", playerShootRequestDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(playerShootRequestNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "playerBulletData", sourcePlayerBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "playerBulletNum", sourcePlayerBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "playerShootRequestData", playerShootRequestDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(playerShootRequestNum, 256), 1, 1);
     }
 
     public void ExecuteBossShootRequest()
@@ -1817,10 +1871,10 @@ public class ComputeCenter
         bossShootRequestDataCB.SetData(bossShootRequestData);
 
         int kernel = bossShootKernel;
-        computeCenterCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
-        computeCenterCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
-        computeCenterCS.SetBuffer(kernel, "bossShootRequestData", bossShootRequestDataCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bossShootRequestNum, 256), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletData", sourceEnemyBulletDataCB);
+        computeManagerCS.SetBuffer(kernel, "enemyBulletNum", sourceEnemyBulletNumCB);
+        computeManagerCS.SetBuffer(kernel, "bossShootRequestData", bossShootRequestDataCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bossShootRequestNum, 256), 1, 1);
     }
 
 public void ExecuteCreateEnemyRequest()
@@ -1832,23 +1886,23 @@ public void ExecuteCreateEnemyRequest()
             createSphereEnemyRequestDataCB.SetData(createSphereEnemyRequestData);
 
             int kernel = createSphereEnemyKernel;
-            computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
-            computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
-            computeCenterCS.SetBuffer(kernel, "createSphereEnemyRequestData", createSphereEnemyRequestDataCB);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(createSphereEnemyRequestNum, 128), 1, 1);
+            computeManagerCS.SetBuffer(kernel, "deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
+            computeManagerCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
+            computeManagerCS.SetBuffer(kernel, "createSphereEnemyRequestData", createSphereEnemyRequestDataCB);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(createSphereEnemyRequestNum, 128), 1, 1);
         }
     }
 
     public void UpdateDeployingEnemy()
     {
         int kernel = updateDeployingEnemyKernel;
-        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "culledDeployingSphereEnemyData", targetDeployingSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "culledDeployingSphereEnemyNum", targetDeployingSphereEnemyNumCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-        computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-        computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxDeployingEnemyNum, 128), 1, 1);
+        computeManagerCS.SetBuffer(kernel, "deployingSphereEnemyData", sourceDeployingSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "deployingSphereEnemyNum", sourceDeployingSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "culledDeployingSphereEnemyData", targetDeployingSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "culledDeployingSphereEnemyNum", targetDeployingSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+        computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxDeployingEnemyNum, 128), 1, 1);
 
         ComputeBuffer tmp = sourceDeployingSphereEnemyDataCB;
         sourceDeployingSphereEnemyDataCB = targetDeployingSphereEnemyDataCB;
@@ -1868,9 +1922,9 @@ public void ExecuteCreateEnemyRequest()
             knockOutAllEnemyRequest = false;
 
             int kernel = knockOutAllEnemyKernel;
-            computeCenterCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
-            computeCenterCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
-            computeCenterCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
+            computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
+            computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+            computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
         }
     }
 

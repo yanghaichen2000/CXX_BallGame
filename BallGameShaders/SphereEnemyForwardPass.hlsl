@@ -335,7 +335,6 @@ void LitPassFragment(
             }
         }
         
-        
         // 2x2 cell
         int possible2x2IndexList[20];
         int possible2x2XZNum = 0;
@@ -358,6 +357,7 @@ void LitPassFragment(
                 }
             }
         }
+        
             
         for (int i = 0; i < possible2x2XZNum; i++)
         {
