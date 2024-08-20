@@ -421,7 +421,7 @@ public class SharedSkill0 : Skill
 
 public class SharedSkill1 : Skill
 {
-    public float cd = 20.0f;
+    public float cd = 25.0f;
     public float duration = 4.0f;
 
     public float lastTriggeredTime = -99999.9f;

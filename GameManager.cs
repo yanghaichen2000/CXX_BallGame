@@ -200,12 +200,15 @@ public class GameManager : MonoBehaviour
                 {
                     state = 2;
                     uiManager.UpdateUIState(state, true);
+                    boss.body.isKinematic = true;
                 }
                 else if (level.currentWave == 20 && level.currentEnemyNum == 0 && boss.obj.transform.localPosition.y < -5.0f)
                 {
                     state = 2;
                     uiManager.UpdateUIState(state, false);
-                    
+                    boss.body.isKinematic = true;
+                    player1.body.isKinematic = true;
+                    player2.body.isKinematic = true;
                 }
             }
             if (gamePaused)

@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 public class ComputeManager
 {
     //
-    const bool debugPrintReadbackTime = true;
+    const bool debugPrintReadbackTime = false;
     int debugReadbackFrame1 = 0;
     int debugReadbackFrame2 = 0;
     //
@@ -373,8 +373,8 @@ public class ComputeManager
     Material sphereEnemyMaterial;
     Material deployingSphereEnemyMaterial;
 
-    const int planeLightingTextureWidth = 256;
-    const int planeLightingTextureHeight = 256;
+    const int planeLightingTextureWidth = 224;
+    const int planeLightingTextureHeight = 224;
     const int fftTextureSize = 256; // 要求planeLightingTexture长宽一样
     RenderTexture planeLightingTexture;
     RenderTexture planeLightingTextureIn;

@@ -14,9 +14,9 @@ public class Boss
     public const float state3Cd = 5.0f;
     public const float state3Duration = 3.0f;
     public const float state3LoadingTime = 1.0f;
-    public const float state4InitialStateTransitionPossibility = 0.33f;
+    public const float state4InitialStateTransitionPossibility = 0.75f;
     public const float state4Duration = 15.0f;
-    public const float state4Cd = 60.0f;
+    public const float state4Cd = 50.0f;
     public const float state5VerticalSpeed = 50.0f;
     public const float state5Duration = 1.0f;
     public const float state6InitialStopDuration = 0.7f;
@@ -74,7 +74,7 @@ public class Boss
         weapon = new BossWeapon(WeaponDatumSample.bossState1);
         state = 1;
         lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
-        maxHP = 777777;
+        maxHP = 666666;
         hp = maxHP;
         mass = GetMassFromHP(hp);
         stateStartTime = GameManager.gameTime;
@@ -321,7 +321,7 @@ public class Boss
                     weapon.lastShootTime = GameManager.gameTime + state3LoadingTime;
                 }
                 //else if (GUtils.RandomBool(1.0f))
-                else if (hp < maxHP * 0.625f && GUtils.RandomBool(0.3f))
+                else if (hp < maxHP * 0.625f && GUtils.RandomBool(0.5f))
                 {
                     state = 6;
                     UpdateStateStartTime();
@@ -342,7 +342,7 @@ public class Boss
         {
             if (GameManager.gameTime - stateStartTime > state3Duration)
             {
-                //if (GUtils.RandomBool(1.0f))
+                if (GUtils.RandomBool(1.0f))
                 if (hp < maxHP * 0.8f && GUtils.RandomBool(state4StateTransitionPossibility) && GameManager.gameTime - lastState4StartTime > state4Cd)
                 {
                     state = 4;
