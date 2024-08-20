@@ -74,7 +74,7 @@ public class Boss
         weapon = new BossWeapon(WeaponDatumSample.bossState1);
         state = 1;
         lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
-        maxHP = 666666;
+        maxHP = 888888;
         hp = maxHP;
         mass = GetMassFromHP(hp);
         stateStartTime = GameManager.gameTime;

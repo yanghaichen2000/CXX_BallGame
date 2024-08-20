@@ -1452,7 +1452,7 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
         posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
     }
     float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
-    colorCache[groupThreadID.x][groupThreadID.z] = colorSum * bulletNumInv;
+    colorCache[groupThreadID.x][groupThreadID.z] = colorSum;
     posCache[groupThreadID.x][groupThreadID.z] = posSum * bulletNumInv;
     bulletNumCache[groupThreadID.x][groupThreadID.z] = bulletNum;
     
@@ -1470,7 +1470,7 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
             posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
         }
         float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
-        colorCache[groupThreadID.x + 1][groupThreadID.z] = colorSum * bulletNumInv;
+        colorCache[groupThreadID.x + 1][groupThreadID.z] = colorSum;
         posCache[groupThreadID.x + 1][groupThreadID.z] = posSum * bulletNumInv;
         bulletNumCache[groupThreadID.x + 1][groupThreadID.z] = bulletNum;
     }
@@ -1488,7 +1488,7 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
             posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
         }
         float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
-        colorCache[groupThreadID.x][groupThreadID.z + 1] = colorSum * bulletNumInv;
+        colorCache[groupThreadID.x][groupThreadID.z + 1] = colorSum;
         posCache[groupThreadID.x][groupThreadID.z + 1] = posSum * bulletNumInv;
         bulletNumCache[groupThreadID.x][groupThreadID.z + 1] = bulletNum;
         
@@ -1506,7 +1506,7 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
                 posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
             }
             float bulletNumInv = bulletNum == 0 ? 0.0f : 1.0f / bulletNum;
-            colorCache[groupThreadID.x + 1][groupThreadID.z + 1] = colorSum * bulletNumInv;
+            colorCache[groupThreadID.x + 1][groupThreadID.z + 1] = colorSum;
             posCache[groupThreadID.x + 1][groupThreadID.z + 1] = posSum * bulletNumInv;
             bulletNumCache[groupThreadID.x + 1][groupThreadID.z + 1] = bulletNum;
         }
