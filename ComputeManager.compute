@@ -616,7 +616,7 @@ void CullSphereEnemy(uint3 id : SV_DispatchThreadID)
     EnemyDatum enemy = sphereEnemyData[id.x];
     if (id.x < sphereEnemyNum[0])
     {
-        if (enemy.pos.y > -8.0f)
+        if (enemy.pos.y > -5.0f)
         {
             int index;
             InterlockedAdd(culledSphereEnemyNum[0], 1, index);
@@ -1057,16 +1057,16 @@ void ProcessPlayerEnemyCollision(uint3 id : SV_DispatchThreadID)
                         float3 dir = normalize(relativePos);
                         enemy.velocity = float3(0.0f, 0.0f, 0.0f);
                         enemy.pos = player.pos - dir * minDistance;
-                        float3 dV = -dir * 2.0f;
+                        float3 dV = -dir * 3.0f;
                         
                         // extra normal impulse
                         if (length(player.velocity > 0.1f))
                         {
                             float3 playerVelocityNormal = normalize(float3(player.velocity.z, 0.0f, -player.velocity.x));
                             if (dot(playerVelocityNormal, -dir) > 0.0f)
-                                dV += playerVelocityNormal * 4.5f;
+                                dV += playerVelocityNormal * 6.0f;
                             else
-                                dV -= playerVelocityNormal * 4.5f;
+                                dV -= playerVelocityNormal * 6.0f;
                         }
                             
                         dV.y = 0.0f;
@@ -1285,8 +1285,8 @@ void SkillTransferBulletType(uint3 id : SV_DispatchThreadID)
         float r = Random3DTo1D(gameTime * 100.0f, id.x * 0.5f, index * 0.5f);
         int createdByPlayer1 = r < player1BulletRate;
         BulletDatum bullet = enemyBulletData[id.x];
-        bullet.damage = createdByPlayer1 ? 1.0f : 0.3f;
-        bullet.impulse = createdByPlayer1 ? 0.5f : 1.0f;
+        bullet.damage = createdByPlayer1 ? 2.0f : 0.5f;
+        bullet.impulse = createdByPlayer1 ? 1.0f : 2.0f;
         bullet.renderingBiasY = createdByPlayer1 ? 0.0f : 1.0f;
         SetBit(bullet.packedInfo, 0, createdByPlayer1 ? 0 : 1);
         uint packedColor = createdByPlayer1 ? packedPlayer1BulletColor : packedPlayer2BulletColor;
@@ -1349,6 +1349,8 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
     {
         BulletDatum bullet = playerBulletData[playerBulletGridData[index].bulletIndexList[i]];
         bool valid = true;
+        
+        /*
         for (int j = 0; j < sphereEnemyNum[0]; j++)
         {
             if (length(bullet.pos - sphereEnemyData[j].pos) <= 0.5f)
@@ -1357,6 +1359,32 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
                 break;
             }
         }
+        */
+        
+        
+        int cellIndex = GetEnemyGridIndexFromPos(bullet.pos);
+        for (int biasX = -1; biasX <= 1; biasX++)
+        {
+            for (int biasZ = -1; biasZ <= 1; biasZ++)
+            {
+                int anotherCellIndex = cellIndex + biasX + biasZ * enemyGridLengthX;
+                if (anotherCellIndex < 0 || anotherCellIndex >= enemyGridLength)
+                    continue;
+                EnemyGridDatum anotherCell = enemyGridData[anotherCellIndex];
+                for (int j = 0; j < 3; j++)
+                {
+                    if (j == anotherCell.size)
+                        break;
+                    int enemyIndex = anotherCell.index[j];
+                    if (length(bullet.pos - sphereEnemyData[enemyIndex].pos) <= 0.5f)
+                    {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+        }
+        
         
         if (valid)
         {
@@ -1371,12 +1399,26 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
     {
         BulletDatum bullet = enemyBulletData[enemyBulletGridData[index].bulletIndexList[i]];
         bool valid = true;
-        for (int j = 0; j < sphereEnemyNum[0]; j++)
+        int cellIndex = GetEnemyGridIndexFromPos(bullet.pos);
+        for (int biasX = -1; biasX <= 1; biasX++)
         {
-            if (length(bullet.pos - sphereEnemyData[j].pos) <= 0.5f)
+            for (int biasZ = -1; biasZ <= 1; biasZ++)
             {
-                valid = false;
-                break;
+                int anotherCellIndex = cellIndex + biasX + biasZ * enemyGridLengthX;
+                if (anotherCellIndex < 0 || anotherCellIndex >= enemyGridLength)
+                    continue;
+                EnemyGridDatum anotherCell = enemyGridData[anotherCellIndex];
+                for (int j = 0; j < 3; j++)
+                {
+                    if (j == anotherCell.size)
+                        break;
+                    int enemyIndex = anotherCell.index[j];
+                    if (length(bullet.pos - sphereEnemyData[enemyIndex].pos) <= 0.5f)
+                    {
+                        valid = false;
+                        break;
+                    }
+                }
             }
         }
         
@@ -1390,6 +1432,7 @@ void ResolveBulletRenderingGrid1x1(uint3 id : SV_DispatchThreadID)
     }
 }
 
+
 groupshared float3 colorCache[9][9];
 groupshared float3 posCache[9][9];
 groupshared int bulletNumCache[9][9];
@@ -1401,7 +1444,8 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
     float3 colorSum = float3(0.0f, 0.0f, 0.0f);
     float3 posSum = float3(0.0f, 0.0f, 0.0f);
     int cellIndex = GetBulletGridIndexFromXZ(id.x, id.z);
-    for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
+    int cellSize = bulletRenderingGridData1x1[cellIndex].size;
+    for (int i = 0; i < min(2, cellSize); i++)
     {
         bulletNum++;
         colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
@@ -1418,7 +1462,8 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
         float3 colorSum = float3(0.0f, 0.0f, 0.0f);
         float3 posSum = float3(0.0f, 0.0f, 0.0f);
         int cellIndex = GetBulletGridIndexFromXZ(id.x + 1, id.z);
-        for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
+        int cellSize = bulletRenderingGridData1x1[cellIndex].size;
+        for (int i = 0; i < min(2, cellSize); i++)
         {
             bulletNum++;
             colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
@@ -1435,7 +1480,8 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
         float3 colorSum = float3(0.0f, 0.0f, 0.0f);
         float3 posSum = float3(0.0f, 0.0f, 0.0f);
         int cellIndex = GetBulletGridIndexFromXZ(id.x, id.z + 1);
-        for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
+        int cellSize = bulletRenderingGridData1x1[cellIndex].size;
+        for (int i = 0; i < min(2, cellSize); i++)
         {
             bulletNum++;
             colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
@@ -1452,7 +1498,8 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
             float3 colorSum = float3(0.0f, 0.0f, 0.0f);
             float3 posSum = float3(0.0f, 0.0f, 0.0f);
             int cellIndex = GetBulletGridIndexFromXZ(id.x + 1, id.z + 1);
-            for (int i = 0; i < bulletRenderingGridData1x1[cellIndex].size; i++)
+            int cellSize = bulletRenderingGridData1x1[cellIndex].size;
+            for (int i = 0; i < min(2, cellSize); i++)
             {
                 bulletNum++;
                 colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
@@ -1484,6 +1531,44 @@ void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID, uint3 groupTh
     bulletRenderingGridData2x2[index].size = size;
 }
 
+
+/*
+[numthreads(8, 1, 8)]
+void ResolveBulletRenderingGrid2x2(uint3 id : SV_DispatchThreadID)
+{
+    int index = GetBulletGridIndexFromId(id);
+    BulletRenderingGridDatum result;
+    int cellSize = 0;
+    for (int x = id.x; x <= id.x + 1; x++)
+    {
+        for (int z = id.z; z <= id.z + 1; z++)
+        {
+            int bulletNum = 0;
+            float3 colorSum = float3(0.0f, 0.0f, 0.0f);
+            float3 posSum = float3(0.0f, 0.0f, 0.0f);
+            int cellIndex = GetBulletGridIndexFromXZ(x, z);
+            for (int i = 0; i < 2; i++)
+            {
+                if (i == bulletRenderingGridData1x1[cellIndex].size)
+                    break;
+                bulletNum++;
+                colorSum += bulletRenderingGridData1x1[cellIndex].color[i];
+                posSum += bulletRenderingGridData1x1[cellIndex].pos[i];
+            }
+            
+            if (bulletNum != 0)
+            {
+                float bulletNumInv = 1.0f / (float) bulletNum;
+                bulletRenderingGridData2x2[index].color[cellSize] = colorSum * bulletNumInv;
+                bulletRenderingGridData2x2[index].pos[cellSize] = posSum * bulletNumInv;
+                cellSize++;
+            }
+        }
+    }
+     
+    bulletRenderingGridData2x2[index].size = cellSize;
+}
+*/
 
 // obsolete
 [numthreads(8, 1, 8)]

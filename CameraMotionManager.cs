@@ -92,4 +92,11 @@ public class CameraMotionManager
             currentDisplacement.y = 0.1f * y * force;
         }
     }
+
+    public void ResetCameraState()
+    {
+        Camera.main.transform.position = originalPosition;
+        Camera.main.transform.rotation = originalRotation;
+        Camera.main.transform.forward = originalForward;
+    }
 }

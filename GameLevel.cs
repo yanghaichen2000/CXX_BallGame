@@ -319,10 +319,10 @@ public class GameLevel
 
     public int Wave16()
     {
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 0.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 5.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 10.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-19.0f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 15.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-1.4f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 0.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-1.4f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 5.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-1.4f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 10.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-1.4f, -14.0f, 2, 15, 8, 1.4f, 2.0f, 15.0f);
 
         for (int i = 0; i < 3; i++)
         {
@@ -408,11 +408,11 @@ public class GameLevel
         GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 4, 3.0f, 3.0f, 9.0f);
         GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 5, 3.0f, 3.0f, 12.0f);
         GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 6, 3.0f, 3.0f, 15.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 20.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 25.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 30.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 36.0f);
-        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 42.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 18.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 21.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 24.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 8, 3.0f, 3.0f, 27.0f);
+        GameManager.enemyLegion.SpawnSphereEnemy(-18.0f, -12.0f, 13, 9, 7, 3.0f, 3.0f, 30.0f);
 
         currentWave++;
         nextWaveTime = GameManager.gameTime + 60.0f;

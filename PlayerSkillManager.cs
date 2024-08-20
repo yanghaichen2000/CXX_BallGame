@@ -118,7 +118,7 @@ public class Player1Skill0 : Skill
 
 public class Player1Skill1 : Skill
 {
-    public float cd = 8.0f;
+    public float cd = 10.0f;
     public float duration = 3.0f;
 
     public Vector3 aimingPointPosition;
@@ -205,8 +205,8 @@ public class Player1Skill1 : Skill
 
 public class Player2Skill0 : Skill
 {
-    public float cd = 60.0f;
-    public float duration = 50.0f;
+    public float cd = 12.0f;
+    public float duration = 5.0f;
 
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
@@ -347,12 +347,14 @@ public class SharedSkill0 : Skill
     {
         if (state == 0) // 可使用
         {
+            /*
             if (Input.GetKey(KeyCode.R))
             {
                 state = 1;
                 lastTriggeredTime = GameManager.gameTime;
             }
-            else if (Input.GetKey("joystick button 0"))
+            */
+            if (Input.GetKey("joystick button 0"))
             {
                 state = 2;
                 lastTriggeredTime = GameManager.gameTime;
@@ -425,11 +427,18 @@ public class SharedSkill1 : Skill
     public float lastTriggeredTime = -99999.9f;
     public int state = 0;
 
+    Material player1mat;
+
+    public SharedSkill1()
+    {
+        player1mat = GameManager.player1.obj.GetComponent<MeshRenderer>().material;
+    }
+
     public void UpdateState()
     {
         if (state == 0) // 可使用
         {
-            if (Input.GetKey(KeyCode.Y))
+            if (Input.GetKey(KeyCode.R))
             {
                 state = 1;
                 lastTriggeredTime = GameManager.gameTime;
@@ -437,6 +446,23 @@ public class SharedSkill1 : Skill
         }
         else if (state == 1) //已触发
         {
+            float ramainingTime = lastTriggeredTime + duration - GameManager.gameTime;
+            if (ramainingTime > 2.0f)
+            {
+                player1mat.SetColor("_BaseColor", GameManager.instance.bossBulletColor);
+            }
+            else
+            {
+                if (Mathf.FloorToInt(ramainingTime * 4.0f) % 2 == 1)
+                {
+                    player1mat.SetColor("_BaseColor", GameManager.player1Color * 0.8f);
+                }
+                else
+                {
+                    player1mat.SetColor("_BaseColor", GameManager.instance.bossBulletColor);
+                }
+            }
+
             if (GameManager.gameTime - lastTriggeredTime > duration)
             {
                 state = 2;

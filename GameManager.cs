@@ -51,6 +51,8 @@ public class GameManager : MonoBehaviour
 
     // const
     public static Plane gamePlane = new Plane(Vector3.up, new Vector3(0, 0.5f, 0));
+    public static Color player1Color;
+
 
     // inspector
     public Color player1BulletColor;
@@ -94,6 +96,8 @@ public class GameManager : MonoBehaviour
         boss = new Boss();
         sceneRenderingManager = new SceneRenderingManager();
         state = 0;
+
+        player1Color = player1.obj.GetComponent<Renderer>().material.color;
     }
 
     void Start()
@@ -185,6 +189,13 @@ public class GameManager : MonoBehaviour
                     player2.weapon = allLevelPlayerData.GetWeapon(1, 20);
                 }
 
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    state = 0;
+                    ResetContext();
+                    uiManager.UpdateUIState(state);
+                }
+
                 if (player1.obj.transform.localPosition.y < -20.0f && player2.obj.transform.localPosition.y < -20.0f)
                 {
                     state = 2;
@@ -228,7 +239,7 @@ public class GameManager : MonoBehaviour
         boss.FixedUpdate();
     }
 
-    private void OnDestroy()
+    void OnDestroy()
     {
         computeManager.Release();
     }
@@ -250,6 +261,10 @@ public class GameManager : MonoBehaviour
 
     public void ResetContext()
     {
+        player1.obj.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", Color.black);
+        player2.obj.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", Color.black);
+        player1.obj.GetComponent<MeshRenderer>().material.SetColor("_BaseColor", player1Color);
+        cameraMotionManager.ResetCameraState();
         computeManager.Release();
         uiManager.obj_gameOver.SetActive(true);
         uiManager.obj_mainMenu.SetActive(true);

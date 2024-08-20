@@ -74,7 +74,7 @@ public class Boss
         weapon = new BossWeapon(WeaponDatumSample.bossState1);
         state = 1;
         lastShootDir = new Vector3(1.0f, 0.0f, 0.0f);
-        maxHP = 800000;
+        maxHP = 777777;
         hp = maxHP;
         mass = GetMassFromHP(hp);
         stateStartTime = GameManager.gameTime;
@@ -210,11 +210,11 @@ public class Boss
             else if (state4Time > 1.0f && state4enemyWaveNum == 0)
             {
                 GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, -12.0f, 8, 8, 8, 1.2f, 1.2f, 0.0f);
-                GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, 12.0f, 8, 8, 8, 1.2f, -1.2f, 0.0f);
+                GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, 12.0f, 8, 8, 9, 1.2f, -1.2f, 0.0f);
                 GameManager.enemyLegion.SpawnSphereEnemy(16.0f, 12.0f, 8, 8, 8, -1.2f, -1.2f, 0.0f);
-                GameManager.enemyLegion.SpawnSphereEnemy(16.0f, -12.0f, 8, 8, 8, -1.2f, 1.2f, 0.0f);
+                GameManager.enemyLegion.SpawnSphereEnemy(16.0f, -12.0f, 8, 8, 9, -1.2f, 1.2f, 0.0f);
 
-                GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, 13.0f, 21, 4, 9, 1.6f, -1.1f, 12.0f);
+                GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, 13.0f, 21, 4, 8, 1.6f, -1.1f, 12.0f);
                 GameManager.enemyLegion.SpawnSphereEnemy(-16.0f, -13.0f, 21, 4, 9, 1.6f, 1.1f, 12.0f);
 
                 state4enemyWaveNum++;
@@ -483,7 +483,6 @@ public class Boss
     {
         hp = Math.Clamp(hp + hpChange, 0, maxHP);
         mass = GetMassFromHP(hp);
-        //mass = 100000.0f;
         GameManager.uiManager.UpdateBossHPAndMass();
     }
 

@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 public class ComputeManager
 {
     //
-    const bool debugPrintReadbackTime = false;
+    const bool debugPrintReadbackTime = true;
     int debugReadbackFrame1 = 0;
     int debugReadbackFrame2 = 0;
     //
@@ -373,8 +373,8 @@ public class ComputeManager
     Material sphereEnemyMaterial;
     Material deployingSphereEnemyMaterial;
 
-    const int planeLightingTextureWidth = 224;
-    const int planeLightingTextureHeight = 224;
+    const int planeLightingTextureWidth = 256;
+    const int planeLightingTextureHeight = 256;
     const int fftTextureSize = 256; // 要求planeLightingTexture长宽一样
     RenderTexture planeLightingTexture;
     RenderTexture planeLightingTextureIn;
@@ -726,7 +726,7 @@ public class ComputeManager
         deployingSphereEnemyDataCB[1].Release();
         deployingSphereEnemyNumCB[0].Release();
         deployingSphereEnemyNumCB[1].Release();
-        cubeEnemyDataCB.Release();
+        cubeEnemyDataCB.Release(); 
         cubeEnemyNumCB.Release();
         createSphereEnemyRequestDataCB.Release();
         createCubeEnemyRequestDataCB.Release();
@@ -1078,6 +1078,7 @@ public class ComputeManager
         computeManagerCS.SetBuffer(kernel, "bulletRenderingGridData1x1", bulletRenderingGridDataCB[0]);
         computeManagerCS.SetBuffer(kernel, "sphereEnemyData", sourceSphereEnemyDataCB);
         computeManagerCS.SetBuffer(kernel, "sphereEnemyNum", sourceSphereEnemyNumCB);
+        computeManagerCS.SetBuffer(kernel, "enemyGridData", enemyGridDataCB);
         computeManagerCS.Dispatch(kernel, GUtils.GetComputeGroupNum(bulletGridLengthX, 8), 1, GUtils.GetComputeGroupNum(bulletGridLengthZ, 8));
 
         kernel = resolveBulletRenderingGrid2x2Kernel;
@@ -1790,7 +1791,7 @@ public class ComputeManager
             UpdateEnemyGrid();
 
             if (i == 0) computeManagerCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 1.0f);
-            else computeManagerCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.1f);
+            else computeManagerCS.SetFloat("resolveEnemyCollision2VelocityCoeff", 0.3f);
             computeManagerCS.Dispatch(resolveEnemyCollision1Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
             computeManagerCS.Dispatch(resolveEnemyCollision2Kernel, GUtils.GetComputeGroupNum(maxEnemyNum, 128), 1, 1);
         }
@@ -1988,5 +1989,4 @@ public void ExecuteCreateEnemyRequest()
         createSphereEnemyRequestNum = 0;
         createCubeEnemyRequestNum = 0;
     }
-
 }
